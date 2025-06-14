@@ -1,0 +1,227 @@
+# -*- coding: utf8 -*-
+# @author: caoyang
+# @email: caoyang@stu.sufe.edu.cn
+
+import torch
+import logging
+from copy import deepcopy
+from functools import wraps
+from torch.nn import functional as F
+
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+# Standard greedy decode
+# @param model: Huggingface model object
+# @param tokenizer: Huggingface tokenizer Object
+# @param prompt: Str
+# @param max_length: Int, the number of tokens to be generated
+# @param device: Str, e.g. "cuda" or "cpu"
+# @param use_kv_cache: Boolean, whether to use KV-cache to accelerate, if True then large memory will be consumed
+# @return generated_text: Str
+# @return generated_token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
+# @return generated_logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length`, indicating the logits when each token is generated
+def greedy_decode(model,
+				  tokenizer,
+				  prompt, 
+				  max_length,
+				  device = "cuda",
+				  use_kv_cache = True,
+				  ):
+	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)	# Str => Long(1, n_tokens)
+	past_key_values = None
+	generated_token_probs = list()
+	generated_logits = list()
+	model.gradient_checkpointing_enable()
+	for i in range(max_length):
+		logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
+		outputs = model(inputs, past_key_values=past_key_values)
+		logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in DeepSeek-R1-Distill-Qwen
+		if use_kv_cache:
+			if past_key_values is None:
+				outputs = model(inputs, past_key_values=None)
+			else:
+				outputs = model(inputs[:, -1].unsqueeze(0), past_key_values=past_key_values, use_cache=True)
+			past_key_values = outputs.past_key_values	# Dictlike[key_cache: Float(1, 2, X, hidden_size), value_cache: Float(1, 2, X, hidden_size)], where X = (i + 1) * (n_tokens + i / 2)
+		else:
+			outputs = model(inputs, past_key_values=None, use_cache=False)
+		next_token_probs = F.softmax(logits[:, -1, :], dim=-1)	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
+		next_token_id = torch.argmax(next_token_probs, dim=-1)	# Float(1, n_vocab) => Long(1, )
+		next_token_prob = next_token_probs[0, next_token_id].item()	# Float(1, n_vocab) => Float()
+		next_token = tokenizer.decode(next_token_id[0].item(), skip_special_tokens=False)	# Long(1, ) => Str
+		inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1)
+		generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))
+		generated_logits.append(logits[:, -1, :])
+	generated_text = tokenizer.decode(
+		token_ids = inputs[0], 
+		skip_special_tokens=True, 
+		clean_up_tokenization_spaces=True,
+	)	# Long(1, n_tokens + max_length) => Str
+	return generated_text, generated_token_probs, tuple(generated_logits)
+
+# K-step greedy decode
+# @param model: Huggingface model object
+# @param tokenizer: Huggingface tokenizer Object
+# @param prompt: Str
+# @param max_length: Int, the number of tokens to be generated
+# @param n_branches: Int, the number of branches searched each step 
+# @param depth: Int, the number of step searched
+# @param device: Str, e.g. "cuda" or "cpu"
+# @param use_kv_cache: Boolean, whether to use KV-cache to accelerate, currently we do not support KV-cache here
+# @return generated_text: Str
+def k_step_greedy_decode(model,
+						 tokenizer,
+						 prompt,
+						 max_length,
+						 n_branches,
+						 depth,
+						 device = "cuda",
+						 use_kv_cache = False,
+						 ):
+	# Here key-value cache is None temporary
+	# I have to seek a way to update k, v cache
+	if use_kv_cache:
+		logging.warning("`use_kv_cache = True` is not implemented for `k_step_greedy_decode`")
+		use_kv_cache = False
+	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)	# Str => Long(1, n_tokens)
+	n_tokens = inputs.size(1)
+	past_key_values = None
+	def _easy_dp(_depth, _inputs, _past_key_values, _prob):
+		if _depth == 0:
+			candidates.append((_inputs[0], _prob))
+		else:
+			_outputs = model(_inputs, past_key_values=_past_key_values)
+			_logits = _outputs.logits	
+			_past_key_values = _outputs.past_key_values
+			_next_token_probs = F.softmax(_logits[:, -1, :], dim=-1)
+			_next_topk_tokens_probs, _next_topk_tokens_ids = torch.topk(_next_token_probs, k=n_branches, dim=-1)
+			for _candidate_token_prob, _candidate_token_id in zip(_next_topk_tokens_probs[0], _next_topk_tokens_ids[0]):
+				_candidate_inputs = torch.cat([_inputs, _candidate_token_id.unsqueeze(-1).unsqueeze(-1)], dim=-1)
+				_easy_dp(_depth - 1, _candidate_inputs, _past_key_values, _prob * _candidate_token_prob)
+	for i in range(max_length):		
+		candidates = list()	# List[Tuple(Long(1, n_tokens + i + depth), Float)]
+		_easy_dp(_depth = depth, 
+				 _inputs = inputs,
+				 _past_key_values = past_key_values,
+				 _prob = 1.,
+				 )
+		logging.info(f"Round {i}: {len(candidates)} candidates")
+		for candidate in candidates:
+			logging.debug(f"- {candidate[0].size()} - {candidate[1]}")	# Shape & probability
+		# Explanation:
+		# - Take the candidate inputs with largest probability in `candidates` => `optimal_candidate_index`
+		# - Generated the optimal result in `depth` step forward => `optimal_inputs`
+		# - But take only the next token in `optimal_inputs` => `next_token_id`
+		optimal_candidate_index = max(range(len(candidates)), key=lambda _i: candidates[_i][1])
+		optimal_inputs = candidates[optimal_candidate_index][0]	# Long(n_tokens + i + depth, )
+		next_token_id = optimal_inputs[n_tokens + i].unsqueeze(-1)	# Long(1, )
+		inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1) 
+	generated_text = tokenizer.decode(inputs[0], skip_special_tokens=True)	# Long(n_tokens + 1, ) => Str 
+	return generated_text
+
+# Beam search decode with KV-Cache
+# @param model: Huggingface model object
+# @param tokenizer: Huggingface tokenizer Object
+# @param prompt: Str
+# @param max_length: Int, the number of tokens to be generated
+# @param length_penalty: Int, larger penalty value refers to preference to long sequence
+# @param eos_id: Int, default value 151643 is the token ID of `<|end_of_sentence|>` in DeepSeek-R1
+# @param device: Str, e.g. "cuda" or "cpu"
+# @param use_kv_cache: Boolean, whether to use KV-cache to accelerate, if True then large memory will be consumed
+# @return generated_texts: List[Str] of length num_beams
+def beam_search_decode(model, 
+					   tokenizer,
+					   prompt,
+					   max_length,
+					   num_beams,
+					   length_penalty = 1.,
+					   eos_id = 151643,
+					   device = "cuda",
+					   use_kv_cache = True,
+					   ):
+	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)	# Str => Long(1, n_tokens)
+	sequences = [inputs.tolist()[0]]  # List[[List[Int]]]
+	scores = [0.]   # List[Float]
+	kv_caches = [None]  # <kv-cache object>: List[Dictlike[key_cache: FloatTensor, value_cache: FloatTensor]]
+	completed_sequences = []
+	completed_scores = []
+	for i in range(max_length):
+		candidates = [] # List[Tuple[List[Int], List[Float], <kv-cache object>]]
+		new_kv_caches = []
+		for sequence, score, kv_cache in zip(sequences, scores, kv_caches):
+			# Skip sequences which encounted EOS token
+			if len(sequence) > 0 and sequence[-1] == eos_id:
+				completed_sequences.append(sequence)
+				completed_scores.append(score)
+				continue
+			with torch.no_grad():
+				if use_kv_cache:
+					if kv_cache is None:
+						# First round: kv_cache is None
+						inputs = torch.tensor([sequence], dtype=torch.long).to(device)
+						outputs = model(inputs, use_cache=True)
+					else:
+						# Need only the last token because the former is cached
+						inputs = torch.tensor([[sequence[-1]]], dtype=torch.long).to(device)  
+						outputs = model(inputs, past_key_values=kv_cache, use_cache=True)
+					new_kv_cache = outputs.past_key_values
+				else:
+					inputs = torch.tensor([sequence], dtype=torch.long).to(device)
+					outputs = model(inputs, use_cache=False)
+					new_kv_cache = None
+				next_token_logits = outputs.logits[:, -1, :]	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
+				next_token_probs = F.log_softmax(next_token_logits, dim=-1)	# Float(1, n_vocab) => Float(1, n_vocab)
+			top_k_probs, top_k_tokens = torch.topk(next_token_probs, k=num_beams, dim=-1)	# Float(1, n_vocab) => Float(1, n_vocab), Long(1, n_vocab)
+			top_k_probs, top_k_tokens = top_k_probs.squeeze(0), top_k_tokens.squeeze(0)	# Float(1, n_vocab), Long(1, n_vocab) => Float(n_vocab, ), Long(n_vocab, )
+			for j in range(num_beams):
+				new_sequence = sequence.copy()	# List of length(n_tokens)
+				new_sequence.append(top_k_tokens[j].item())	# List[Int]: Add candidate token
+				new_score = score + top_k_probs[j].item()	# List[Float]: Accumulate logprobs
+				candidates.append((new_sequence, new_score, new_kv_cache))	# List[Tuple[List[Int], List[Float], <kv-cache object>]]
+		if not candidates:
+			# No candidates then break
+			break
+		candidates.sort(key=lambda x: x[1] / (len(x[0]) ** length_penalty), reverse=True)
+		top_k_sequences, top_k_scores, top_k_kv_caches = map(list, zip(*candidates[: num_beams]))	# Prune to top-k candidates
+	completed_sequences.extend(top_k_sequences)
+	completed_scores.extend(top_k_scores)
+	sorted_pairs = sorted(zip(completed_sequences, completed_scores), key=lambda x: x[1] / (len(x[0]) ** length_penalty), reverse=True)
+	sorted_sequences, sorted_scores = zip(*sorted_pairs)
+	generated_texts = tokenizer.batch_decode(sorted_sequences, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+	return generated_texts
+
+# Get the output probability of generated token by `model.generate`
+# @param model: Huggingface model object
+# @param tokenizer: Huggingface tokenizer Object
+# @param prompt: Str
+# @param max_length: Int, the number of tokens to be generated
+# @param device: Str, e.g. "cuda" or "cpu"
+# @param **kwargs: Keyword arguments for `model.generate`
+# @return generated_text: Str
+# @return generated_token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
+# @return generated_logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length - prompt_length`, indicating the logits when each token is generated
+def generate_token_prob(model, 
+						tokenizer, 
+						prompt, 
+						max_length, 
+						device="cuda",
+						**kwargs,
+						):
+	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)
+	with torch.no_grad():
+		outputs = model.generate(inputs, max_length=max_length, output_scores=True, return_dict_in_generate=True, **kwargs)
+		generated_token_ids = outputs.sequences	# Long(1, max_length)
+		generated_logits = outputs.scores	# Tuple(Float(1, n_vocab)) with length (max_length - n_tokens)
+		generated_probs = tuple(map(lambda _logits: F.softmax(_logits, dim=-1), generated_logits))
+		generated_text = tokenizer.batch_decode(
+			generated_token_ids,
+			skip_special_tokens=True,
+			clean_up_tokenization_spaces=False,
+		)[0]
+		generated_token_probs = list()
+		diff = generated_token_ids.size(1) - len(generated_probs)
+	for i in range(len(generated_probs)):
+		token_id = generated_token_ids[0, i + diff].item()	# Int
+		token = tokenizer.decode(token_id, skip_special_tokens=False)	# Str
+		token_prob = generated_probs[i][0, token_id].item()	# Float
+		generated_token_probs.append((token_id, token, token_prob))
+	return generated_text, generated_token_probs, generated_logits
