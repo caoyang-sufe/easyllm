@@ -12,6 +12,7 @@ model_names = [
 	"Qwen/Qwen2.5-0.5B-Instruct",
 	"EleutherAI/pythia-1b-deduped",
 	"EleutherAI/pythia-160m",
+	"trl-lib/Qwen2-0.5B-Reward",
 ]
 
 dataset_names = [
@@ -23,16 +24,37 @@ dataset_names = [
 
 def sft_pipeline_test():
 	logging.info("SFT unittest ...")
+	# # Qwen2.5-0.5B-Instruct + tldr
+	# model_name_or_path = os.path.join(model_home, model_names[0])
+	# dataset_name = os.path.join(dataset_home, dataset_names[0])
+	# data_processor = None
+	# config_kwargs = {
+		# "output_dir": f"./temp/sft+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
+		# "model_name_or_path": model_name_or_path,
+		# "dataset_name": dataset_name,
+		# "trust_remote_code": True,
+		# "dataset_train_split": "train[:500]",
+		# "dataset_test_split": "validation[500:600]",
+		# "use_peft": True,
+		# "report_to": "none",
+		# "lora_target_modules": ["q_proj", "k_proj", "v_proj"]
+	# }
+	# trainer_kwargs = {
+	# }
+	# sft_pipeline(data_processor, config_kwargs, trainer_kwargs)
+
+	# Qwen2.5-0.5B-Instruct + firefly-train-1.1M
 	model_name_or_path = os.path.join(model_home, model_names[0])
-	dataset_name = os.path.join(dataset_home, dataset_names[0])
-	data_processor = None
+	dataset_name = os.path.join(dataset_home, dataset_names[3])
+	def data_processor(data):
+		return {"prompt": data["input"], "completion": data["target"]}
 	config_kwargs = {
 		"output_dir": f"./temp/sft+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
 		"model_name_or_path": model_name_or_path,
 		"dataset_name": dataset_name,
 		"trust_remote_code": True,
 		"dataset_train_split": "train[:500]",
-		"dataset_test_split": "validation[500:600]",
+		"dataset_test_split": "train[500:600]",
 		"use_peft": True,
 		"report_to": "none",
 		"lora_target_modules": ["q_proj", "k_proj", "v_proj"]
@@ -134,4 +156,26 @@ def grpo_pipeline_test():
 		"reward_funcs": reward_funcs,
 	}
 	grpo_pipeline(data_processor, config_kwargs, trainer_kwargs)
-	
+
+
+def ppo_pipeline_test():
+	logging.info("PPO unittest ...")
+	model_name_or_path = os.path.join(model_home, model_names[0])
+	dataset_name = os.path.join(dataset_home, dataset_names[0])
+	reward_model_path = os.path.join(model_home, model_names[3])
+	data_processor = None
+	config_kwargs = {
+		"output_dir": f"./temp/ppo+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
+		"model_name_or_path": model_name_or_path,
+		"dataset_name": dataset_name,
+		"reward_model_path": reward_model_path,
+		"trust_remote_code": True,
+		"dataset_train_split": "train[:500]",
+		"dataset_test_split": "validation[:100]",
+		"use_peft": True,
+		"report_to": "none",
+		"lora_target_modules": ["q_proj", "k_proj", "v_proj"],
+	}
+	trainer_kwargs = {
+	}
+	ppo_pipeline(data_processor, config_kwargs, trainer_kwargs)

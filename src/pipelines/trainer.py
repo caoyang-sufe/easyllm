@@ -84,6 +84,11 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs):
 			trust_remote_code = model_config.trust_remote_code,
 			num_labels = 1,
 		)
+		reward_tokenizer = AutoTokenizer.from_pretrained(trainer_config.reward_model_path)
+		if not "pad_token" in reward_tokenizer.special_tokens_map:
+			reward_tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+		if reward_tokenizer.chat_template is None:
+			reward_tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
 		logging.info("  - Copy reference model ...")
 		ref_model = deepcopy(model)
 		# ref_model = model.__class__(model.config)
@@ -91,12 +96,15 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs):
 		trainer_kwargs["reward_model"] = reward_model
 		trainer_kwargs["value_model"] = value_model
 		trainer_kwargs["ref_model"] = ref_model
+		trainer_kwargs["processing_class"] = reward_tokenizer
 		logging.info("  - Done!")
 		if data_processor is None:
 			# The data processor of PPO is also different to others
 			def data_processor(_data):
 				outputs = tokenizer(_data["prompt"] + _data["completion"], padding = False)
 				return {"input_ids": outputs["input_ids"]}
+	else:
+		trainer_kwargs["processing_class"] = tokenizer
 
 	# 2 Load dataset
 	logging.info("Load dataset ...")
@@ -116,7 +124,6 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs):
 		args = trainer_config,
 		train_dataset = train_dataset,
 		eval_dataset = eval_dataset,
-		processing_class = tokenizer,
 		peft_config = peft_config,
 		**trainer_kwargs
 	)
@@ -158,7 +165,7 @@ def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs):
 
 # GRPO Pipeline
 def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs):
-		base_pipeline(
+	base_pipeline(
 		name = "GRPO",
 		data_processor = data_processor,
 		config_kwargs = config_kwargs,
