@@ -273,7 +273,7 @@ logger = initialize_logger(f"./log/run-{time.strftime('%Y-%m-%d-%H-%M-%S')}.log"
 
 # sft_pipeline_test()
 # dpo_pipeline_test()
-# grpo_pipeline_test()
-ppo_pipeline_test()
+grpo_pipeline_test()
+# ppo_pipeline_test()
 
 terminate_logger(logger)
