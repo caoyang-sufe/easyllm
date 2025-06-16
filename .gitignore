@@ -1,0 +1,10 @@
+*.pyc
+*.log
+.idea/
+data/
+log/
+temp/
+bash/
+jupyter/
+__pycache__
+venv/
