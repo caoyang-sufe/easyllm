@@ -44,8 +44,7 @@ def display_pipeline(tokenizer,
 		df_display["cand_probs"].append(probs)
 		df_display["eos_prob"].append(eos_prob)
 	df_display = pd.DataFrame(df_display, columns=["max_id", "cand_tokens", "cand_probs", "eos_prob"])
-	df_display = pd.concat([df_token_prob, df_display], axis=1)
-	return df_display
+	return pd.concat([df_token_prob, df_display], axis=1)
 
 
 # @param model_name_or_path: [Str]
