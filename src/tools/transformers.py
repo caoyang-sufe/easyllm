@@ -13,11 +13,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 # Standard greedy decode
 # @param model: Huggingface model object
 # @param tokenizer: Huggingface tokenizer Object
-# @param prompt: Str
-# @param max_length: Int, the number of tokens to be generated
-# @param device: Str, e.g. "cuda" or "cpu"
-# @param use_kv_cache: Boolean, whether to use KV-cache to accelerate, if True then large memory will be consumed
-# @return generated_text: Str
+# @param prompt: [Str]
+# @param max_length: [Int]the number of tokens to be generated (exclude `prompt`)
+# @param device: [Str] e.g. "cuda" or "cpu"
+# @param use_kv_cache: [Boolean] whether to use KV-cache to accelerate, if True then large memory will be consumed
+# @return generated_text: [Str]
 # @return generated_token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
 # @return generated_logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length`, indicating the logits when each token is generated
 def greedy_decode(model,
@@ -61,13 +61,13 @@ def greedy_decode(model,
 # K-step greedy decode
 # @param model: Huggingface model object
 # @param tokenizer: Huggingface tokenizer Object
-# @param prompt: Str
-# @param max_length: Int, the number of tokens to be generated
-# @param n_branches: Int, the number of branches searched each step 
-# @param depth: Int, the number of step searched
-# @param device: Str, e.g. "cuda" or "cpu"
-# @param use_kv_cache: Boolean, whether to use KV-cache to accelerate, currently we do not support KV-cache here
-# @return generated_text: Str
+# @param prompt: [Str]
+# @param max_length: [Int] the number of tokens to be generated (exclude `prompt`)
+# @param n_branches: [Int] the number of branches searched each step 
+# @param depth: [Int] the number of step searched
+# @param device: [Str] e.g. "cuda" or "cpu"
+# @param use_kv_cache: [Boolean] whether to use KV-cache to accelerate, currently we do not support KV-cache here
+# @return generated_text: [Str]
 def k_step_greedy_decode(model,
 						 tokenizer,
 						 prompt,
@@ -121,12 +121,12 @@ def k_step_greedy_decode(model,
 # Beam search decode with KV-Cache
 # @param model: Huggingface model object
 # @param tokenizer: Huggingface tokenizer Object
-# @param prompt: Str
-# @param max_length: Int, the number of tokens to be generated
-# @param length_penalty: Int, larger penalty value refers to preference to long sequence
-# @param eos_id: Int, default value 151643 is the token ID of `<|end_of_sentence|>` in DeepSeek-R1
-# @param device: Str, e.g. "cuda" or "cpu"
-# @param use_kv_cache: Boolean, whether to use KV-cache to accelerate, if True then large memory will be consumed
+# @param prompt: [Str]
+# @param max_length: [Int] the number of tokens to be generated (exclude `prompt`)
+# @param length_penalty: [Int] larger penalty value refers to preference to long sequence
+# @param eos_id: [Int] default value 151643 is the token ID of `<|end_of_sentence|>` in DeepSeek-R1
+# @param device: [Str] e.g. "cuda" or "cpu"
+# @param use_kv_cache: [Boolean], whether to use KV-cache to accelerate, if True then large memory will be consumed
 # @return generated_texts: List[Str] of length num_beams
 def beam_search_decode(model, 
 					   tokenizer,
@@ -192,23 +192,23 @@ def beam_search_decode(model,
 # Get the output probability of generated token by `model.generate`
 # @param model: Huggingface model object
 # @param tokenizer: Huggingface tokenizer Object
-# @param prompt: Str
-# @param max_length: Int, the number of tokens to be generated
-# @param device: Str, e.g. "cuda" or "cpu"
-# @param **kwargs: Keyword arguments for `model.generate`
-# @return generated_text: Str
-# @return generated_token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
-# @return generated_logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length - prompt_length`, indicating the logits when each token is generated
+# @param prompt: [Str]
+# @param max_length: [Int] the number of tokens to be generated (include `prompt`)
+# @param generate_kwargs: [Dict] Keyword arguments for `model.generate`, e.g. strict greedy decode <=> {"do_sample": False, "top_k": 0, "top_p": 1., "num_beams": 1, "temperature": 1}
+# @param device: [Str] e.g. "cuda" or "cpu"
+# @return generated_text: [Str]
+# @return generated_token_prob: List[Tuple(Int, Str, Float)] `len(generated_id_prob)` is `max_length - <prompt_length>`, indicating the generated probability of each token
+# @return generated_logits: Tuple[FloatTensor(1, n_vocab)] `len(generated_logits)` is `max_length - <prompt_length>`, indicating the logits when each token is generated
 def generate_token_prob(model, 
 						tokenizer, 
 						prompt, 
-						max_length, 
-						device="cuda",
-						**kwargs,
+						max_length,
+						generate_kwargs,
+						device = "cuda",
 						):
 	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)
 	with torch.no_grad():
-		outputs = model.generate(inputs, max_length=max_length, output_scores=True, return_dict_in_generate=True, **kwargs)
+		outputs = model.generate(inputs, max_length=max_length, output_scores=True, return_dict_in_generate=True, **generate_kwargs)
 		generated_token_ids = outputs.sequences	# Long(1, max_length)
 		generated_logits = outputs.scores	# Tuple(Float(1, n_vocab)) with length (max_length - n_tokens)
 		generated_probs = tuple(map(lambda _logits: F.softmax(_logits, dim=-1), generated_logits))

@@ -80,8 +80,6 @@ def plot_trl_dynamics(trainer_state_path):
 	ax_5.plot(steps, scores, label="objective/scores")
 	ax_5.set_xlabel("Step"), ax_5.set_ylabel("Score/Reward"), ax_5.legend()
 	ax_5.set_title("Reward and Score")
-
-	
 	
 	plt.show()
 	print(steps)
