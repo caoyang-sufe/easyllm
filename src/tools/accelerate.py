@@ -7,10 +7,10 @@ from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 from transformers import AutoModelForCausalLM
 
 # Load model by device mapping
-# @param model_path: Str
-# @param Model: Class, e.g. AutoModel, AutoModelForCausalLM
-# @param device_map: Dict/Str, default "auto"
-# @param offload_folder: Str, the folder path for unloading model
+# @param model_path: [Str]
+# @param Model: [Class] e.g. AutoModel, AutoModelForCausalLM
+# @param device_map: [Dict/Str] default "auto"
+# @param offload_folder: [Str] the folder path for unloading model
 # @return model: Huggingface model object
 def accelerate_load_model(model_path, 
 						  Model = AutoModelForCausalLM,

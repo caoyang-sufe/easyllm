@@ -5,8 +5,8 @@
 from openai import OpenAI
 
 # Initialize OpenAI Client
-# @param api_key: Str, default as "EMPTY"
-# @param base_url: Str, default as "http://localhost:8888/v1"
+# @param api_key: [Str] default as "EMPTY"
+# @param base_url: [Str] default as "http://localhost:8888/v1"
 # @return Object of openai._base_client.SyncAPIClient
 def initialize_client(api_key = "EMPTY", 
 					  base_url = "http://localhost:6006/v1",

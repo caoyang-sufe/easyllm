@@ -9,9 +9,9 @@ from matplotlib import pyplot as plt
 
 # @param tensor: torch.Tensor or numpy.ndarray
 # @param bins: the number of bins of histogram
-# @param title: 
-# @param xlabel:
-# @param ylabel: 
+# @param title: [Str]
+# @param xlabel: [Str]
+# @param ylabel: [Str]
 def plot_tensor_histogram(tensor, 
 						  bins = 50, 
 						  title = "Tensor Value Distribution", 
@@ -41,7 +41,6 @@ def plot_trl_dynamics(trainer_state_path):
 	steps = [entry["step"] for entry in log_history]
 	episodes = [entry["episode"] for entry in log_history]
 	epochs = [entry["epoch"] for entry in log_history]
-	
 	policy_loss = [entry["loss/policy_avg"] for entry in log_history]
 	value_loss = [entry["loss/value_avg"] for entry in log_history]
 	lrs = [entry["lr"] for entry in log_history]
@@ -50,7 +49,6 @@ def plot_trl_dynamics(trainer_state_path):
 	non_score_rewards = [entry["objective/non_score_reward"] for entry in log_history]
 	rlhf_rewards = [entry["objective/rlhf_reward"] for entry in log_history]
 	scores = [entry["objective/scores"] for entry in log_history]
-
 	plt.figure(figsize=(8, 8))
 	ax_1 = plt.subplot(2, 2, 1)
 	ax_2 = plt.subplot(4, 2, 2)
@@ -80,13 +78,7 @@ def plot_trl_dynamics(trainer_state_path):
 	ax_5.plot(steps, scores, label="objective/scores")
 	ax_5.set_xlabel("Step"), ax_5.set_ylabel("Score/Reward"), ax_5.legend()
 	ax_5.set_title("Reward and Score")
-	
 	plt.show()
-	print(steps)
-	print('-' * 64)
-	print(episodes)
-	print('-' * 64)
-	print(epochs)
 	
 if __name__ == "__main__":
 	fp = r"C:\Users\caoyang\AppData\Local\Temp\fz3temp-2\trainer_state.json"

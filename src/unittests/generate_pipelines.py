@@ -21,4 +21,11 @@ def decode_pipeline_test():
 								 device = None,
 								 use_kv_cache = True,
 								 )
-	df_display.to_csv("./decode_test.csv", sep='\t', header=True, index=False)
+	save_path = "./decode_test.csv"
+	logging.info(f"Export to {save_path}")
+	df_display.to_csv(save_path, sep='\t', header=True, index=False)
+	logging.info("  - OK!")
+
+
+
+	
