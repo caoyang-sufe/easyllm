@@ -6,27 +6,15 @@ import os
 import logging
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
 
-model_home = "/nfsshare/home/caoyang/resource/model"
-dataset_home = "/nfsshare/home/caoyang/resource/dataset"
-model_names = [
-	"Qwen/Qwen2.5-0.5B-Instruct",
-	"EleutherAI/pythia-1b-deduped",
-	"EleutherAI/pythia-160m",
-	"trl-lib/Qwen2-0.5B-Reward",
-]
 
-dataset_names = [
-	"trl-lib/tldr",	# train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
-	"trl-lib/ultrafeedback_binarized",	# train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
-	"trl-internal-testing/descriptiveness-sentiment-trl-style", # sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
-	"YeungNLP/firefly-train-1.1M", # train["input", "target"]
-]
 
 def sft_pipeline_test():
 	logging.info("SFT unittest ...")
 	# # Qwen2.5-0.5B-Instruct + tldr
 	# model_name_or_path = os.path.join(model_home, model_names[0])
 	# dataset_name = os.path.join(dataset_home, dataset_names[0])
+	# logging.info(f"  - Model: {model_name_or_path}")
+	# logging.info(f"  - Dataset: {dataset_name}")
 	# data_processor = None
 	# config_kwargs = {
 		# "output_dir": f"./temp/sft+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
@@ -46,6 +34,8 @@ def sft_pipeline_test():
 	# Qwen2.5-0.5B-Instruct + firefly-train-1.1M
 	model_name_or_path = os.path.join(model_home, model_names[0])
 	dataset_name = os.path.join(dataset_home, dataset_names[3])
+	logging.info(f"  - Model: {model_name_or_path}")
+	logging.info(f"  - Dataset: {dataset_name}")
 	def data_processor(data):
 		return {"prompt": data["input"], "completion": data["target"]}
 	config_kwargs = {
@@ -98,6 +88,9 @@ def ppo_pipeline_test():
 	# """
 	# dataset_name = os.path.join(dataset_home, dataset_names[0])
 	# reward_model_path = os.path.join(model_home, model_names[2])
+	# logging.info(f"  - Model: {model_name_or_path}")
+	# logging.info(f"  - Dataset: {dataset_name}")
+	# logging.info(f"  - Reward: {reward_model_path}")
 	# data_processor = None
 	# config_kwargs = {
 		# "output_dir": f"./temp/ppo+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
@@ -119,6 +112,9 @@ def ppo_pipeline_test():
 	model_name_or_path = os.path.join(model_home, model_names[0])
 	dataset_name = os.path.join(dataset_home, dataset_names[0])
 	reward_model_path = os.path.join(model_home, model_names[3])
+	logging.info(f"  - Model: {model_name_or_path}")
+	logging.info(f"  - Dataset: {dataset_name}")
+	logging.info(f"  - Reward: {reward_model_path}")
 	data_processor = None
 	config_kwargs = {
 		"output_dir": f"./temp/ppo+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
@@ -142,6 +138,8 @@ def dpo_pipeline_test():
 	logging.info("DPO unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[0])
 	dataset_name = os.path.join(dataset_home, dataset_names[2])
+	logging.info(f"  - Model: {model_name_or_path}")
+	logging.info(f"  - Dataset: {dataset_name}")
 	data_processor = None
 	config_kwargs = {
 		"output_dir": f"./temp/dpo+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
@@ -163,6 +161,8 @@ def grpo_pipeline_test():
 	logging.info("GRPO unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[0])
 	dataset_name = os.path.join(dataset_home, dataset_names[0])
+	logging.info(f"  - Model: {model_name_or_path}")
+	logging.info(f"  - Dataset: {dataset_name}")
 	data_processor = None
 	def reward_funcs(completions, **kwargs):
 		return [float(len(set(completion))) for completion in completions]

@@ -29,7 +29,7 @@ def register_forward_hook_decorator(module_names):
 				hook_handles.append(eval(f"model.{module_name}").register_forward_hook(_make_hook(module_name)))
 			try:
 				func_return = func(*args, **kwargs)
-				func_return.captured_outputs = hook_data	# Attach hook data to function returns
+				func_return.hook_outputs = hook_data	# Attach hook data to function returns
 				return func_return
 			finally:
 				for hook_handle in hook_handles:
@@ -60,7 +60,7 @@ def register_backward_hook_decorator(module_names):
 				hook_handles.append(eval(f"model.{module_name}").register_forward_hook(_make_hook(module_name)))
 			try:
 				func_return = func(*args, **kwargs)
-				func_return.captured_outputs = hook_data	# Attach hook data to function returns
+				func_return.hook_outputs = hook_data	# Attach hook data to function returns
 				return func_return
 			finally:
 				for hook_handle in hook_handles:
