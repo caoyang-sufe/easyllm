@@ -25,7 +25,3 @@ def decode_pipeline_test():
 	logging.info(f"Export to {save_path}")
 	df_display.to_csv(save_path, sep='\t', header=True, index=False)
 	logging.info("  - OK!")
-
-
-
-	

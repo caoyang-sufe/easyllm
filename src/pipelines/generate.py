@@ -12,7 +12,8 @@ from src.tools.transformers import greedy_decode, k_step_greedy_decode, beam_sea
 from src.tools.torch import register_forward_hook_decorator, register_backward_hook_decorator
 
 # @param tokenizer: Huggingface tokenizer Object
-# @param text: [Str]
+# @param text: [Str] Final generated text
+# @param token_prob: List[Tuple(Int, Str, Float)] 
 def display_pipeline(tokenizer,
 					 text,
 					 token_prob,
@@ -43,8 +44,8 @@ def display_pipeline(tokenizer,
 		df_display["cand_tokens"].append(cand_tokens)
 		df_display["cand_probs"].append(probs)
 		df_display["eos_prob"].append(eos_prob)
-	df_display = pd.DataFrame(df_display, columns=["max_id", "cand_tokens", "cand_probs", "eos_prob"])
-	return pd.concat([df_token_prob, df_display], axis=1)
+	df_display = pandas.DataFrame(df_display, columns=["max_id", "cand_tokens", "cand_probs", "eos_prob"])
+	return pandas.concat([df_token_prob, df_display], axis=1)
 
 
 # @param model_name_or_path: [Str]
