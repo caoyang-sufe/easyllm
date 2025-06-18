@@ -10,12 +10,22 @@ from torch.nn import functional as F
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
+def get_generation_eos_token_ids(model):
+	eos_token_id = model.generation_config.eos_token_id
+	if isinstance(eos_token_id, int):
+		eos_token_ids = [eos_token_id]
+	elif isinstance(eos_token_id, list):
+		eos_token_ids = eos_token_id[:]
+	else:
+		logging.warning(f"Unknown type of EOS: {eos_token_id}")
+		eos_token_ids = [151643, 151645]	# Default EOS token for Qwen model
+	return eos_token_ids
+
 # Standard greedy decode
 # @param model: Huggingface model object
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompt: [Str]
 # @param max_length: [Int]the number of tokens to be generated (exclude `prompt`)
-# @param eos_id: [Int] default value 151643 is the token ID of `<|end_of_sentence|>` in DeepSeek-R1-Distill-Qwen
 # @param device: [Str] e.g. "cuda" or "cpu"
 # @param use_kv_cache: [Boolean] whether to use KV-cache to accelerate, if True then large memory will be consumed
 # @return generated_text: [Str]
@@ -25,11 +35,11 @@ def greedy_decode(model,
 				  tokenizer,
 				  prompt, 
 				  max_length,
-				  eos_id = 151643,
 				  device = "cuda",
 				  use_kv_cache = True,
 				  ):
-	logging.info(f"EOS token id: {model.config.eos_token_id}")
+	eos_token_ids = get_generation_eos_token_ids(model)
+	logging.info(f"EOS token: {eos_token_ids}")
 	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)	# Str => Long(1, n_tokens)
 	past_key_values = None
 	generated_token_probs = list()
@@ -53,7 +63,7 @@ def greedy_decode(model,
 		inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1)
 		generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))	# List[] <- (Int, Str, Float)
 		generated_logits.append(logits[:, -1, :])	# List[] <- Float(1, n_vocab)
-		if next_token_id == eos_id:
+		if next_token_id in eos_token_ids:
 			break
 	generated_text = tokenizer.decode(
 		token_ids = inputs[0], 
@@ -128,7 +138,6 @@ def k_step_greedy_decode(model,
 # @param prompt: [Str]
 # @param max_length: [Int] the number of tokens to be generated (exclude `prompt`)
 # @param length_penalty: [Int] larger penalty value refers to preference to long sequence
-# @param eos_id: [Int] default value 151643 is the token ID of `<|end_of_sentence|>` in DeepSeek-R1-Distill-Qwen
 # @param device: [Str] e.g. "cuda" or "cpu"
 # @param use_kv_cache: [Boolean], whether to use KV-cache to accelerate, if True then large memory will be consumed
 # @return generated_texts: List[Str] of length num_beams
@@ -138,10 +147,11 @@ def beam_search_decode(model,
 					   max_length,
 					   num_beams,
 					   length_penalty = 1.,
-					   eos_id = 151643,
 					   device = "cuda",
 					   use_kv_cache = True,
 					   ):
+	eos_token_ids = get_generation_eos_token_ids(model)
+	logging.info(f"EOS token: {eos_token_ids}")
 	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)	# Str => Long(1, n_tokens)
 	sequences = [inputs.tolist()[0]]  # List[[List[Int]]]
 	scores = [0.]   # List[Float]
@@ -153,7 +163,7 @@ def beam_search_decode(model,
 		new_kv_caches = []
 		for sequence, score, kv_cache in zip(sequences, scores, kv_caches):
 			# Skip sequences which encounted EOS token
-			if len(sequence) > 0 and sequence[-1] == eos_id:
+			if len(sequence) > 0 and sequence[-1] in eos_token_ids:
 				completed_sequences.append(sequence)
 				completed_scores.append(score)
 				continue

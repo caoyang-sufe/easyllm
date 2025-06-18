@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.transformers import greedy_decode, k_step_greedy_decode, beam_search_decode, generate_token_prob
-from src.tools.torch import register_forward_hook_decorator, register_backward_hook_decorator
+from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
 
 # @param tokenizer: Huggingface tokenizer Object
 # @param text: [Str] Final generated text
@@ -92,13 +92,11 @@ def decode_pipeline(model_name_or_path,
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
 	logging.info("Greedy decode ...")
-	eos_id = 151643
 	text, token_prob, logits = greedy_decode(
 		model = model,
 		tokenizer = tokenizer,
 		prompt = prompt,
 		max_length = max_length,
-		eos_id = eos_id,
 		device = device,
 		use_kv_cache = use_kv_cache,
 	)
