@@ -18,7 +18,7 @@ def register_forward_hook_decorator(module_names):
 			hook_handles = list()
 			for module_name in module_names:
 				def _make_hook(_module_name):
-					hook_data[module_name] = dict()
+					hook_data[module_name] = {"input": list(), "output": list()}
 					# @param _module: `f"Module: {_module.__class__.__name__}"`
 					# @param _inputs: Tuple[torch.FloatTensor], `f"Input shapes: {[x.shape for x in _inputs]}"`
 					# @param _outputs: torch.FloatTensor/Tuple[torch.FloatTensor], `f"Output shape: {_outputs.shape}"` or `f"Input shapes: {[x.shape for x in _outputs]}"`
