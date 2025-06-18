@@ -84,6 +84,8 @@ def decode_pipeline(model_name_or_path,
 					max_length,
 					device = None,
 					use_kv_cache = True,
+					forward_hook_module_names = None,
+					backward_hook_module_names = None,
 					):
 	logging.info("Load model and tokenizer ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
@@ -99,12 +101,12 @@ def decode_pipeline(model_name_or_path,
 		max_length = max_length,
 		device = device,
 		use_kv_cache = use_kv_cache,
-		forward_hook_module_names = None,
-		backward_hook_module_names = None,
+		forward_hook_module_names = forward_hook_module_names,
+		backward_hook_module_names = backward_hook_module_names,
 	)
 	text, token_probs, logits = returned_dict["text"], returned_dict["token_probs"], returned_dict["logits"]
+	forward_hook_data, backward_hook_data = returned_dict["forward_hook_data"], returned_dict["backward_hook_data"]
 	logging.info(f"Generated text: {text}")
-	
 	# logging.info("Beam decode ...")
 	# beam_search_decode(
 		# model = model, 
@@ -128,4 +130,8 @@ def decode_pipeline(model_name_or_path,
 		# device = device,
 		# use_kv_cache = False,
 	# )
-	return display_pipeline(tokenizer, text, token_probs, logits)
+	return {
+		"df_display": display_pipeline(tokenizer, text, token_probs, logits),
+		"forward_hook_data": forward_hook_data,
+		"backward_hook_data": backward_hook_data,
+	}

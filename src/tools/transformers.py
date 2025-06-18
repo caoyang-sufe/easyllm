@@ -49,7 +49,7 @@ def greedy_decode(model,
 				  ):
 	if forward_hook_module_names is None and backward_hook_module_names is None:
 		hook_flag = 0
-		def easy_forward(model, inputs, **kwargs):
+		def easy_forward(inputs, *, model, **kwargs):
 			return model(inputs, **kwargs)
 	elif not (forward_hook_module_names is None or backward_hook_module_names is None):
 		hook_flag = -1
@@ -58,12 +58,12 @@ def greedy_decode(model,
 		if forward_hook_module_names is not None:
 			hook_flag = 1
 			@register_forward_hook_decorator(module_names = forward_hook_module_names)
-			def easy_forward(model, inputs, **kwargs):
+			def easy_forward(inputs, *, model, **kwargs):
 				return model(inputs, **kwargs)
 		else:
 			hook_flag = 2
 			@register_backward_hook_decorator(module_names = forward_hook_module_names)
-			def easy_forward(model, inputs, **kwargs):
+			def easy_forward(inputs, *, model, **kwargs):
 				return model(inputs, **kwargs)			
 
 	eos_token_ids = get_generation_eos_token_ids(model)
@@ -82,12 +82,12 @@ def greedy_decode(model,
 		logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
 		if use_kv_cache:
 			if past_key_values is None:
-				outputs = easy_forward(model, inputs, past_key_values=None)
+				outputs = easy_forward(inputs, model=model, past_key_values=None)
 			else:
-				outputs = easy_forward(model, inputs[:, -1].unsqueeze(0), past_key_values=past_key_values, use_cache=True)
+				outputs = easy_forward(inputs[:, -1].unsqueeze(0), model=model, past_key_values=past_key_values, use_cache=True)
 			past_key_values = outputs.past_key_values	# Dictlike[key_cache: Float(1, 2, X, hidden_size), value_cache: Float(1, 2, X, hidden_size)], where X = (i + 1) * (n_tokens + i / 2)
 		else:
-			outputs = easy_forward(model, inputs, past_key_values=None, use_cache=False)
+			outputs = easy_forward(inputs, model=model, past_key_values=None, use_cache=False)
 		logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in Qwen-series
 		next_token_probs = F.softmax(logits[:, -1, :], dim=-1)	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
 		next_token_id = torch.argmax(next_token_probs, dim=-1)	# Float(1, n_vocab) => Long(1, )
