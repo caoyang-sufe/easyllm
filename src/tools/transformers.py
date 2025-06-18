@@ -9,6 +9,7 @@ from functools import wraps
 from torch.nn import functional as F
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
 
 def get_generation_eos_token_ids(model):
 	eos_token_id = model.generation_config.eos_token_id
@@ -21,40 +22,72 @@ def get_generation_eos_token_ids(model):
 		eos_token_ids = [151643, 151645]	# Default EOS token for Qwen model
 	return eos_token_ids
 
-# Standard greedy decode
+
+# Standard greedy decode supporting hook registration
 # @param model: Huggingface model object
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompt: [Str]
 # @param max_length: [Int]the number of tokens to be generated (exclude `prompt`)
 # @param device: [Str] e.g. "cuda" or "cpu"
 # @param use_kv_cache: [Boolean] whether to use KV-cache to accelerate, if True then large memory will be consumed
-# @return generated_text: [Str]
-# @return generated_token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
-# @return generated_logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length`, indicating the logits when each token is generated
+# @param forward_hook_module_names: [List[Str]] Default None, otherwise register forward hook for `forward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
+# @param backward_hook_module_names: [List[Str]] Default None, otherwise register backward hook for `backward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
+# @return returned_dict: [Dict]
+# - "text": [Str]
+# - "token_probs": List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
+# - "logits": Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length`, indicating the logits when each token is generated
+# - "forward_hook_data": List of hook data (length is `max_length`) in format of [Dict[<module_name>: Dict]], Read `hook_data` in `src.tools.hook.register_forward_hook_decorator` for details
+# - "backward_hook_data": List of hook data (length is `max_length`) in format of [Dict[<module_name>: Dict]], Read `hook_data` in `src.tools.hook.register_backward_hook_decorator` for details
 def greedy_decode(model,
 				  tokenizer,
 				  prompt, 
 				  max_length,
 				  device = "cuda",
 				  use_kv_cache = True,
+				  forward_hook_module_names = None,
+				  backward_hook_module_names = None,
 				  ):
+	if forward_hook_module_names is None and backward_hook_module_names is None:
+		hook_flag = 0
+		def easy_forward(model, inputs, **kwargs):
+			return model(inputs, **kwargs)
+	elif not (forward_hook_module_names is None or backward_hook_module_names is None):
+		hook_flag = -1
+		raise NotImplementedError("Simultaneous use of forward and backward hook!")
+	else:
+		if forward_hook_module_names is not None:
+			hook_flag = 1
+			@register_forward_hook_decorator(module_names = forward_hook_module_names)
+			def easy_forward(model, inputs, **kwargs):
+				return model(inputs, **kwargs)
+		else:
+			hook_flag = 2
+			@register_backward_hook_decorator(module_names = forward_hook_module_names)
+			def easy_forward(model, inputs, **kwargs):
+				return model(inputs, **kwargs)			
+
 	eos_token_ids = get_generation_eos_token_ids(model)
 	logging.info(f"EOS token: {eos_token_ids}")
 	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)	# Str => Long(1, n_tokens)
 	past_key_values = None
 	generated_token_probs = list()
 	generated_logits = list()
+	forward_hook_data = None
+	backward_hook_data = None
+	if hook_flag == 1:
+		forward_hook_data = list()
+	if hook_flag == 2:
+		backward_hook_data = list()	
 	for i in range(max_length):
 		logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
 		if use_kv_cache:
 			if past_key_values is None:
-				outputs = model(inputs, past_key_values=None)
+				outputs = easy_forward(model, inputs, past_key_values=None)
 			else:
-				outputs = model(inputs[:, -1].unsqueeze(0), past_key_values=past_key_values, use_cache=True)
-				# outputs = model(inputs, past_key_values=past_key_values)
+				outputs = easy_forward(model, inputs[:, -1].unsqueeze(0), past_key_values=past_key_values, use_cache=True)
 			past_key_values = outputs.past_key_values	# Dictlike[key_cache: Float(1, 2, X, hidden_size), value_cache: Float(1, 2, X, hidden_size)], where X = (i + 1) * (n_tokens + i / 2)
 		else:
-			outputs = model(inputs, past_key_values=None, use_cache=False)
+			outputs = easy_forward(model, inputs, past_key_values=None, use_cache=False)
 		logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in Qwen-series
 		next_token_probs = F.softmax(logits[:, -1, :], dim=-1)	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
 		next_token_id = torch.argmax(next_token_probs, dim=-1)	# Float(1, n_vocab) => Long(1, )
@@ -63,14 +96,28 @@ def greedy_decode(model,
 		inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1)
 		generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))	# List[] <- (Int, Str, Float)
 		generated_logits.append(logits[:, -1, :])	# List[] <- Float(1, n_vocab)
+		# Process hook data
+		if hook_flag > 0:
+			hook_data = outputs.hook_outputs
+			if hook_flag == 1:
+				forward_hook_data.append(hook_data)
+			else:
+				backward_hook_data.append(hook_data)
 		if next_token_id in eos_token_ids:
+			# Early stop
 			break
 	generated_text = tokenizer.decode(
 		token_ids = inputs[0], 
 		skip_special_tokens=True, 
 		clean_up_tokenization_spaces=True,
 	)	# Long(1, n_tokens + max_length) => Str
-	return generated_text, generated_token_probs, tuple(generated_logits)
+	return {
+		"text": generated_text,
+		"token_probs": generated_token_probs,
+		"logits": tuple(generated_logits),
+		"forward_hook_data": forward_hook_data,
+		"backward_hook_data": backward_hook_data,
+	}
 
 # K-step greedy decode
 # @param model: Huggingface model object

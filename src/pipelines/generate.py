@@ -19,12 +19,12 @@ from src.tools.hook import register_forward_hook_decorator, register_backward_ho
 # @param eos_id: [Int] tokenId of <eos> token, e.g. 151643(<|endoftext|>) for Qwen model 
 def display_pipeline(tokenizer,
 					 text,
-					 token_prob,
+					 token_probs,
 					 logits,
 					 k = 3,
 					 eos_id = 151643,
 					 ):
-	df_token_prob = pandas.DataFrame(token_prob, columns=["id", "token", "prob"])
+	df_token_probs = pandas.DataFrame(token_probs, columns=["id", "token", "prob"])
 	def _display_tensor(_tensor, _round):
 		return list(map(lambda x: round(x, _round), _tensor.tolist()))
 	df_display = {
@@ -48,7 +48,7 @@ def display_pipeline(tokenizer,
 		df_display["cand_probs"].append(probs)
 		df_display["eos_prob"].append(eos_prob)
 	df_display = pandas.DataFrame(df_display, columns=["max_id", "cand_tokens", "cand_probs", "eos_prob"])
-	return pandas.concat([df_token_prob, df_display], axis=1)
+	return pandas.concat([df_token_probs, df_display], axis=1)
 
 
 # @param model_name_or_path: [Str]
@@ -92,14 +92,17 @@ def decode_pipeline(model_name_or_path,
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
 	logging.info("Greedy decode ...")
-	text, token_prob, logits = greedy_decode(
+	returned_dict = greedy_decode(
 		model = model,
 		tokenizer = tokenizer,
 		prompt = prompt,
 		max_length = max_length,
 		device = device,
 		use_kv_cache = use_kv_cache,
+		forward_hook_module_names = None,
+		backward_hook_module_names = None,
 	)
+	text, token_probs, logits = returned_dict["text"], returned_dict["token_probs"], returned_dict["logits"]
 	logging.info(f"Generated text: {text}")
 	
 	# logging.info("Beam decode ...")
@@ -125,4 +128,4 @@ def decode_pipeline(model_name_or_path,
 		# device = device,
 		# use_kv_cache = False,
 	# )
-	return display_pipeline(tokenizer, text, token_prob, logits)
+	return display_pipeline(tokenizer, text, token_probs, logits)

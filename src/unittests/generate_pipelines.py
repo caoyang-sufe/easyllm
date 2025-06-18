@@ -11,12 +11,12 @@ from src.pipelines.generate import decode_pipeline, generate_pipeline
 
 def decode_pipeline_test():
 	logging.info("Decode unittest ...")
-	model_id = 4
+	model_id = 0
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
 	prompt = """英文单词strawberry中有几个字母r？</think>"""
 	max_length = 32
-	use_kv_cache = True
+	use_kv_cache = False
 	df_display = decode_pipeline(model_name_or_path,
 								 prompt,
 								 max_length,
@@ -30,7 +30,7 @@ def decode_pipeline_test():
 
 def generate_pipeline_test():
 	logging.info("Generate unittest ...")
-	model_id = 4
+	model_id = 0
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
 	prompt = """英文单词strawberry中有几个字母r？</think>"""
