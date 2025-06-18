@@ -9,6 +9,8 @@ model_names = [
 	"EleutherAI/pythia-1b-deduped",
 	"EleutherAI/pythia-160m",
 	"trl-lib/Qwen2-0.5B-Reward",
+	"deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+	"deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
 ]
 
 dataset_names = [

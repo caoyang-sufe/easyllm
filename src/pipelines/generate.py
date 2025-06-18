@@ -13,7 +13,10 @@ from src.tools.torch import register_forward_hook_decorator, register_backward_h
 
 # @param tokenizer: Huggingface tokenizer Object
 # @param text: [Str] Final generated text
-# @param token_prob: List[Tuple(Int, Str, Float)] 
+# @param token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
+# @param logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length`, indicating the logits when each token is generated
+# @param k: [Int] top-k decode candidates to be display
+# @param eos_id: [Int] tokenId of <eos> token, e.g. 151643(<|endoftext|>) for Qwen model 
 def display_pipeline(tokenizer,
 					 text,
 					 token_prob,
@@ -53,31 +56,27 @@ def display_pipeline(tokenizer,
 # @param max_length: [Int]
 # @param eos_id: [Int] default 151643 referes to <|endoftext|> of Qwen-xxx
 # @param k: [Int] the number of top-k tokens to display
-# @param device: [Str/torch.device] e.g. "cuda", "cpu", torch.device("")
+# @param device: [Str/torch.device] e.g. "cuda", "cpu", torch.device("cpu")
+# @param generate_kwargs: [Dict] keyword arguments for `model.generate`
 def generate_pipeline(model_name_or_path,
-					 prompt,
-					 max_length,
-					 eos_id = 151643,
-					 k = 3,
-					 device = None,
-					 ):
+					  prompt,
+					  max_length,
+					  device = None,
+					  generate_kwargs = None,
+					  ):
 	logging.info("Load model and tokenizer ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
 	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
-	generate_kwargs = {"do_sample": False, "top_k": 0, "top_p": 1., "num_beams": 1, "temperature": 1}
-
-	# Hook
-	@register_forward_hook_decorator([
-		"model.layers[0].self_attn.q_proj",
-		"model.layers[0].self_attn.k_proj",
-	])
-	def wrapped_generate(model, tokenizer, prompt, max_length, generate_kwargs, device):
-		text, token_prob, logits = generate_token_prob(model, tokenizer, prompt, max_length, generate_kwargs, device)
-		return text, token_prob, logits
-
-	text, token_prob, logits = wrapped_generate(model, tokenizer, prompt, max_length, generate_kwargs, device)
+	logging.info(f"Device: {device}")
+	logging.info("Model Generate ...")
+	if generate_kwargs is None:
+		# Greedy decode configurations
+		generate_kwargs = {"do_sample": False, "top_k": 0, "top_p": 1., "num_beams": 1, "temperature": 1}
+	text, token_prob, logits = generate_token_prob(model, tokenizer, prompt, max_length, generate_kwargs, device)
+	logging.info(f"Generated text: {text}")
+	return display_pipeline(tokenizer, text, token_prob, logits)
 
 
 def decode_pipeline(model_name_or_path,
@@ -91,28 +90,41 @@ def decode_pipeline(model_name_or_path,
 	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
-	logging.info(f"Device: {device}")
+	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
 	logging.info("Greedy decode ...")
+	eos_id = 151643
 	text, token_prob, logits = greedy_decode(
 		model = model,
 		tokenizer = tokenizer,
 		prompt = prompt,
 		max_length = max_length,
+		eos_id = eos_id,
 		device = device,
 		use_kv_cache = use_kv_cache,
 	)
-	logging.info("Done!")
-	df_display = display_pipeline(tokenizer, text, token_prob, logits)
-	return df_display
+	logging.info(f"Generated text: {text}")
+	
+	# logging.info("Beam decode ...")
+	# beam_search_decode(
+		# model = model, 
+		# tokenizer = tokenizer,
+		# prompt = prompt,
+		# max_length = max_length,
+		# num_beams = 2,
+		# length_penalty = 1.,
+		# device = device,
+		# use_kv_cache = use_kv_cache,
+	# )
 
-
-	# def beam_search_decode(model, 
-						   # tokenizer,
-						   # prompt,
-						   # max_length,
-						   # num_beams,
-						   # length_penalty = 1.,
-						   # eos_id = 151643,
-						   # device = "cuda",
-						   # use_kv_cache = True,
-						   # ):
+	# logging.info("K step greedy decode ...")
+	# k_step_greedy_decode(
+		# model = model,
+		# tokenizer = tokenizer,
+		# prompt = prompt,
+		# max_length = max_length,
+		# n_branches = 2,
+		# depth = 3,
+		# device = device,
+		# use_kv_cache = False,
+	# )
+	return display_pipeline(tokenizer, text, token_prob, logits)

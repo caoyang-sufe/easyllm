@@ -15,6 +15,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompt: [Str]
 # @param max_length: [Int]the number of tokens to be generated (exclude `prompt`)
+# @param eos_id: [Int] default value 151643 is the token ID of `<|end_of_sentence|>` in DeepSeek-R1-Distill-Qwen
 # @param device: [Str] e.g. "cuda" or "cpu"
 # @param use_kv_cache: [Boolean] whether to use KV-cache to accelerate, if True then large memory will be consumed
 # @return generated_text: [Str]
@@ -24,33 +25,36 @@ def greedy_decode(model,
 				  tokenizer,
 				  prompt, 
 				  max_length,
+				  eos_id = 151643,
 				  device = "cuda",
 				  use_kv_cache = True,
 				  ):
+	logging.info(f"EOS token id: {model.config.eos_token_id}")
 	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)	# Str => Long(1, n_tokens)
 	past_key_values = None
 	generated_token_probs = list()
 	generated_logits = list()
-	model.gradient_checkpointing_enable()
 	for i in range(max_length):
 		logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
-		outputs = model(inputs, past_key_values=past_key_values)
-		logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in DeepSeek-R1-Distill-Qwen
 		if use_kv_cache:
 			if past_key_values is None:
 				outputs = model(inputs, past_key_values=None)
 			else:
 				outputs = model(inputs[:, -1].unsqueeze(0), past_key_values=past_key_values, use_cache=True)
+				# outputs = model(inputs, past_key_values=past_key_values)
 			past_key_values = outputs.past_key_values	# Dictlike[key_cache: Float(1, 2, X, hidden_size), value_cache: Float(1, 2, X, hidden_size)], where X = (i + 1) * (n_tokens + i / 2)
 		else:
 			outputs = model(inputs, past_key_values=None, use_cache=False)
+		logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in Qwen-series
 		next_token_probs = F.softmax(logits[:, -1, :], dim=-1)	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
 		next_token_id = torch.argmax(next_token_probs, dim=-1)	# Float(1, n_vocab) => Long(1, )
 		next_token_prob = next_token_probs[0, next_token_id].item()	# Float(1, n_vocab) => Float()
 		next_token = tokenizer.decode(next_token_id[0].item(), skip_special_tokens=False)	# Long(1, ) => Str
 		inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1)
-		generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))
-		generated_logits.append(logits[:, -1, :])
+		generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))	# List[] <- (Int, Str, Float)
+		generated_logits.append(logits[:, -1, :])	# List[] <- Float(1, n_vocab)
+		if next_token_id == eos_id:
+			break
 	generated_text = tokenizer.decode(
 		token_ids = inputs[0], 
 		skip_special_tokens=True, 
@@ -124,7 +128,7 @@ def k_step_greedy_decode(model,
 # @param prompt: [Str]
 # @param max_length: [Int] the number of tokens to be generated (exclude `prompt`)
 # @param length_penalty: [Int] larger penalty value refers to preference to long sequence
-# @param eos_id: [Int] default value 151643 is the token ID of `<|end_of_sentence|>` in DeepSeek-R1
+# @param eos_id: [Int] default value 151643 is the token ID of `<|end_of_sentence|>` in DeepSeek-R1-Distill-Qwen
 # @param device: [Str] e.g. "cuda" or "cpu"
 # @param use_kv_cache: [Boolean], whether to use KV-cache to accelerate, if True then large memory will be consumed
 # @return generated_texts: List[Str] of length num_beams

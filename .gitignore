@@ -8,3 +8,4 @@ bash/
 jupyter/
 __pycache__
 venv/
+results/
