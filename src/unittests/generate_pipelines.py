@@ -15,7 +15,7 @@ def decode_pipeline_test():
 	model_id = 0
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
-	prompt = """英文单词strawberry中有几个字母r？"""
+	prompt = """英文单词strawberry中有几个字母s？"""
 	max_length = 32
 	use_kv_cache = True
 	
@@ -39,11 +39,11 @@ def decode_pipeline_test():
 	save_path = f"./decode+{model_names[model_id].split('/')[-1]}+{use_kv_cache}.csv"
 	logging.info(f"Export table to {save_path}")
 	df_display.to_csv(save_path, sep='\t', header=True, index=False)
-	if forward_hook_module_names is not None:
+	if forward_hook_data is not None:
 		save_path = f"./fhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}.pt"
 		logging.info(f"Export forward hook data to {save_path}")
 		torch.save(forward_hook_data, save_path)
-	if backward_hook_module_names is not None:
+	if backward_hook_data is not None:
 		save_path = f"./bhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}.pt"
 		logging.info(f"Export backward hook data to {save_path}")
 		torch.save(backward_hook_data, save_path)
