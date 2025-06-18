@@ -21,10 +21,10 @@ def register_forward_hook_decorator(module_names):
 					hook_data[module_name] = dict()
 					# @param _module: `f"Module: {_module.__class__.__name__}"`
 					# @param _inputs: Tuple[torch.FloatTensor], `f"Input shapes: {[x.shape for x in _inputs]}"`
-					# @param _outputs: torch.FloatTensor/Tuple[torch.FloatTensor], `f"Output shape: {_outputs.shape}"`
-					def _hook(_module, _input, _output):
-						hook_data[_module_name]["output"] = _output
-						hook_data[_module_name]["input"] = _input
+					# @param _outputs: torch.FloatTensor/Tuple[torch.FloatTensor], `f"Output shape: {_outputs.shape}"` or `f"Input shapes: {[x.shape for x in _outputs]}"`
+					def _hook(_module, _inputs, _outputs):
+						hook_data[_module_name]["output"].append(_outputs)
+						hook_data[_module_name]["input"].append(_inputs)
 					return _hook
 				hook_handles.append(eval(f"model.{module_name}").register_forward_hook(_make_hook(module_name)))
 			try:
@@ -52,10 +52,10 @@ def register_backward_hook_decorator(module_names):
 					hook_data[module_name] = {"input": list(), "output": list()}
 					# @param _module: `f"Module: {_module.__class__.__name__}"`
 					# @param _inputs: Tuple[torch.FloatTensor], `f"Input shapes: {[x.shape for x in _inputs]}"`
-					# @param _outputs: Tuple`f"Output shape: {_outputs.shape}"`
-					def _hook(_module, _input, _output):
-						hook_data[_module_name]["input"].append(_input.detach().clone())
-						hook_data[_module_name]["output"].append(_output.detach().clone())
+					# @param _outputs: Tuple[torch.FloatTensor]: `f"Output shapes: {[x.shape for x in _outputs]}"`
+					def _hook(_module, _inputs, _outputs):
+						hook_data[_module_name]["input"].append(_inputs)
+						hook_data[_module_name]["output"].append(_outputs)
 					return _hook
 				hook_handles.append(eval(f"model.{module_name}").register_forward_hook(_make_hook(module_name)))
 			try:
