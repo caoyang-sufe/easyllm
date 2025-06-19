@@ -288,5 +288,12 @@ def generate_token_prob(model,
 	return generated_text, generated_token_probs, generated_logits
 
 
-# Given 
-def generation_probs()
+# Given prompt, calculate the generation probability of the response (i.e. completion) by given model
+def calculate_completion_prob(model,
+							  tokenizer,
+							  prompt,
+							  completion,
+							  generation_kwargs,
+							  device = "cuda",
+							  ):
+	pass
