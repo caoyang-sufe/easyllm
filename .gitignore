@@ -1,11 +1,10 @@
 *.pyc
 *.log
-.idea/
 data/
 log/
 temp/
 bash/
-jupyter/
+.ipynb_checkpoints/
 __pycache__
 venv/
 results/

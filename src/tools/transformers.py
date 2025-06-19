@@ -286,3 +286,7 @@ def generate_token_prob(model,
 		token_prob = generated_probs[i][0, token_id].item()	# Float
 		generated_token_probs.append((token_id, token, token_prob))
 	return generated_text, generated_token_probs, generated_logits
+
+
+# Given 
+def generation_probs()
