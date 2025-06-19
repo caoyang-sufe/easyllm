@@ -13,7 +13,7 @@ from src.pipelines.generate import decode_pipeline, generate_pipeline
 
 def decode_pipeline_test():
 	logging.info("Decode unittest ...")
-	model_id = 0
+	model_id = 4
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
 	prompts = \
@@ -33,14 +33,11 @@ def decode_pipeline_test():
 	use_kv_cache = True
 	
 	forward_hook_module_names = \
-		[f"model.embed_tokens", "model.rotary_emb", "model.norm"] + \
-		[f"model.layers[{i}].self_attn.q_proj" for i in range(24)] + \
-		[f"model.layers[{i}].self_attn.k_proj" for i in range(24)] + \
-		[f"model.layers[{i}].self_attn.v_proj" for i in range(24)] + \
-		[f"model.layers[{i}].self_attn.o_proj" for i in range(24)]
-
-
-	forward_hook_module_names = ["lm_head"]
+		[f"model.embed_tokens", "lm_head"] + \
+		[f"model.layers[{i}].self_attn.q_proj" for i in range(28)] + \
+		[f"model.layers[{i}].self_attn.k_proj" for i in range(28)] + \
+		[f"model.layers[{i}].self_attn.v_proj" for i in range(28)] + \
+		[f"model.layers[{i}].self_attn.o_proj" for i in range(28)]
 
 	for i in range(len(prompts)):
 		returned_dict = decode_pipeline(

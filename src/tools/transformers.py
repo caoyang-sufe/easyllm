@@ -22,6 +22,16 @@ def get_generation_eos_token_ids(model):
 		eos_token_ids = [151643, 151645]	# Default EOS token for Qwen model
 	return eos_token_ids
 
+def get_generation_bos_token_ids(model):
+	bos_token_id = model.generation_config.bos_token_id
+	if isinstance(bos_token_id, int):
+		bos_token_ids = [bos_token_id]
+	elif isinstance(bos_token_id, list):
+		bos_token_ids = bos_token_id[:]
+	else:
+		logging.warning(f"Unknown type of BOS: {bos_token_id}")
+		bos_token_ids = [151646]	# Default EOS token for Qwen model
+	return bos_token_ids	
 
 # Standard greedy decode supporting hook registration
 # @param model: Huggingface model object
@@ -291,9 +301,17 @@ def generate_token_prob(model,
 # Given prompt, calculate the generation probability of the response (i.e. completion) by given model
 def calculate_completion_prob(model,
 							  tokenizer,
-							  prompt,
-							  completion,
+							  prompt = None,
+							  completion = None,
+							  prompt_token_ids = None,
+							  completion_token_ids = None,
 							  generation_kwargs,
 							  device = "cuda",
 							  ):
-	pass
+	if 
+	prompt_tokens  = tokenizer.encode(prompt, return_tensor="pt").to(device)
+	completion_tokens = tokenizer.encode(completion, return_tensor="pt").to(device)
+	with torch.no_grad():
+		outputs = model.generate(inputs)
+
+	
