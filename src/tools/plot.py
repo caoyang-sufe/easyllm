@@ -5,26 +5,27 @@
 import json
 import torch
 import numpy
+import seaborn as sns
 from matplotlib import pyplot as plt
 
 # @param tensor: torch.Tensor or numpy.ndarray
-# @param bins: the number of bins of histogram
+# @param figsize: [Tuple[Int, Int]]
+# @param bins: [Int] the number of bins of histogram
 # @param title: [Str]
 # @param xlabel: [Str]
 # @param ylabel: [Str]
-def plot_tensor_histogram(tensor, 
-						  bins = 50, 
+def plot_tensor_histogram(tensor,
+						  figsize=(10, 8),
+						  bins = 50,
 						  title = "Tensor Value Distribution", 
 						  xlabel = "Value", 
 						  ylabel = "Frequency",
 						  ):
 	if hasattr(tensor, "numpy"):
-		data = tensor.numpy().flatten()
-	elif hasattr(tensor, "numpy"):
-		data = tensor.numpy().flatten()
+		data = tensor.cpu().detach().numpy().flatten()
 	else:
 		data = numpy.array(tensor).flatten()
-	plt.figure(figsize=(10, 6))
+	plt.figure(figsize=figsize)
 	plt.hist(data, bins=bins, edgecolor="black", alpha=0.7)
 	plt.title(title)
 	plt.xlabel(xlabel)
@@ -32,6 +33,30 @@ def plot_tensor_histogram(tensor,
 	plt.grid(axis='y', alpha=.75)
 	plt.show()
 
+# @param tensor: torch.Tensor or numpy.ndarray
+# @param figsize: [Tuple[Int, Int]]
+# @param title: [Str]
+# @param cmap: [Str] e.g. "viridis", "coolwarm"
+# @param annot: [Boolean] whether to show value in grid cell
+# @param fmt: [Str] value formatter, e.g. ".2f"
+# @param cbar: [Boolean] whether to show color bar
+def plot_tensor_heatmap(tensor,
+						figsize = (10, 8),
+						title = "Tensor Heatmap",
+						cmap = "viridis", 
+						annot = False,
+						fmt = ".2f",
+						cbar = True,
+						):
+	if hasattr(tensor, "numpy"):
+		data = tensor.cpu().detach().numpy()
+	assert data.dim() == 2
+	plt.figure(figsize=figsize)
+	ax = sns.heatmap(data, cmap=cmap, annot=annot, fmt=fmt, cbar=cbar)
+	ax.set_title(title)
+	plt.xlabel("Columns")
+	plt.ylabel("Rows")
+	plt.show()
 
 # Plot dynamics of TRL trainer state
 def plot_trl_dynamics(trainer_state_path):
