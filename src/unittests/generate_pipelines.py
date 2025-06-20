@@ -13,23 +13,28 @@ from src.pipelines.generate import decode_pipeline, generate_pipeline
 
 def decode_pipeline_test():
 	logging.info("Decode unittest ...")
-	model_id = 4
+	model_id = 0
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
+	# prompts = \
+		# [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters] + \
+		# [f"""({i})英文单词strawberry中有几个字母{i}？""" for i in range(1, 10)] + \
+		# [f"""({i})英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters] + \
+		# [
+			# """（ii）英文单词strawberry中有几个字母r？""",
+			# """（iii）英文单词strawberry中有几个字母r？""",
+			# """（iv）英文单词strawberry中有几个字母r？""",
+			# """（vi）英文单词strawberry中有几个字母r？""",
+			# """（vii）英文单词strawberry中有几个字母r？""",
+			# """（viii）英文单词strawberry中有几个字母r？""",
+			# """（ix）英文单词strawberry中有几个字母r？""",
+		# ]
+	# prompts = \
+		# [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters]
+
 	prompts = \
-		[f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters] + \
-		[f"""({i})英文单词strawberry中有几个字母{i}？""" for i in range(1, 10)] + \
-		[f"""({i})英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters] + \
-		[
-			"""（ii）英文单词strawberry中有几个字母r？""",
-			"""（iii）英文单词strawberry中有几个字母r？""",
-			"""（iv）英文单词strawberry中有几个字母r？""",
-			"""（vi）英文单词strawberry中有几个字母r？""",
-			"""（vii）英文单词strawberry中有几个字母r？""",
-			"""（viii）英文单词strawberry中有几个字母r？""",
-			"""（ix）英文单词strawberry中有几个字母r？""",
-		]
-	max_length = 4
+
+	max_length = 8
 	use_kv_cache = True
 	
 	forward_hook_module_names = \
@@ -39,6 +44,9 @@ def decode_pipeline_test():
 		[f"model.layers[{i}].self_attn.v_proj" for i in range(28)] + \
 		[f"model.layers[{i}].self_attn.o_proj" for i in range(28)]
 
+	forward_hook_module_names = \
+		[f"model.layers[{i}]" for i in range(24)]
+	
 	for i in range(len(prompts)):
 		returned_dict = decode_pipeline(
 			model_name_or_path,

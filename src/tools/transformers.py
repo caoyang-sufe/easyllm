@@ -305,10 +305,8 @@ def calculate_completion_prob(model,
 							  completion = None,
 							  prompt_token_ids = None,
 							  completion_token_ids = None,
-							  generation_kwargs,
 							  device = "cuda",
 							  ):
-	if 
 	prompt_tokens  = tokenizer.encode(prompt, return_tensor="pt").to(device)
 	completion_tokens = tokenizer.encode(completion, return_tensor="pt").to(device)
 	with torch.no_grad():
