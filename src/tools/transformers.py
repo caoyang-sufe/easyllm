@@ -90,32 +90,33 @@ def greedy_decode(model,
 		backward_hook_data = list()	
 	for i in range(max_length):
 		logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
-		if use_kv_cache:
-			if past_key_values is None:
-				outputs = easy_forward(inputs, model=model, past_key_values=None)
+		with torch.no_grad():
+			if use_kv_cache:
+				if past_key_values is None:
+					outputs = easy_forward(inputs, model=model, past_key_values=None)
+				else:
+					outputs = easy_forward(inputs[:, -1].unsqueeze(0), model=model, past_key_values=past_key_values, use_cache=True)
+				past_key_values = outputs.past_key_values	# Dictlike[key_cache: Float(1, 2, X, hidden_size), value_cache: Float(1, 2, X, hidden_size)], where X = (i + 1) * (n_tokens + i / 2)
 			else:
-				outputs = easy_forward(inputs[:, -1].unsqueeze(0), model=model, past_key_values=past_key_values, use_cache=True)
-			past_key_values = outputs.past_key_values	# Dictlike[key_cache: Float(1, 2, X, hidden_size), value_cache: Float(1, 2, X, hidden_size)], where X = (i + 1) * (n_tokens + i / 2)
-		else:
-			outputs = easy_forward(inputs, model=model, past_key_values=None, use_cache=False)
-		logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in Qwen-series
-		next_token_probs = F.softmax(logits[:, -1, :], dim=-1)	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
-		next_token_id = torch.argmax(next_token_probs, dim=-1)	# Float(1, n_vocab) => Long(1, )
-		next_token_prob = next_token_probs[0, next_token_id].item()	# Float(1, n_vocab) => Float()
-		next_token = tokenizer.decode(next_token_id[0].item(), skip_special_tokens=False)	# Long(1, ) => Str
-		inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1)
-		generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))	# List[] <- (Int, Str, Float)
-		generated_logits.append(logits[:, -1, :])	# List[] <- Float(1, n_vocab)
-		# Process hook data
-		if hook_flag > 0:
-			hook_data = outputs.hook_outputs
-			if hook_flag == 1:
-				forward_hook_data.append(hook_data)
-			else:
-				backward_hook_data.append(hook_data)
-		if next_token_id in eos_token_ids:
-			# Early stop
-			break
+				outputs = easy_forward(inputs, model=model, past_key_values=None, use_cache=False)
+			logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in Qwen-series
+			next_token_probs = F.softmax(logits[:, -1, :], dim=-1)	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
+			next_token_id = torch.argmax(next_token_probs, dim=-1)	# Float(1, n_vocab) => Long(1, )
+			next_token_prob = next_token_probs[0, next_token_id].item()	# Float(1, n_vocab) => Float()
+			next_token = tokenizer.decode(next_token_id[0].item(), skip_special_tokens=False)	# Long(1, ) => Str
+			inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1)
+			generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))	# List[] <- (Int, Str, Float)
+			generated_logits.append(logits[:, -1, :])	# List[] <- Float(1, n_vocab)
+			# Process hook data
+			if hook_flag > 0:
+				hook_data = outputs.hook_outputs
+				if hook_flag == 1:
+					forward_hook_data.append(hook_data)
+				else:
+					backward_hook_data.append(hook_data)
+			if next_token_id in eos_token_ids:
+				# Early stop at EOS
+				break
 	generated_text = tokenizer.decode(
 		token_ids = inputs[0], 
 		skip_special_tokens=True, 
@@ -299,17 +300,53 @@ def generate_token_prob(model,
 
 
 # Given prompt, calculate the generation probability of the response (i.e. completion) by given model
+# @param model: Huggingface model object
+# @param tokenizer: Huggingface tokenizer Object
+# @param prompt_token_ids: [List/torch.LongTensor] e.g. [1, 2, 3] / Long([[1, 2, 3]])
+# @param completion_token_ids: [List/torch.LongTensor] e.g. [1, 2, 3] / Long([[1, 2, 3]])
+# @param device: [Str] e.g. "cuda" or "cpu"
+# @param use_kv_cache: [Boolean] whether to use KV-cache to accelerate, if True then large memory will be consumed
 def calculate_completion_prob(model,
 							  tokenizer,
-							  prompt = None,
-							  completion = None,
-							  prompt_token_ids = None,
-							  completion_token_ids = None,
+							  prompt_token_ids,
+							  completion_token_ids,
 							  device = "cuda",
+							  use_kv_cache = True,
 							  ):
 	prompt_tokens  = tokenizer.encode(prompt, return_tensor="pt").to(device)
 	completion_tokens = tokenizer.encode(completion, return_tensor="pt").to(device)
+	past_key_values = None
+	if isinstance(prompt_token_ids, list):
+		prompt_token_ids = torch.LongTensor([prompt_token_ids])
+	if isinstance(completion_token_ids, list):
+		completion_token_ids = torch.LongTensor([completion_token_ids])
+	inputs = prompt_token_ids	# Long(1, n_tokens)
+	generated_token_probs = list()
+	generated_logits = list()
 	with torch.no_grad():
-		outputs = model.generate(inputs)
-
-	
+		for i in range(completion_token_ids.size(1)):
+			if use_kv_cache:
+				if past_key_value is None:
+					outputs = model(inputs, past_key_values=None)
+				else:
+					outputs = model(inputs[:, -1].unsqueeze(0), past_key_values=past_key_values, use_cache=True)
+			else:
+				outputs = model(inputs, past_key_values=None, use_cache=False)
+			logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in Qwen-series
+			next_token_probs = F.softmax(logits[:, -1, :], dim=-1)	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
+			next_token_id = completion_token_ids[:, i]	# Float(1, n_vocab) => Long(1, )
+			next_token_prob = next_token_probs[0, next_token_id].item()	# Float(1, n_vocab) => Float()
+			next_token = tokenizer.decode(next_token_id[0].item(), skip_special_tokens=False)	# Long(1, ) => Str
+			inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1)
+			generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))	# List[] <- (Int, Str, Float)
+			generated_logits.append(logits[:, -1, :])	# List[] <- Float(1, n_vocab)	
+	generated_text = tokenizer.decode(
+		token_ids = inputs[0], 
+		skip_special_tokens=True, 
+		clean_up_tokenization_spaces=True,
+	)	# Long(1, n_tokens + max_length) => Str
+	return {
+		"text": generated_text,
+		"token_probs": generated_token_probs,
+		"logits": tuple(generated_logits),
+	}
