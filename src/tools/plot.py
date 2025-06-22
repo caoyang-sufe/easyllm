@@ -30,7 +30,7 @@ def plot_tensor_mean_and_variance(tensors,
 						  		  ):
 	x = list(range(len(tensors)))
 	means = [tensor.mean().item() for tensor in tensors]
-	variances = [tensor.variance().item() for tensor in tensors]
+	variances = [tensor.var().item() for tensor in tensors]
 	color_mean, color_variance = colors
 	if ax is None:
 		plt.figure(figsize=figsize)
@@ -38,15 +38,17 @@ def plot_tensor_mean_and_variance(tensors,
 	else:
 		ax_mean = ax
 	# Mean plot
-	ax_mean.set_xlabel(xlabel)
+	ax_mean.set_xlabel(x_label)
 	ax_mean.plot(x, means, label="mean", color=color_mean)
 	ax_mean.set_ylabel("Mean", color=color_mean)
 	ax_mean.tick_params(axis='y', labelcolor=color_mean)
+	ax_mean.ticklabel_format(axis='y', style="sci", scilimits=(-3, 3))
 	# Variance plot
 	ax_variance = ax_mean.twinx()
 	ax_variance.plot(x, variances, label="variance", color=color_variance)
 	ax_variance.set_ylabel("Variance", color=color_variance)
 	ax_variance.tick_params(axis='y', labelcolor=color_variance)
+	ax_variance.ticklabel_format(axis='y', style="sci", scilimits=(-3, 3))	
 	# Plot handlers
 	lines_mean, labels_mean = ax_mean.get_legend_handles_labels()
 	lines_variance, labels_variance = ax_variance.get_legend_handles_labels()
@@ -70,7 +72,7 @@ def plot_tensor_mean_and_variance(tensors,
 # @param x_label: [Str]
 # @param y_label: [Str]
 # @param title: [Str] Figure title
-def plot_tensor_histogram(tensor,
+def plot_tensor_histogram(tensor, *,
 						  ax = None,
 						  figsize=(10, 8),
 						  bins = 50,
@@ -92,6 +94,8 @@ def plot_tensor_histogram(tensor,
 	ax.set_xlabel(x_label)
 	ax.set_ylabel(y_label)
 	ax.grid(axis='y', alpha=.5)		
+	# `scilimits = (m, n)` refers to use Scientific Notation for value
+	ax.ticklabel_format(axis='y', style="sci", scilimits=(-2, 2))	
 	if save_path is not None:
 		plt.savefig(save_path)
 	if is_show:
@@ -113,7 +117,7 @@ def plot_tensor_histogram(tensor,
 # - annot: [Boolean] Whether to show value in grid cell
 # - fmt: [Str] Value formatter, e.g. ".2f"
 # - cbar: [Boolean] whether to show color bar
-def plot_tensor_heatmap(tensor,
+def plot_tensor_heatmap(tensor, *,
 						ax = None,
 						figsize = (10, 8),
 						save_path = None,
