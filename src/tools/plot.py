@@ -62,7 +62,7 @@ def plot_tensor_heatmap(tensor,
 						annot = False,
 						fmt = ".2f",
 						cbar = True,
-						save_path = 
+						save_path = None,
 						):
 	if hasattr(tensor, "numpy"):
 		data = tensor.cpu().detach().numpy()
