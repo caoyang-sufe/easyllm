@@ -30,9 +30,15 @@ def decode_pipeline_test():
 			# """（ix）英文单词strawberry中有几个字母r？""",
 		# ]
 	# prompts = [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters]
-	prompts = [f"""很久很久以前，"""]
+	# prompts = [f"""很久很久以前，"""]
+	prompts = [
+		f"""英文单词strawberry中有几个字母r？""",
+		f"""很久很久以前，""",
+		f"""素因子分解：512""",
+		f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。""",
+	]
 
-	max_length = 16
+	max_length = 64
 	use_kv_cache = True
 
 	forward_hook_module_names = \
@@ -43,7 +49,9 @@ def decode_pipeline_test():
 		[f"model.layers[{i}].self_attn.o_proj" for i in range(28)]
 
 	forward_hook_module_names = \
-		[f"model.layers[{i}]" for i in range(24)]
+		[f"model.layers[{i}]" for i in range(24)] + \
+		[f"model.layers[{i}].input_layernorm" for i in range(24)] + \
+		[f"model.layers[{i}].self_attn" for i in range(24)]
 	
 	for i in range(len(prompts)):
 		returned_dict = decode_pipeline(
