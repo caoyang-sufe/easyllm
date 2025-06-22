@@ -30,7 +30,7 @@ def decode_pipeline_test():
 			# """（ix）英文单词strawberry中有几个字母r？""",
 		# ]
 	# prompts = [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters]
-	prompts = [f"""很久很久以前，""" for i in string.ascii_letters]
+	prompts = [f"""很久很久以前，"""]
 
 	max_length = 16
 	use_kv_cache = True
