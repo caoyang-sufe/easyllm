@@ -29,7 +29,8 @@ def decode_pipeline_test():
 			# """（viii）英文单词strawberry中有几个字母r？""",
 			# """（ix）英文单词strawberry中有几个字母r？""",
 		# ]
-	prompts = [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters]
+	# prompts = [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters]
+	prompts = [f"""很久很久以前，""" for i in string.ascii_letters]
 
 	max_length = 16
 	use_kv_cache = True
@@ -42,7 +43,7 @@ def decode_pipeline_test():
 		[f"model.layers[{i}].self_attn.o_proj" for i in range(28)]
 
 	forward_hook_module_names = \
-		["lm_head"] + [f"model.layers[{i}]" for i in range(24)]
+		[f"model.layers[{i}]" for i in range(24)]
 	
 	for i in range(len(prompts)):
 		returned_dict = decode_pipeline(
