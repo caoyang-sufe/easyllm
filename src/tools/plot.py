@@ -8,83 +8,154 @@ import numpy
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-# @param tensor: torch.Tensor or numpy.ndarray
-# @param figsize: [Tuple[Int, Int]]
-# @param bins: [Int] the number of bins of histogram
-# @param title: [Str]
-# @param xlabel: [Str]
-# @param ylabel: [Str]
-def plot_tensor_histogram(tensor,
-						  ax = None,
-						  figsize=(10, 8),
-						  bins = 50,
-						  title = "Tensor Value Distribution", 
-						  xlabel = "Value", 
-						  ylabel = "Frequency",
-						  save_path = None,
-						  is_show = True,
-						  ):
-	if hasattr(tensor, "numpy"):
-		data = tensor.cpu().detach().numpy().flatten()
-	else:
-		data = numpy.array(tensor).flatten()
-	plt.figure(figsize=figsize)
+# Plot mean and variance of a sequence of tensors
+# @param tensors: List[torch.Tensor]
+# @param ax: Matplotlib subplot object 
+# @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
+# @param save_path: [Str] Figure save path
+# @param is_show: [Boolean] Whether to show figure
+# @param x_label: [Str]
+# @param y_labels: [Tuple[Str, Str]] Note that here are two Y axises
+# @param title: [Str] Figure title
+# @param colors: [Tuple[Str, Str]] Two colors for mean and variance curves
+def plot_tensor_mean_and_variance(tensors,
+								  ax = None,
+								  figsize=(10, 8),
+						  		  save_path = None,
+						  		  is_show = True,
+						  		  x_label = "Tensors",
+						  		  y_labels = ("Mean", "Variance"),
+						  		  title = "Trend of Mean and Variance",
+						  		  colors = ("red", "blue"),
+						  		  ):
+	x = list(range(len(tensors)))
+	means = [tensor.mean().item() for tensor in tensors]
+	variances = [tensor.variance().item() for tensor in tensors]
+	color_mean, color_variance = colors
 	if ax is None:
-		plt.hist(data, bins=bins, edgecolor="black", alpha=0.7)
-		plt.title(title)
-		plt.xlabel(xlabel)
-		plt.ylabel(ylabel)
-		plt.grid(axis='y', alpha=.75)
+		plt.figure(figsize=figsize)
+		ax_mean = plt.subplot()
 	else:
-		ax.hist(data, bins=bins, edgecolor="black", alpha=0.7)
-		ax.set_title(title)
-		ax.set_xlabel(xlabel)
-		ax.set_ylabel(ylabel)
-		ax.grid(axis='y', alpha=.75)		
+		ax_mean = ax
+	# Mean plot
+	ax_mean.set_xlabel(xlabel)
+	ax_mean.plot(x, means, label="mean", color=color_mean)
+	ax_mean.set_ylabel("Mean", color=color_mean)
+	ax_mean.tick_params(axis='y', labelcolor=color_mean)
+	# Variance plot
+	ax_variance = ax_mean.twinx()
+	ax_variance.plot(x, variances, label="variance", color=color_variance)
+	ax_variance.set_ylabel("Variance", color=color_variance)
+	ax_variance.tick_params(axis='y', labelcolor=color_variance)
+	# Plot handlers
+	lines_mean, labels_mean = ax_mean.get_legend_handles_labels()
+	lines_variance, labels_variance = ax_variance.get_legend_handles_labels()
+	ax_mean.legend(lines_mean + lines_variance, labels_mean + labels_variance, loc="upper left")
+	plt.tight_layout()
+	plt.title(title)
+	# Save and show figure
 	if save_path is not None:
 		plt.savefig(save_path)
 	if is_show:
 		plt.show()
 		plt.close()
 
+# Visualize tensor value distribution by histogram
 # @param tensor: torch.Tensor or numpy.ndarray
-# @param figsize: [Tuple[Int, Int]]
+# @param ax: Matplotlib subplot object 
+# @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
+# @param bins: [Int] The number of bins of histogram
+# @param save_path: [Str] Figure save path
+# @param is_show: [Boolean] Whether to show figure
+# @param x_label: [Str]
+# @param y_label: [Str]
+# @param title: [Str] Figure title
+def plot_tensor_histogram(tensor,
+						  ax = None,
+						  figsize=(10, 8),
+						  bins = 50,
+						  save_path = None,
+						  is_show = True,
+						  x_label = "Value",
+						  y_label = "Frequency",
+						  title = "Tensor Value Distribution",
+						  ):
+	if hasattr(tensor, "numpy"):
+		data = tensor.cpu().detach().numpy().flatten()
+	else:
+		data = numpy.array(tensor).flatten()
+	if ax is None:
+		plt.figure(figsize=figsize)
+		ax = plt.subplot()
+	ax.hist(data, bins=bins, edgecolor="black", alpha=0.7)
+	ax.set_title(title)
+	ax.set_xlabel(x_label)
+	ax.set_ylabel(y_label)
+	ax.grid(axis='y', alpha=.5)		
+	if save_path is not None:
+		plt.savefig(save_path)
+	if is_show:
+		plt.show()
+		plt.close()
+
+# Visualize tensor value distribution by heatmap
+# @param tensor: torch.Tensor or numpy.ndarray
+# @param ax: Matplotlib subplot object 
+# @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
 # @param title: [Str]
-# @param cmap: [Str] e.g. "viridis", "coolwarm"
-# @param annot: [Boolean] whether to show value in grid cell
-# @param fmt: [Str] value formatter, e.g. ".2f"
-# @param cbar: [Boolean] whether to show color bar
+# @param save_path: [Str] Figure save path
+# @param is_show: [Boolean] Whether to show figure
+# @param x_label: [Str]
+# @param y_label: [Str]
+# @param title: [Str] Figure title
+# @param heatmap_kwargs: [Dict] Keyword arguments of `sns.heatmap`
+# - cmap: [Str] e.g. "binary", "viridis", "coolwarm", "Greys", "gray", "gist_gray", "gist_yarg"
+# - annot: [Boolean] Whether to show value in grid cell
+# - fmt: [Str] Value formatter, e.g. ".2f"
+# - cbar: [Boolean] whether to show color bar
 def plot_tensor_heatmap(tensor,
 						ax = None,
 						figsize = (10, 8),
-						title = "Tensor Heatmap",
-						cmap = "viridis", 
-						annot = False,
-						fmt = ".2f",
-						cbar = True,
 						save_path = None,
+						is_show = True,
+						x_label = "Column",
+						y_label = "Row",
+						title = "Tensor Value Heatmap",
+						heatmap_kwargs = {
+							"cmap": "binary", 
+							"annot": False, 
+							"fmt": ".2f", 
+							"cbar": True,
+						},
 						):
 	if hasattr(tensor, "numpy"):
 		data = tensor.cpu().detach().numpy()
 	else:
 		data = numpy.array(tensor)
 	assert data.ndim == 2
-	plt.figure(figsize=figsize)
 	if ax is None:
-		ax = sns.heatmap(data, cmap=cmap, annot=annot, fmt=fmt, cbar=cbar)
-	else:
-		sns.heatmap(data, cmap=cmap, annot=annot, fmt=fmt, cbar=cbar, ax=ax)
+		plt.figure(figsize=figsize)
+		ax = plt.subplot()
+	sns.heatmap(data, ax=ax, **heatmap_kwargs)
 	ax.set_title(title)
-	plt.xlabel("Columns")
-	plt.ylabel("Rows")
+	plt.xlabel(x_label)
+	plt.ylabel(y_label)
 	if save_path is not None:
 		plt.savefig(save_path)		
 	if is_show:
 		plt.show()
 		plt.close()
 
-# Plot dynamics of TRL trainer state
-def plot_trl_dynamics(trainer_state_path):
+# Plot dynamics of trainer state of `trl.PPOTrainer`
+# @param trainer_state_path: [Str] File path of trainer_state.json
+# @param figsize: [Tuple[Int, Int]]
+# @param save_path: [Str] Figure save path
+# @param is_show: [Boolean] Whether to show figure
+def plot_ppo_dynamics(trainer_state_path,
+					  figsize = (8, 8),
+					  save_path = None,
+					  is_show = True,
+					  ):
 	with open(trainer_state_path, 'r', encoding="utf8") as f:
 		data = json.load(f)
 	log_history = data["log_history"]
@@ -99,61 +170,43 @@ def plot_trl_dynamics(trainer_state_path):
 	non_score_rewards = [entry["objective/non_score_reward"] for entry in log_history]
 	rlhf_rewards = [entry["objective/rlhf_reward"] for entry in log_history]
 	scores = [entry["objective/scores"] for entry in log_history]
-	plt.figure(figsize=(8, 8))
+	plt.figure(figsize=figsize)
 	ax_1 = plt.subplot(2, 2, 1)
 	ax_2 = plt.subplot(4, 2, 2)
 	ax_3 = plt.subplot(4, 2, 4)
 	ax_4 = plt.subplot(2, 2, 3)
 	ax_5 = plt.subplot(2, 2, 4)
-
+	# ----
 	ax_1.plot(steps, policy_loss, label="Policy Loss")
 	ax_1.plot(steps, value_loss, label="Value Loss", linestyle="--")
 	ax_1.set_xlabel("Step"), ax_1.set_ylabel("Loss"), ax_1.legend()
 	ax_1.set_title("Policy and Value Loss")
-	# ------------------------------------------------------------------
+	# ----
 	ax_2.plot(steps, kls, label="objective/kl")
 	ax_2.set_xlabel("Step"), ax_2.set_ylabel("KL"), ax_2.legend()
 	ax_2.set_title("KL Curve")
-	# ------------------------------------------------------------------
+	# ----
 	ax_3.plot(steps, entropys, label="objective/entropy")
 	ax_3.set_xlabel("Step"), ax_3.set_ylabel("Entropy"), ax_3.legend()
 	ax_3.set_title("Entropy Curve")
-	# ------------------------------------------------------------------
+	# ----
 	ax_4.plot(steps, lrs, label="Learning Rate")
 	ax_4.set_xlabel("Step"), ax_4.set_ylabel("Learning Rate"), ax_4.legend()
 	ax_4.set_title("Learning Rate Curve")
-	# ------------------------------------------------------------------
+	# ----
 	ax_5.plot(steps, non_score_rewards, label="objective/non_score_reward", linestyle="--")
 	ax_5.plot(steps, rlhf_rewards, label="objective/rlhf_reward", linestyle="--")
 	ax_5.plot(steps, scores, label="objective/scores")
 	ax_5.set_xlabel("Step"), ax_5.set_ylabel("Score/Reward"), ax_5.legend()
 	ax_5.set_title("Reward and Score")
-	plt.show()
-
-# Plot Mean and Variance of Tensor
-def plot_tensor_mean_and_variance(tensor):
-	x = np.linspace(0, 10, 100)
-	y1 = np.sin(x)
-	y2 = np.exp(x) * 0.1
-	fig, ax1 = plt.subplots(figsize=(8, 4))
-	ax1.plot(x, y1, color="blue", label="sin(x)")
-	ax1.set_xlabel("X Axis")
-	ax1.set_ylabel("Y1 (sin(x))", color="blue")
-	ax1.tick_params(axis='y', labelcolor="blue")
-	ax2 = ax1.twinx()
-	ax2.plot(x, y2, color="red", label="0.1 * exp(x)")
-	ax2.set_ylabel("Y2 (0.1 * exp(x))", color="red")
-	ax2.tick_params(axis='y', labelcolor="red")
-	lines1, labels1 = ax1.get_legend_handles_labels()
-	lines2, labels2 = ax2.get_legend_handles_labels()
-	ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
-	plt.tight_layout()
-	plt.title("Dual Y-Axis Example")
-	plt.show()
+	# ----
+	if save_path is not None:
+		plt.savefig(save_path)		
+	if is_show:
+		plt.show()
+		plt.close()
 
 	
 if __name__ == "__main__":
-	fp = r"C:\Users\caoyang\AppData\Local\Temp\fz3temp-2\trainer_state.json"
-	fp = r"D:\code\trainer_state.json"
-	plot_trl_dynamics(fp)
+	
 	
