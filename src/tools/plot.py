@@ -15,23 +15,37 @@ from matplotlib import pyplot as plt
 # @param xlabel: [Str]
 # @param ylabel: [Str]
 def plot_tensor_histogram(tensor,
+						  ax = None,
 						  figsize=(10, 8),
 						  bins = 50,
 						  title = "Tensor Value Distribution", 
 						  xlabel = "Value", 
 						  ylabel = "Frequency",
+						  save_path = None,
+						  is_show = True,
 						  ):
 	if hasattr(tensor, "numpy"):
 		data = tensor.cpu().detach().numpy().flatten()
 	else:
 		data = numpy.array(tensor).flatten()
 	plt.figure(figsize=figsize)
-	plt.hist(data, bins=bins, edgecolor="black", alpha=0.7)
-	plt.title(title)
-	plt.xlabel(xlabel)
-	plt.ylabel(ylabel)
-	plt.grid(axis='y', alpha=.75)
-	plt.show()
+	if ax is None:
+		plt.hist(data, bins=bins, edgecolor="black", alpha=0.7)
+		plt.title(title)
+		plt.xlabel(xlabel)
+		plt.ylabel(ylabel)
+		plt.grid(axis='y', alpha=.75)
+	else:
+		ax.hist(data, bins=bins, edgecolor="black", alpha=0.7)
+		ax.set_title(title)
+		ax.set_xlabel(xlabel)
+		ax.set_ylabel(ylabel)
+		ax.grid(axis='y', alpha=.75)		
+	if save_path is not None:
+		plt.savefig(save_path)
+	if is_show:
+		plt.show()
+		plt.close()
 
 # @param tensor: torch.Tensor or numpy.ndarray
 # @param figsize: [Tuple[Int, Int]]
@@ -41,22 +55,33 @@ def plot_tensor_histogram(tensor,
 # @param fmt: [Str] value formatter, e.g. ".2f"
 # @param cbar: [Boolean] whether to show color bar
 def plot_tensor_heatmap(tensor,
+						ax = None,
 						figsize = (10, 8),
 						title = "Tensor Heatmap",
 						cmap = "viridis", 
 						annot = False,
 						fmt = ".2f",
 						cbar = True,
+						save_path = 
 						):
 	if hasattr(tensor, "numpy"):
 		data = tensor.cpu().detach().numpy()
-	assert data.dim() == 2
+	else:
+		data = numpy.array(tensor)
+	assert data.ndim == 2
 	plt.figure(figsize=figsize)
-	ax = sns.heatmap(data, cmap=cmap, annot=annot, fmt=fmt, cbar=cbar)
+	if ax is None:
+		ax = sns.heatmap(data, cmap=cmap, annot=annot, fmt=fmt, cbar=cbar)
+	else:
+		sns.heatmap(data, cmap=cmap, annot=annot, fmt=fmt, cbar=cbar, ax=ax)
 	ax.set_title(title)
 	plt.xlabel("Columns")
 	plt.ylabel("Rows")
-	plt.show()
+	if save_path is not None:
+		plt.savefig(save_path)		
+	if is_show:
+		plt.show()
+		plt.close()
 
 # Plot dynamics of TRL trainer state
 def plot_trl_dynamics(trainer_state_path):
@@ -104,6 +129,28 @@ def plot_trl_dynamics(trainer_state_path):
 	ax_5.set_xlabel("Step"), ax_5.set_ylabel("Score/Reward"), ax_5.legend()
 	ax_5.set_title("Reward and Score")
 	plt.show()
+
+# Plot Mean and Variance of Tensor
+def plot_tensor_mean_and_variance(tensor):
+	x = np.linspace(0, 10, 100)
+	y1 = np.sin(x)
+	y2 = np.exp(x) * 0.1
+	fig, ax1 = plt.subplots(figsize=(8, 4))
+	ax1.plot(x, y1, color="blue", label="sin(x)")
+	ax1.set_xlabel("X Axis")
+	ax1.set_ylabel("Y1 (sin(x))", color="blue")
+	ax1.tick_params(axis='y', labelcolor="blue")
+	ax2 = ax1.twinx()
+	ax2.plot(x, y2, color="red", label="0.1 * exp(x)")
+	ax2.set_ylabel("Y2 (0.1 * exp(x))", color="red")
+	ax2.tick_params(axis='y', labelcolor="red")
+	lines1, labels1 = ax1.get_legend_handles_labels()
+	lines2, labels2 = ax2.get_legend_handles_labels()
+	ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
+	plt.tight_layout()
+	plt.title("Dual Y-Axis Example")
+	plt.show()
+
 	
 if __name__ == "__main__":
 	fp = r"C:\Users\caoyang\AppData\Local\Temp\fz3temp-2\trainer_state.json"
