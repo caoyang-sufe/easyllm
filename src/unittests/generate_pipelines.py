@@ -49,9 +49,10 @@ def decode_pipeline_test():
 		[f"model.layers[{i}].self_attn.o_proj" for i in range(28)]
 
 	forward_hook_module_names = \
+		["rotary_emb"] + \
 		[f"model.layers[{i}]" for i in range(24)] + \
 		[f"model.layers[{i}].input_layernorm" for i in range(24)] + \
-		[f"model.layers[{i}].self_attn" for i in range(24)]
+		[f"model.layers[{i}].self_attn" for i in range(24)] 
 	
 	for i in range(len(prompts)):
 		returned_dict = decode_pipeline(
