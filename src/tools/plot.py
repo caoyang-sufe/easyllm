@@ -18,6 +18,8 @@ from matplotlib import pyplot as plt
 # @param y_labels: [Tuple[Str, Str]] Note that here are two Y axises
 # @param title: [Str] Figure title
 # @param colors: [Tuple[Str, Str]] Two colors for mean and variance curves
+# @return means: [List[Float]] of length `len(tensors)`
+# @param variances: [List[Float]] of length `len(tensors)`
 def plot_tensor_mean_and_variance(tensors,
 								  ax = None,
 								  figsize=(10, 8),
@@ -39,7 +41,7 @@ def plot_tensor_mean_and_variance(tensors,
 		ax_mean = ax
 	# Mean plot
 	ax_mean.set_xlabel(x_label)
-	ax_mean.plot(x, means, label="mean", color=color_mean)
+	ax_mean.plot(x, means, label="mean", color=color_mean, marker="o")
 	ax_mean.set_ylabel("Mean", color=color_mean)
 	ax_mean.tick_params(axis='y', labelcolor=color_mean)
 	ax_mean.ticklabel_format(axis='y', style="sci", scilimits=(-3, 3))
@@ -61,6 +63,7 @@ def plot_tensor_mean_and_variance(tensors,
 	if is_show:
 		plt.show()
 		plt.close()
+	return means, variances
 
 # Visualize tensor value distribution by histogram
 # @param tensor: torch.Tensor or numpy.ndarray
