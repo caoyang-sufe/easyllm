@@ -20,8 +20,8 @@ def register_forward_hook_decorator(module_names):
 				def _make_hook(_module_name):
 					hook_data[module_name] = {"args": list(), "kwargs": list(), "output": list()}
 					# @param _module: `f"Module: {_module.__class__.__name__}"`
-					# @param _args: [Tuple] positional arguments
-					# @param _kwargs: [Dict] keyword arguments
+					# @param _args: [Tuple] positional arguments of module inputs
+					# @param _kwargs: [Dict] keyword arguments of module inputs
 					# @param _outputs: the return of module.forward, usually in format of torch.FloatTensor or Tuple[torch.FloatTensor]
 					def _hook(_module, _args, _kwargs, _outputs):
 						hook_data[_module_name]["args"].append(_args)

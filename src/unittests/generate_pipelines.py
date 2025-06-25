@@ -13,7 +13,7 @@ from src.pipelines.generate import decode_pipeline, generate_pipeline
 
 def decode_pipeline_test():
 	logging.info("Decode unittest ...")
-	model_id = 0
+	model_id = 4
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
 	# prompts = \
@@ -32,12 +32,12 @@ def decode_pipeline_test():
 	# prompts = [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters]
 	# prompts = [f"""很久很久以前，"""]
 	prompts = [
-		f"""英文单词strawberry中有几个字母r？""",
+		f"""英文单词strawberry中有几个字母r？<think>""",
 		f"""很久很久以前，""",
-		f"""素因子分解：512""",
-		f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。""",
+		f"""素因子分解：512<think>""",
+		f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。<think>""",
 	]
-
+	
 	max_length = 64
 	use_kv_cache = False
 
