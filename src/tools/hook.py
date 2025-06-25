@@ -18,15 +18,17 @@ def register_forward_hook_decorator(module_names):
 			hook_handles = list()
 			for module_name in module_names:
 				def _make_hook(_module_name):
-					hook_data[module_name] = {"input": list(), "output": list()}
+					hook_data[module_name] = {"args": list(), "kwargs": list(), "output": list()}
 					# @param _module: `f"Module: {_module.__class__.__name__}"`
-					# @param _inputs: Tuple[torch.FloatTensor], `f"Input shapes: {[x.shape for x in _inputs]}"`
-					# @param _outputs: torch.FloatTensor/Tuple[torch.FloatTensor], `f"Output shape: {_outputs.shape}"` or `f"Input shapes: {[x.shape for x in _outputs]}"`
-					def _hook(_module, _inputs, _outputs):
+					# @param _args: [Tuple] positional arguments
+					# @param _kwargs: [Dict] keyword arguments
+					# @param _outputs: the return of module.forward, usually in format of torch.FloatTensor or Tuple[torch.FloatTensor]
+					def _hook(_module, _args, _kwargs, _outputs):
+						hook_data[_module_name]["args"].append(_args)
+						hook_data[_module_name]["kwargs"].append(_kwargs)
 						hook_data[_module_name]["output"].append(_outputs)
-						hook_data[_module_name]["input"].append(_inputs)
 					return _hook
-				hook_handles.append(eval(f"model.{module_name}").register_forward_hook(_make_hook(module_name)))
+				hook_handles.append(eval(f"model.{module_name}").register_forward_hook(_make_hook(module_name), with_kwargs=True))
 			try:
 				func_return = func(*args, **kwargs)
 				func_return.hook_outputs = hook_data	# Attach hook data to function returns
