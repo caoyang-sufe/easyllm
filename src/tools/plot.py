@@ -75,6 +75,7 @@ def plot_tensor_mean_and_variance(tensors,
 # @param x_label: [Str]
 # @param y_label: [Str]
 # @param title: [Str] Figure title
+# @param **kwargs: [Dict] Other keyword arguments for `ax.hist`
 def plot_tensor_histogram(tensor, *,
 						  ax = None,
 						  figsize=(10, 8),
@@ -84,6 +85,7 @@ def plot_tensor_histogram(tensor, *,
 						  x_label = "Value",
 						  y_label = "Frequency",
 						  title = "Tensor Value Distribution",
+						  **kwargs,
 						  ):
 	if hasattr(tensor, "numpy"):
 		data = tensor.cpu().detach().numpy().flatten()
@@ -92,13 +94,16 @@ def plot_tensor_histogram(tensor, *,
 	if ax is None:
 		plt.figure(figsize=figsize)
 		ax = plt.subplot()
-	ax.hist(data, bins=bins, edgecolor="black", alpha=0.7)
+	mean = round(data.mean().item(), 4)
+	variance = round(data.var().item(), 4)
+	ax.hist(data, bins=bins, edgecolor="black", alpha=0.7, label=f"Mean: {mean}\nVar: {variance}")
 	ax.set_title(title)
 	ax.set_xlabel(x_label)
 	ax.set_ylabel(y_label)
 	ax.grid(axis='y', alpha=.5)		
 	# `scilimits = (m, n)` refers to use Scientific Notation for value
-	ax.ticklabel_format(axis='y', style="sci", scilimits=(-2, 2))	
+	ax.ticklabel_format(axis='y', style="sci", scilimits=(-2, 2))
+	ax.legend()
 	if save_path is not None:
 		plt.savefig(save_path)
 	if is_show:
@@ -145,8 +150,8 @@ def plot_tensor_heatmap(tensor, *,
 		ax = plt.subplot()
 	sns.heatmap(data, ax=ax, **heatmap_kwargs)
 	ax.set_title(title)
-	plt.xlabel(x_label)
-	plt.ylabel(y_label)
+	ax.set_xlabel(x_label)
+	ax.set_ylabel(y_label)
 	if save_path is not None:
 		plt.savefig(save_path)		
 	if is_show:
