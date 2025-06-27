@@ -13,7 +13,7 @@ from src.pipelines.generate import decode_pipeline, generate_pipeline
 
 def decode_pipeline_test():
 	logging.info("Decode unittest ...")
-	model_id = 4
+	model_id = 6
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
 	# prompts = \
@@ -48,9 +48,7 @@ def decode_pipeline_test():
 		[f"model.layers[{i}].self_attn.v_proj" for i in range(28)] + \
 		[f"model.layers[{i}].self_attn.o_proj" for i in range(28)]
 
-	forward_hook_module_names = \
-		["model.rotary_emb"] + \
-		[f"model.layers[{i}]" for i in range(24)]
+	forward_hook_module_names = [f"model.layers[{i}]" for i in range(29)]
 	
 	for i in range(len(prompts)):
 		returned_dict = decode_pipeline(

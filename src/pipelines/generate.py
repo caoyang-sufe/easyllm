@@ -8,7 +8,7 @@ import logging
 from torch.nn import functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from src.tools.transformers import greedy_decode, k_step_greedy_decode, beam_search_decode, generate_token_prob
+from src.tools.transformers import greedy_decode, k_step_greedy_decode, beam_search_decode, generate_token_prob, get_generation_eos_token_ids
 from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
 
 # @param tokenizer: Huggingface tokenizer Object
@@ -16,13 +16,13 @@ from src.tools.hook import register_forward_hook_decorator, register_backward_ho
 # @param token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
 # @param logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length`, indicating the logits when each token is generated
 # @param k: [Int] top-k decode candidates to be display
-# @param eos_id: [Int] tokenId of <eos> token, e.g. 151643(<|endoftext|>) for Qwen model 
+# @param eos_token_id: [Int] tokenId of <eos> token, e.g. 151643(<|endoftext|>) for Qwen model 
 def display_pipeline(tokenizer,
 					 text,
 					 token_probs,
 					 logits,
 					 k = 3,
-					 eos_id = 151643,
+					 eos_token_id = 151643,
 					 ):
 	df_token_probs = pandas.DataFrame(token_probs, columns=["id", "token", "prob"])
 	def _display_tensor(_tensor, _round):
@@ -42,7 +42,7 @@ def display_pipeline(tokenizer,
 		probs = _display_tensor(top_k_values, 4)
 		cand_ids = _display_tensor(top_k_indices, 4)
 		cand_tokens = [tokenizer.decode(token_id) for token_id in top_k_indices]
-		eos_prob = tensor_to_prob[eos_id].item()
+		eos_prob = tensor_to_prob[eos_token_id].item()
 		df_display["max_id"].append(max_id)
 		df_display["cand_tokens"].append(cand_tokens)
 		df_display["cand_probs"].append(probs)
@@ -67,6 +67,8 @@ def generate_pipeline(model_name_or_path,
 	logging.info("Load model and tokenizer ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
 	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
+	eos_token_ids = get_generation_eos_token_ids(model)
+	logging.info(f"  - EOS Tokens: {eos_token_ids}")
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device}")
@@ -76,7 +78,7 @@ def generate_pipeline(model_name_or_path,
 		generate_kwargs = {"do_sample": False, "top_k": 0, "top_p": 1., "num_beams": 1, "temperature": 1}
 	text, token_prob, logits = generate_token_prob(model, tokenizer, prompt, max_length, generate_kwargs, device)
 	logging.info(f"Generated text: {text}")
-	return display_pipeline(tokenizer, text, token_prob, logits)
+	return display_pipeline(tokenizer, text, token_prob, logits, eos_token_id=eos_token_ids[0])
 
 
 def decode_pipeline(model_name_or_path,
@@ -90,6 +92,8 @@ def decode_pipeline(model_name_or_path,
 	logging.info("Load model and tokenizer ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
 	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
+	eos_token_ids = get_generation_eos_token_ids(model)
+	logging.info(f"  - EOS Tokens: {eos_token_ids}")
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
@@ -131,7 +135,7 @@ def decode_pipeline(model_name_or_path,
 		# use_kv_cache = False,
 	# )
 	return {
-		"df_display": display_pipeline(tokenizer, text, token_probs, logits),
+		"df_display": display_pipeline(tokenizer, text, token_probs, logits, eos_token_id=eos_token_ids[0]),
 		"forward_hook_data": forward_hook_data,
 		"backward_hook_data": backward_hook_data,
 	}

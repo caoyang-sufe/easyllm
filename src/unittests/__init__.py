@@ -11,6 +11,8 @@ model_names = [
 	"trl-lib/Qwen2-0.5B-Reward",
 	"deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
 	"deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+	"deepseek-ai/deepseek-math-7b-base",
+	"deepseek-ai/deepseek-moe-16b-base",	# `trust_remote`
 ]
 
 dataset_names = [
