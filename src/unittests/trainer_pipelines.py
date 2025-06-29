@@ -4,8 +4,8 @@
 
 import os
 import logging
+from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
-
 
 
 def sft_pipeline_test():
@@ -30,25 +30,49 @@ def sft_pipeline_test():
 	# trainer_kwargs = {
 	# }
 	# sft_pipeline(data_processor, config_kwargs, trainer_kwargs)
-
-	# Qwen2.5-0.5B-Instruct + firefly-train-1.1M
+	# ------------------------------------------------------------------
+	# # Qwen2.5-0.5B-Instruct + firefly-train-1.1M
+	# model_name_or_path = os.path.join(model_home, model_names[0])
+	# dataset_name = os.path.join(dataset_home, dataset_names[3])
+	# logging.info(f"  - Model: {model_name_or_path}")
+	# logging.info(f"  - Dataset: {dataset_name}")
+	# def data_processor(data):
+		# return {"prompt": data["input"], "completion": data["target"]}
+	# config_kwargs = {
+		# "output_dir": f"./temp/sft+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
+		# "model_name_or_path": model_name_or_path,
+		# "dataset_name": dataset_name,
+		# "trust_remote_code": True,
+		# "dataset_train_split": "train[:500]",
+		# "dataset_test_split": "train[500:600]",
+		# # "lr_scheduler_type": "cosine",	# Default "linear"
+		# "use_peft": True,
+		# "report_to": "none",
+		# "lora_target_modules": ["q_proj", "k_proj", "v_proj"]
+	# }
+	# trainer_kwargs = {
+	# }
+	# sft_pipeline(data_processor, config_kwargs, trainer_kwargs)
+	# ------------------------------------------------------------------
+	# Qwen2.5-0.5B-Instruct + tldr
+	target_layer_ids = [2, 3, 21, 22, 23]
 	model_name_or_path = os.path.join(model_home, model_names[0])
-	dataset_name = os.path.join(dataset_home, dataset_names[3])
+	dataset_name = os.path.join(dataset_home, dataset_names[0])
 	logging.info(f"  - Model: {model_name_or_path}")
 	logging.info(f"  - Dataset: {dataset_name}")
-	def data_processor(data):
-		return {"prompt": data["input"], "completion": data["target"]}
+	data_processor = None
 	config_kwargs = {
 		"output_dir": f"./temp/sft+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}",
 		"model_name_or_path": model_name_or_path,
 		"dataset_name": dataset_name,
 		"trust_remote_code": True,
 		"dataset_train_split": "train[:500]",
-		"dataset_test_split": "train[500:600]",
-		# "lr_scheduler_type": "cosine",	# Default "linear"
+		"dataset_test_split": "validation[500:600]",
 		"use_peft": True,
 		"report_to": "none",
-		"lora_target_modules": ["q_proj", "k_proj", "v_proj"]
+		"lora_target_modules": [f"model.layers.{i}.self_attn.q_proj" for i in target_layer_ids] + \
+			[f"model.layers.{i}.self_attn.k_proj" for i in target_layer_ids] + \
+			[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids]
 	}
 	trainer_kwargs = {
 	}
