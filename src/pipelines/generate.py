@@ -49,13 +49,11 @@ def display_pipeline(tokenizer,
 		df_display["eos_prob"].append(eos_prob)
 	df_display = pandas.DataFrame(df_display, columns=["max_id", "cand_tokens", "cand_probs", "eos_prob"])
 	return pandas.concat([df_token_probs, df_display], axis=1)
-
+	
 
 # @param model_name_or_path: [Str]
 # @param prompt: [Str]
 # @param max_length: [Int]
-# @param eos_id: [Int] default 151643 referes to <|endoftext|> of Qwen-xxx
-# @param k: [Int] the number of top-k tokens to display
 # @param device: [Str/torch.device] e.g. "cuda", "cpu", torch.device("cpu")
 # @param generate_kwargs: [Dict] keyword arguments for `model.generate`
 def generate_pipeline(model_name_or_path,
@@ -123,7 +121,7 @@ def decode_pipeline(model_name_or_path,
 		# use_kv_cache = use_kv_cache,
 	# )
 
-	# logging.info("K step greedy decode ...")
+	# logging.info("K step greedy decode ...") bn
 	# k_step_greedy_decode(
 		# model = model,
 		# tokenizer = tokenizer,

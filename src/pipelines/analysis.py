@@ -7,41 +7,64 @@ import torch
 from src.tools.transformers import greedy_decode
 
 
-def greedy_decode(model,
-				  tokenizer,
-				  prompt, 
-				  max_length,
-				  device = "cuda",
-				  use_kv_cache = True,
-				  forward_hook_module_names = None,
-				  backward_hook_module_names = None,
-				  ):
+# def greedy_decode(model,
+				  # tokenizer,
+				  # prompt, 
+				  # max_length,
+				  # device = "cuda",
+				  # use_kv_cache = True,
+				  # forward_hook_module_names = None,
+				  # backward_hook_module_names = None,
+				  # ):
+	# pass
 
 
-# 
+# @param hook_data: hook_data
+# @param num_hidden_layers: [Int] The number of hidden layers, usually comes from `model.config.num_hidden_layers`
+def visualize_layer_inputs_and_outputs(hook_data,
+									   hook_data_path = None,
+									   max_length,
+									   num_hidden_layers,
+									   module_name_formatter = "model.layers[{}]",
+									   ):
+	for i in range(max_length):
+		
+	for module_name in module_names:
+		
+
+
+# Analyze the reasoning dynamics in 
 def layer_dynamics_in_reasoning(model,
 								tokenizer,
 								prompt,
 								max_length,
 								layer_name_formatter,
-								):
-	for i in range
-
+								layer_name_formatter,
+								
+								num_hidden_layers = None,
+								):  
+	if num_hidden_layers is None:
+		num_hidden_layers = model.config.num_hidden_layers
+	for i in range(i):
+		
 
 # Compare  hook_data by module names
 # @param hook_data_path
 def compare_layer_dynamics(hook_datas,
-							  hook_data_paths = None,
-							  
-							  hook_data_path_2,
-							  forward_hook_module_names
-							  forward_hook_module_names,
-							  figure_names = None,
-							  pivot_at = 0,
-							  ):
+						   hook_data_paths = None,
+						   hook_data_path_2,
+						   forward_hook_module_names
+						   forward_hook_module_names,
+						   figure_names = None,
+						   pivot_at = 0,
+						   ):
 	regex = re.compile("\[\d+\]", re.I)
-	
-	
+
+	if hook_data_paths is not None:
+
+		hook_data_list = 
+		
+		pass
 	
 	hook_data_1 = torch.load(hook_data_path_1)
 	hook_data_2 = torch.load(hook_data_path_2)
