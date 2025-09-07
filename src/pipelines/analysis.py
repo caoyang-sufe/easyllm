@@ -48,7 +48,7 @@ def layer_dynamics_in_reasoning(model,
 	for i in range(i):
 		
 
-# Compare  hook_data by module names
+# Compare hook_data by module names
 # @param hook_data_path
 def compare_layer_dynamics(hook_datas,
 						   hook_data_paths = None,
@@ -61,9 +61,6 @@ def compare_layer_dynamics(hook_datas,
 	regex = re.compile("\[\d+\]", re.I)
 
 	if hook_data_paths is not None:
-
-		hook_data_list = 
-		
 		pass
 	
 	hook_data_1 = torch.load(hook_data_path_1)
@@ -147,3 +144,10 @@ def compare_layer_dynamics(hook_datas,
 				axs[i].legend()
 		plt.show(), plt.close()
 	return diff_dict
+	
+	
+def skip_layer_generation():
+	
+	pass
+	
+

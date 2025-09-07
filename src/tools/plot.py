@@ -153,7 +153,7 @@ def plot_tensor_heatmap(tensor, *,
 	ax.set_xlabel(x_label)
 	ax.set_ylabel(y_label)
 	if save_path is not None:
-		plt.savefig(save_path)		
+		plt.savefig(save_path)
 	if is_show:
 		plt.show()
 		plt.close()
