@@ -7,18 +7,6 @@ import torch
 from src.tools.transformers import greedy_decode
 
 
-# def greedy_decode(model,
-				  # tokenizer,
-				  # prompt, 
-				  # max_length,
-				  # device = "cuda",
-				  # use_kv_cache = True,
-				  # forward_hook_module_names = None,
-				  # backward_hook_module_names = None,
-				  # ):
-	# pass
-
-
 # @param hook_data: hook_data
 # @param num_hidden_layers: [Int] The number of hidden layers, usually comes from `model.config.num_hidden_layers`
 def visualize_layer_inputs_and_outputs(hook_data,
@@ -28,12 +16,12 @@ def visualize_layer_inputs_and_outputs(hook_data,
 									   module_name_formatter = "model.layers[{}]",
 									   ):
 	for i in range(max_length):
+		pass
 		
-	for module_name in module_names:
-		
+	for j in range()
 
-
-# Analyze the reasoning dynamics in 
+# Analyze the reasoning dynamics in single reasoning process
+# @param model: 
 def layer_dynamics_in_reasoning(model,
 								tokenizer,
 								prompt,
@@ -46,29 +34,21 @@ def layer_dynamics_in_reasoning(model,
 	if num_hidden_layers is None:
 		num_hidden_layers = model.config.num_hidden_layers
 	for i in range(i):
-		
+
 
 # Compare hook_data by module names
-# @param hook_data_path
-def compare_layer_dynamics(hook_datas,
+# @param hook_datas: List[<hook_data object>] of length 2, currently
+def compare_layer_dynamics(hook_datas = None,
 						   hook_data_paths = None,
-						   hook_data_path_2,
-						   forward_hook_module_names
 						   forward_hook_module_names,
 						   figure_names = None,
-						   pivot_at = 0,
 						   ):
-	regex = re.compile("\[\d+\]", re.I)
-
-	if hook_data_paths is not None:
-		pass
+	regex = re.compile("\[\d+\]", re.I)	# Used to match
+	assert hook_datas is not None or hook_data_paths is not None
+	if hook_datas is None:
+		hook_datas = [torch.load(hook_data_path) for hook_data_path in hook_data_paths]
 	
-	hook_data_1 = torch.load(hook_data_path_1)
-	hook_data_2 = torch.load(hook_data_path_2)
-	for i, (data_1, data_2) in enumerate(zip(hook_data_1, hook_data_2)):
-		if i != pivot_at:
-			# Care about the pivot token only
-			continue
+	for i, hook_data_group in enumerate(zip(*hook_datas)):
 		if figure_names is None:
 			diff_dict = {
 				"embed_tokens": {"input": [], "output": []},
@@ -84,45 +64,39 @@ def compare_layer_dynamics(hook_datas,
 			module_name_suffix = module_name.split('.')[-1]
 			module_name_suffix = regex.sub(str(), module_name_suffix)
 			if module_name_suffix in diff_dict:
-				input_data_1 = data_1[module_name].get("input", data_1[module_name]["args"])
-				input_data_2 = data_1[module_name].get("input", data_2[module_name]["args"])
-				output_data_1 = data_1[module_name]["output"]
-				output_data_2 = data_2[module_name]["output"]      
-				# Assertation for ensuring data format
-				assert len(input_data_1) == 1 and isinstance(input_data_1[0], tuple)
-				assert len(input_data_2) == 1 and isinstance(input_data_2[0], tuple)
-				if len(input_data_1[0]) > 1:
-					print(f"*** Warning for input data 1: {len(input_data_1[0])} ***")
-				if len(input_data_2[0]) > 1:
-					print(f"*** Warning for input data 1: {len(input_data_2[0])} ***")
-				input_tensor_1 = input_data_1[0][0].float()
-				input_tensor_2 = input_data_2[0][0].float()
-				# print(input_tensor_1.size(), input_tensor_2.size())
-				# ---
-				assert len(output_data_1) == 1
-				if isinstance(output_data_1[0], torch.Tensor):
-					output_tensor_1 = output_data_1[0]
-				else:
-					assert isinstance(output_data_1[0], tuple)
-					if len(output_data_1[0]) > 1:
-						print(f"*** Warning for output data 1: {len(output_data_1[0])} ***")
-					output_tensor_1 = output_data_1[0][0]
-				if isinstance(output_data_2[0], torch.Tensor):
-					output_tensor_2 = output_data_2[0]
-				else:
-					assert isinstance(output_data_2[0], tuple)
-					if len(output_data_2[0]) > 1:
-						print(f"*** Warning for output data 2: {len(output_data_2[0])} ***")
-					output_tensor_2 = output_data_2[0][0]
-				input_diff = torch.norm(input_tensor_1 - input_tensor_2, p="fro")
-				output_diff = torch.norm(output_tensor_1 - output_tensor_2, p="fro")
-				avg_input_diff = input_diff / input_tensor_1.numel()
-				avg_output_diff = output_diff / output_tensor_1.numel()
+				# Process Input
+				input_data_group = [data[module_name].get("input", data[module_name]["args"]) for data in hook_data_group]
+				for j, input_data in enumerate(input_data_group):     
+					# Assertation for ensuring data format of inputs
+					assert len(input_data) == 1 and isinstance(input_data[0], tuple)
+					if len(input_data[0]) > 1:
+						logging.warning(f"Input data {j} has more than 1 components: {len(input_data[0])}")
+				input_tensors = [input_data[0][0].float() for input_data in input_data_group]
+				for j, input_tensor in enumerate(input_tensors):
+					logging.info(f"Size of input tensor {j}: {input_tensor.size()}")
+				# Process Output
+				output_data_group = [data[module_name]["output"] for data in hook_data_group]
+				output_tensors = list()
+				for j, output_data in enumerate(output_data_group):
+					# Assertation for ensuring data format of outputs
+					assert len(output_data) == 1
+					if isinstance(output_data[0], torch.Tensor):
+						output_tensor = output_data[0]
+					else:
+						assert isinstance(output_data[0], tuple)
+						if len(output_data[0]) > 1:
+							logging.warning(f"Output data {j} has more than 1 components: {len(output_data[0])}")
+						output_tensor = output_tensor[0][0]
+					output_tensors.append(output_tensor)
+				
+				input_diff = torch.norm(input_tensors[0] - input_tensors[1], p="fro")
+				output_diff = torch.norm(output_tensors[0] - output_tensors[1], p="fro")
+				avg_input_diff = input_diff / input_tensors[0].numel()
+				avg_output_diff = output_diff / output_tensors[0].numel()
 				# log_input_diff = torch.log(avg_input_diff)
 				# log_output_diff = torch.log(avg_output_diff)
 				diff_dict[module_name_suffix]["input"].append(avg_input_diff.item())
 				diff_dict[module_name_suffix]["output"].append(avg_output_diff.item())
-		
 		figure_width = 5
 		fig, axs = plt.subplots(1, len(diff_dict), figsize=((figure_width + 1) * len(diff_dict), figure_width))
 		for i, key in enumerate(diff_dict):
