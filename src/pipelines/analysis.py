@@ -2,70 +2,53 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
+import re
 import torch
+import logging
+from matplotlib import pyplot as plt
 
+from src.tools.plot import plot_tensor_heatmap
 from src.tools.transformers import greedy_decode
 
-
-# @param hook_data: hook_data
-# @param num_hidden_layers: [Int] The number of hidden layers, usually comes from `model.config.num_hidden_layers`
-def visualize_layer_inputs_and_outputs(hook_data,
-									   hook_data_path = None,
-									   max_length,
-									   num_hidden_layers,
-									   module_name_formatter = "model.layers[{}]",
-									   ):
-	for i in range(max_length):
-		pass
-		
-	for j in range()
-
-# Analyze the reasoning dynamics in single reasoning process
-# @param model: 
-def layer_dynamics_in_reasoning(model,
-								tokenizer,
-								prompt,
-								max_length,
-								layer_name_formatter,
-								layer_name_formatter,
-								
-								num_hidden_layers = None,
-								):  
-	if num_hidden_layers is None:
-		num_hidden_layers = model.config.num_hidden_layers
-	for i in range(i):
-
-
-# Compare hook_data by module names
-# @param hook_datas: List[<hook_data object>] of length 2, currently
-def compare_layer_dynamics(hook_datas = None,
-						   hook_data_paths = None,
-						   forward_hook_module_names,
-						   figure_names = None,
-						   ):
-	regex = re.compile("\[\d+\]", re.I)	# Used to match
+# Horizontal comparison: Compare hook data (which comes from different prompts) by module names
+# Focusing on comparing the inputs or outputs of the same modules in different hooks
+# @param hook_datas: List[Dict] of length 2, i.e. currently we only compare two series of hook data 
+# @param hook_data_paths: List[Str], default None but at least one of `hook_datas` and `hook_data_paths` is not None
+# @param hook_module_names: List[Str], e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj", "model.layers[0].self_attn.v_proj"]
+# @param hook_module_name_suffixes: List[Str], e.g. ["q_proj", "k_proj", "v_proj"]
+# @param comparison_index: List[Str], e.g. ["mean_diff", "max_diff", "corr"]
+# @param max_length: Int, when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
+# @param figure_size: Int, default 5
+def horizontal_comparison_of_forward_hook(
+	hook_datas = None,
+	hook_data_paths = None,
+	hook_module_names = ["model.layers[0].self_attn.q_proj", "model.layers[1].self_attn.k_proj", "model.layers[2].self_attn.v_proj",],
+	hook_module_name_suffixes = ["q_proj", "k_proj", "v_proj"],
+	comparison_index = ["mean_diff", "max_diff", "corr"],
+	max_length = 999,
+	figure_size = 5,
+):
+	regex = re.compile("\[\d+\]", re.I)	# e.g. Used to match `[0]` in `model.layers[0].self_attn.q_proj`
 	assert hook_datas is not None or hook_data_paths is not None
 	if hook_datas is None:
 		hook_datas = [torch.load(hook_data_path) for hook_data_path in hook_data_paths]
-	
-	for i, hook_data_group in enumerate(zip(*hook_datas)):
-		if figure_names is None:
-			diff_dict = {
-				"embed_tokens": {"input": [], "output": []},
-				"norm": {"input": [], "output": []},
-				"q_proj": {"input": [], "output": []},
-				"k_proj": {"input": [], "output": []},
-				"v_proj": {"input": [], "output": []},
-				"layers": {"input": [], "output": []},
-			}
-		else:
-			diff_dict = {figure_name: {"input": [], "output": []} for figure_name in figure_names}
-		for module_name in forward_hook_module_names:
+	for token_i, hook_data_group in enumerate(zip(*hook_datas)):
+		print(token_i)
+		if token_i >= max_length:
+			break
+		# Hook data when generating token i
+		# Summary dictionary contains all the compared
+		comparison_summary_dict = {
+			"mean_diff": {module_name_suffix: {"input": list(), "output": list()} for module_name_suffix in hook_module_name_suffixes},	# Mean difference between two tensors
+			"max_diff": {module_name_suffix: {"input": list(), "output": list()} for module_name_suffix in hook_module_name_suffixes},	# Max differernce by element-wise value between two tensors
+			"corr": {module_name_suffix: {"input": list(), "output": list()} for module_name_suffix in hook_module_name_suffixes},	# Correlation coefficient between two tensors
+		}
+		for module_name in hook_module_names:
 			module_name_suffix = module_name.split('.')[-1]
 			module_name_suffix = regex.sub(str(), module_name_suffix)
-			if module_name_suffix in diff_dict:
-				# Process Input
-				input_data_group = [data[module_name].get("input", data[module_name]["args"]) for data in hook_data_group]
+			if module_name_suffix in hook_module_name_suffixes:
+				# 1. Process inputs in hook data
+				input_data_group = [data[module_name].get("input", data[module_name].get("args")) for data in hook_data_group]
 				for j, input_data in enumerate(input_data_group):     
 					# Assertation for ensuring data format of inputs
 					assert len(input_data) == 1 and isinstance(input_data[0], tuple)
@@ -74,7 +57,7 @@ def compare_layer_dynamics(hook_datas = None,
 				input_tensors = [input_data[0][0].float() for input_data in input_data_group]
 				for j, input_tensor in enumerate(input_tensors):
 					logging.info(f"Size of input tensor {j}: {input_tensor.size()}")
-				# Process Output
+				# 2. Process outputs in hook data
 				output_data_group = [data[module_name]["output"] for data in hook_data_group]
 				output_tensors = list()
 				for j, output_data in enumerate(output_data_group):
@@ -88,39 +71,129 @@ def compare_layer_dynamics(hook_datas = None,
 							logging.warning(f"Output data {j} has more than 1 components: {len(output_data[0])}")
 						output_tensor = output_tensor[0][0]
 					output_tensors.append(output_tensor)
-				
-				input_diff = torch.norm(input_tensors[0] - input_tensors[1], p="fro")
-				output_diff = torch.norm(output_tensors[0] - output_tensors[1], p="fro")
-				avg_input_diff = input_diff / input_tensors[0].numel()
-				avg_output_diff = output_diff / output_tensors[0].numel()
-				# log_input_diff = torch.log(avg_input_diff)
-				# log_output_diff = torch.log(avg_output_diff)
-				diff_dict[module_name_suffix]["input"].append(avg_input_diff.item())
-				diff_dict[module_name_suffix]["output"].append(avg_output_diff.item())
-		figure_width = 5
-		fig, axs = plt.subplots(1, len(diff_dict), figsize=((figure_width + 1) * len(diff_dict), figure_width))
-		for i, key in enumerate(diff_dict):
-			y_input = diff_dict[key]["input"]
-			y_output = diff_dict[key]["output"]
-			assert len(y_input) == len(y_output)
-			x = range(len(y_input))
-			if len(x) == 0:
-				continue
-			if len(diff_dict) == 1:
-				axs.bar(x, y_input, label="input_diff", alpha=.5)
-				axs.bar(x, y_output, label="output_diff", alpha=.5)
-				axs.set_xlabel("Layer #"), axs.set_ylabel("Diff"), axs.set_title(f"Diff for {key}")
-				axs.legend()
-			else:
-				axs[i].bar(x, y_input, label="input_diff", alpha=.5)
-				axs[i].bar(x, y_output, label="output_diff", alpha=.5)
-				axs[i].set_xlabel("Layer #"), axs[i].set_ylabel("Diff"), axs[i].set_title(f"Diff for {key}")
-				axs[i].legend()
+					
+				# 3. Summary data calculation
+				## 3.1 Calculate Mean Difference
+				input_diff = input_tensors[0] - input_tensors[1]
+				output_diff = output_tensors[0] - output_tensors[1]
+				mean_input_diff = torch.norm(input_diff, p="fro") / input_tensors[0].numel()
+				mean_output_diff = torch.norm(output_diff, p="fro") / output_tensors[0].numel()
+				comparison_summary_dict["mean_diff"][module_name_suffix]["input"].append(mean_input_diff.item())
+				comparison_summary_dict["mean_diff"][module_name_suffix]["output"].append(mean_output_diff.item())
+				## 3.2 Calculate Max Difference
+				max_input_diff = torch.max(torch.abs(input_diff))
+				max_output_diff = torch.max(torch.abs(output_diff))
+				comparison_summary_dict["max_diff"][module_name_suffix]["input"].append(max_input_diff.item())
+				comparison_summary_dict["max_diff"][module_name_suffix]["output"].append(max_output_diff.item())
+				## 3.3 Calculate Correlation Coefficient
+				input_corr = torch.corrcoef(torch.stack([input_tensors[0].flatten(), input_tensors[1].flatten()]))[0, 1]
+				output_corr = torch.corrcoef(torch.stack([output_tensors[0].flatten(), output_tensors[1].flatten()]))[0, 1]
+				comparison_summary_dict["corr"][module_name_suffix]["input"].append(input_corr.item())
+				comparison_summary_dict["corr"][module_name_suffix]["output"].append(output_corr.item())				
+				## 3.4 TO BE CONTINUE ......
+				# ...
+		nrows, ncols = len(comparison_index), len(hook_module_name_suffixes)
+		fig, axes = plt.subplots(
+			nrows = nrows, 
+			ncols = ncols,
+			figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+		)
+		for i, summary_key in enumerate(comparison_index):
+			for j, module_name_suffix in enumerate(hook_module_name_suffixes):
+				y_input = comparison_summary_dict[summary_key][module_name_suffix]["input"]
+				y_output = comparison_summary_dict[summary_key][module_name_suffix]["output"]
+				assert len(y_input) == len(y_output)
+				x = range(len(y_input))
+				if len(x) == 0:
+					# No inputs exist
+					continue
+				if len(comparison_index) == 1 and len(hook_module_name_suffixes) == 1:
+					target_ax = axes
+				elif len(comparison_index) == 1:
+					target_ax = axes[j]
+				elif len(hook_module_name_suffixes) == 1:
+					target_ax = axes[i]
+				else:
+					target_ax = axes[i, j]
+				target_ax.bar(x, y_input, label=f"input_{summary_key}", alpha=.5)
+				target_ax.bar(x, y_output, label=f"output_{summary_key}", alpha=.5)
+				target_ax.set_xlabel("Layer #"), target_ax.set_ylabel("Diff"), target_ax.set_title(f"{summary_key} for {module_name_suffix} on token {token_i}")
+				target_ax.legend()
 		plt.show(), plt.close()
-	return diff_dict
 	
-	
-def skip_layer_generation():
+# Vertical comparison: Compare data in a single hook
+# Focusing on comparing the inputs and outputs of the same modules
+# @param hook_data: Dict, hook data object
+# @param hook_data_path: Str, default None but at least one of `hook_datas` and `hook_data_paths` is not None
+# @param hook_module_names: List[Str], e.g. ["model.layers[0]"]
+# @param comparison_index: List[Str], e.g. ["mean_diff", "max_diff", "corr"]
+# @param max_length: Int, when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
+# @param figure_size: Int, default 5
+# @param watched_module_names: List[Int], you can selected several module here to plot heat map of input-output difference
+def vertical_comparison_of_forward_hook(
+	hook_data = None,
+	hook_data_path = None,
+	hook_module_names = ["model.layers[0]", "model.layers[1]", "model.layers[2]"],
+	comparison_index = ["mean_diff", "max_diff", "corr"],
+	max_length = 999,
+	figure_size = 5,
+	watched_module_names = ["model.layers[0]"],
+):
+	assert hook_data is not None or hook_data_path is not None
+	if hook_data is None:
+		hook_data = torch.load(hook_data_path)
+	for token_i in range(max_length):
+		comparison_summary_dict = {
+			"mean_diff": list(),
+			"max_diff": list(),
+			"corr": list(),
+		}
+		# Plot heatmap of input-output difference
+		fig, axes = plt.subplots(1, len(watched_module_names), figsize=(1.2 * figure_size * len(watched_module_names), figure_size))
+		subplot_index = -1
+		for module_name in hook_module_names:
+			input_tensor = hook_data[token_i][module_name]["input"][0][0]
+			output_tensor = hook_data[token_i][module_name]["output"][0][0]
+			diff = input_tensor - output_tensor
+			mean_diff = torch.norm(diff, p="fro") / input_tensor.numel()                                                              
+			max_diff = torch.max(torch.abs(diff))
+			corr = torch.corrcoef(torch.stack([input_tensor.flatten(), output_tensor.flatten()]))[0, 1]
+			comparison_summary_dict["mean_diff"].append(mean_diff.item())
+			comparison_summary_dict["max_diff"].append(max_diff.item())
+			comparison_summary_dict["corr"].append(corr.item())
+
+			if module_name in watched_module_names:
+				subplot_index += 1
+				assert diff.size(0) == 1
+				plot_tensor_heatmap(torch.abs(diff)[0, :, :], ax=axes[subplot_index], is_show=False, title=f"Diff in {module_name} of Token {token_i}")
+		plt.show(), plt.close()
+			
+		# Plot line chart of comparison index
+		ncols = len(comparison_index)
+		nrows = 1
+		fig, axes = plt.subplots(
+			nrows = nrows, 
+			ncols = ncols, 
+			figsize = (ncols * figure_size * 1.2, nrows * figure_size),
+		)
+		for c, summary_key in enumerate(comparison_index):
+			for r in range(nrows):
+				if ncols == 1 and nrows == 1:
+					target_ax = axes
+				elif ncols == 1:
+					target_ax = axes[r]
+				elif nrows == 1:
+					target_ax = axes[c]
+				else:
+					target_ax = axes[r, c]
+				x = list(range(len(hook_module_names)))
+				target_ax.plot(x, comparison_summary_dict[summary_key], label=summary_key, marker='o')
+				target_ax.legend(), target_ax.set_xlabel("Layer #"), target_ax.set_ylabel(summary_key), target_ax.set_title(f"{comparison_index[c]} on token {token_i}")
+		plt.show(), plt.close()
+
+# Generating by skipping decoder blocks
+# Focusing on the generating results and 
+def skip_layer_comparison():
 	
 	pass
 	
