@@ -34,7 +34,5 @@ with open("check.txt", 'w', encoding="utf8") as f:
 function_name = "decode_pipeline_test"
 # function_name = "generate_pipeline_test"
 logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
-
 eval(function_name)()
-
 terminate_logger(logger)

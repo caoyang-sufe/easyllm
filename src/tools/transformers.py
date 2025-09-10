@@ -89,7 +89,8 @@ def greedy_decode(model,
 	if hook_flag == 2:
 		backward_hook_data = list()	
 	for i in range(max_length):
-		logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
+		# logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
+		logging.info(f"Round {i}: {past_key_values.key_cache if past_key_values is not None else None}")
 		with torch.no_grad():
 			if use_kv_cache:
 				if past_key_values is None:

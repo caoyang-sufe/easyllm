@@ -8,13 +8,18 @@ import string
 import pandas
 import logging
 
+from transformers import AutoConfig
+
 from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.generate import decode_pipeline, generate_pipeline
 
 def decode_pipeline_test():
 	logging.info("Decode unittest ...")
-	model_id = 6
+	model_id = 8
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_config = AutoConfig.from_pretrained(model_name_or_path)
+	num_hidden_layers = model_config.num_hidden_layers
+	
 	logging.info(f"  - Model: {model_name_or_path}")
 	# prompts = \
 		# [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters] + \
@@ -39,17 +44,14 @@ def decode_pipeline_test():
 	]
 	
 	max_length = 64
-	use_kv_cache = False
-
+	use_kv_cache = True
 	forward_hook_module_names = \
 		[f"model.embed_tokens", "lm_head"] + \
-		[f"model.layers[{i}].self_attn.q_proj" for i in range(28)] + \
-		[f"model.layers[{i}].self_attn.k_proj" for i in range(28)] + \
-		[f"model.layers[{i}].self_attn.v_proj" for i in range(28)] + \
-		[f"model.layers[{i}].self_attn.o_proj" for i in range(28)]
-
-	forward_hook_module_names = [f"model.layers[{i}]" for i in range(29)]
-	
+		[f"model.layers[{i}].self_attn.q_proj" for i in range(num_hidden_layers)] + \
+		[f"model.layers[{i}].self_attn.k_proj" for i in range(num_hidden_layers)] + \
+		[f"model.layers[{i}].self_attn.v_proj" for i in range(num_hidden_layers)] + \
+		[f"model.layers[{i}].self_attn.o_proj" for i in range(num_hidden_layers)]
+	forward_hook_module_names = [f"model.layers[{i}]" for i in range(num_hidden_layers)]
 	for i in range(len(prompts)):
 		returned_dict = decode_pipeline(
 			model_name_or_path,

@@ -141,7 +141,7 @@ def vertical_comparison_of_forward_hook(
 ):
 	assert hook_data is not None or hook_data_path is not None
 	if hook_data is None:
-		hook_data = torch.load(hook_data_path)
+		hook_data = torch.load(hook_data_path, weights_only=False)
 	for token_i in range(max_length):
 		comparison_summary_dict = {
 			"mean_diff": list(),
@@ -152,7 +152,7 @@ def vertical_comparison_of_forward_hook(
 		fig, axes = plt.subplots(1, len(watched_module_names), figsize=(1.2 * figure_size * len(watched_module_names), figure_size))
 		subplot_index = -1
 		for module_name in hook_module_names:
-			input_tensor = hook_data[token_i][module_name]["input"][0][0]
+			input_tensor = hook_data[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
 			output_tensor = hook_data[token_i][module_name]["output"][0][0]
 			diff = input_tensor - output_tensor
 			mean_diff = torch.norm(diff, p="fro") / input_tensor.numel()                                                              
@@ -161,13 +161,16 @@ def vertical_comparison_of_forward_hook(
 			comparison_summary_dict["mean_diff"].append(mean_diff.item())
 			comparison_summary_dict["max_diff"].append(max_diff.item())
 			comparison_summary_dict["corr"].append(corr.item())
-
 			if module_name in watched_module_names:
 				subplot_index += 1
 				assert diff.size(0) == 1
-				plot_tensor_heatmap(torch.abs(diff)[0, :, :], ax=axes[subplot_index], is_show=False, title=f"Diff in {module_name} of Token {token_i}")
+				plot_tensor_heatmap(
+					tensor = torch.abs(diff)[0, :, :], 
+					ax = axes[subplot_index] if len(watched_module_names) > 1 else axes, 
+					is_show=False, 
+					title=f"Diff in {module_name} of Token {token_i}",
+				)
 		plt.show(), plt.close()
-			
 		# Plot line chart of comparison index
 		ncols = len(comparison_index)
 		nrows = 1
@@ -193,8 +196,8 @@ def vertical_comparison_of_forward_hook(
 
 # Generating by skipping decoder blocks
 # Focusing on the generating results and 
-def skip_layer_comparison():
-	
+def skip_layer_generation():
+	# TODO
 	pass
 	
 

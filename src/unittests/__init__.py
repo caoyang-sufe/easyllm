@@ -13,6 +13,7 @@ model_names = [
 	"deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
 	"deepseek-ai/deepseek-math-7b-base",
 	"deepseek-ai/deepseek-moe-16b-base",	# `trust_remote`
+	"Qwen/Qwen1.5-7B",
 ]
 
 dataset_names = [

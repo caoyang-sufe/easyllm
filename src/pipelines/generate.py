@@ -109,6 +109,8 @@ def decode_pipeline(model_name_or_path,
 	text, token_probs, logits = returned_dict["text"], returned_dict["token_probs"], returned_dict["logits"]
 	forward_hook_data, backward_hook_data = returned_dict["forward_hook_data"], returned_dict["backward_hook_data"]
 	logging.info(f"Generated text: {text}")
+	
+	# # Beam decoding
 	# logging.info("Beam decode ...")
 	# beam_search_decode(
 		# model = model, 
@@ -120,7 +122,8 @@ def decode_pipeline(model_name_or_path,
 		# device = device,
 		# use_kv_cache = use_kv_cache,
 	# )
-
+	
+	# # K-step greedy decoding
 	# logging.info("K step greedy decode ...") bn
 	# k_step_greedy_decode(
 		# model = model,
