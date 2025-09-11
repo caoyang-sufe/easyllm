@@ -6,9 +6,12 @@ import re
 import torch
 import logging
 from matplotlib import pyplot as plt
+from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.plot import plot_tensor_heatmap
 from src.tools.transformers import greedy_decode
+from src.module.skip_layer import create_model_class, create_model_class_for_causal_lm
+from src.pipelines.generate import display_pipeline
 
 # Horizontal comparison: Compare hook data (which comes from different prompts) by module names
 # Focusing on comparing the inputs or outputs of the same modules in different hooks
@@ -17,8 +20,8 @@ from src.tools.transformers import greedy_decode
 # @param hook_module_names: List[Str], e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj", "model.layers[0].self_attn.v_proj"]
 # @param hook_module_name_suffixes: List[Str], e.g. ["q_proj", "k_proj", "v_proj"]
 # @param comparison_index: List[Str], e.g. ["mean_diff", "max_diff", "corr"]
-# @param max_length: Int, when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
-# @param figure_size: Int, default 5
+# @param max_length: [Int] when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
+# @param figure_size: [Int] default 5
 def horizontal_comparison_of_forward_hook(
 	hook_datas = None,
 	hook_data_paths = None,
@@ -96,7 +99,7 @@ def horizontal_comparison_of_forward_hook(
 		fig, axes = plt.subplots(
 			nrows = nrows, 
 			ncols = ncols,
-			figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+			figsize = (figure_sAutoTokenizerize * 1.2 * ncols, figure_size * nrows),
 		)
 		for i, summary_key in enumerate(comparison_index):
 			for j, module_name_suffix in enumerate(hook_module_name_suffixes):
@@ -123,12 +126,12 @@ def horizontal_comparison_of_forward_hook(
 	
 # Vertical comparison: Compare data in a single hook
 # Focusing on comparing the inputs and outputs of the same modules
-# @param hook_data: Dict, hook data object
-# @param hook_data_path: Str, default None but at least one of `hook_datas` and `hook_data_paths` is not None
+# @param hook_data: [Dict] hook data object
+# @param hook_data_path: [Str] default None but at least one of `hook_datas` and `hook_data_paths` is not None
 # @param hook_module_names: List[Str], e.g. ["model.layers[0]"]
 # @param comparison_index: List[Str], e.g. ["mean_diff", "max_diff", "corr"]
-# @param max_length: Int, when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
-# @param figure_size: Int, default 5
+# @param max_length: [Int] when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
+# @param figure_size: [Int] default 5
 # @param watched_module_names: List[Int], you can selected several module here to plot heat map of input-output difference
 def vertical_comparison_of_forward_hook(
 	hook_data = None,
@@ -152,7 +155,7 @@ def vertical_comparison_of_forward_hook(
 		fig, axes = plt.subplots(1, len(watched_module_names), figsize=(1.2 * figure_size * len(watched_module_names), figure_size))
 		subplot_index = -1
 		for module_name in hook_module_names:
-			input_tensor = hook_data[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
+			input_tensor = hook_dAutoTokenizerata[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
 			output_tensor = hook_data[token_i][module_name]["output"][0][0]
 			diff = input_tensor - output_tensor
 			mean_diff = torch.norm(diff, p="fro") / input_tensor.numel()                                                              
@@ -195,9 +198,76 @@ def vertical_comparison_of_forward_hook(
 		plt.show(), plt.close()
 
 # Generating by skipping decoder blocks
-# Focusing on the generating results and 
-def skip_layer_generation():
-	# TODO
-	pass
-	
+# Focusing on the generating results under skipping different layers
+# @param Model: AutoModel class, e.g. Qwen2Model
+# @param ModelForCausalLM: AutoModelForCausalLM class, e.g. Qwen2ForCausalLM
+# @param model_name_or_path: Str
+# @param tokenizer: HuggingFace tokenizer object
+# @param prompt: Str
+# @param max_length: Int
+# @param skip_layer_ids: List[Int], Layer # to be skipped
+def skip_layer_generation(
+	Model, 
+	ModelForCausalLM,
+	model_name_or_path,
+	tokenizer,
+	prompt, 
+	max_length,
+	skip_layer_ids = list(),
+):
+	SkipLayerModelForCausalLM = create_model_class_for_causal_lm(Model, ModelForCausalLM)
+	config = AutoConfig.from_pretrained(model_name_or_path)
+	model = SkipLayerModelForCausalLM.from_pretrained(
+		model_name_or_path,
+		config = config,
+		skip_layer_ids = skip_layer_ids,
+	)
+	results = greedy_decode(
+		model,
+		tokenizer,
+		prompt = prompt, 
+		max_length = max_length,
+		device = "cpu",
+		use_kv_cache = False,
+		forward_hook_module_names = None,
+		backward_hook_module_names = None,
+	)
+	return results
 
+# Generating by skipping decoder blocks
+# Focusing on the generating results under skipping different layers
+# @param model: HuggingFace model object
+# @param tokenizer: HuggingFace tokenizer object
+# @param prompt: Str
+# @param max_length: Int
+# @param skip_layer_ids: List[Int], Layer # to be skipped
+def easy_skip_layer_generation(
+	model,
+	tokenizer,
+	prompt, 
+	max_length,
+	skip_layer_ids = list(),
+	forward_hook_module_names = None,
+	backward_hook_module_names = None,
+):
+	backup_layers = model.model.layers
+	if skip_layer_ids:
+		filtered_layers = [
+			layer for i, layer in enumerate(model.model.layers)
+			if i not in skip_layer_ids
+		]
+		model.model.layers = torch.nn.ModuleList(filtered_layers)
+	results = greedy_decode(
+		model,
+		tokenizer,
+		prompt = prompt, 
+		max_length = max_length,
+		device = "cpu",
+		use_kv_cache = False,
+		forward_hook_module_names = forward_hook_module_names,
+		backward_hook_module_names = backward_hook_module_names,
+	)
+	model.model.layers = backup_layers
+	return results
+
+	

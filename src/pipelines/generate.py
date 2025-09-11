@@ -11,12 +11,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.tools.transformers import greedy_decode, k_step_greedy_decode, beam_search_decode, generate_token_prob, get_generation_eos_token_ids
 from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
 
+# Display generation details token by token
 # @param tokenizer: Huggingface tokenizer Object
 # @param text: [Str] Final generated text
 # @param token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
 # @param logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length`, indicating the logits when each token is generated
 # @param k: [Int] top-k decode candidates to be display
 # @param eos_token_id: [Int] tokenId of <eos> token, e.g. 151643(<|endoftext|>) for Qwen model 
+# @return df_display: [pandas.DataFrame] ["id", "token", "prob", "max_id", "cand_tokens", "cand_probs", "eos_prob"]
 def display_pipeline(tokenizer,
 					 text,
 					 token_probs,
@@ -50,12 +52,13 @@ def display_pipeline(tokenizer,
 	df_display = pandas.DataFrame(df_display, columns=["max_id", "cand_tokens", "cand_probs", "eos_prob"])
 	return pandas.concat([df_token_probs, df_display], axis=1)
 	
-
+# Generate tokens by a given prompt
 # @param model_name_or_path: [Str]
 # @param prompt: [Str]
 # @param max_length: [Int]
 # @param device: [Str/torch.device] e.g. "cuda", "cpu", torch.device("cpu")
 # @param generate_kwargs: [Dict] keyword arguments for `model.generate`
+# @return df_display: the returned of `display_pipeline`
 def generate_pipeline(model_name_or_path,
 					  prompt,
 					  max_length,
@@ -79,6 +82,14 @@ def generate_pipeline(model_name_or_path,
 	return display_pipeline(tokenizer, text, token_prob, logits, eos_token_id=eos_token_ids[0])
 
 
+# @param model_name_or_path: [Str]
+# @param prompt: [Str]
+# @param max_length: [Int]
+# @param device: [Str/torch.device] e.g. "cuda", "cpu", torch.device("cpu")
+# @param use_kv_cache: [Boolean]
+# @param forward_hook_module_names: List[Str]
+# @param backward_hook_module_names: List[Str]
+# @return: Dict["df_display", "forward_hook_data", "backward_hook_data"]
 def decode_pipeline(model_name_or_path,
 					prompt,
 					max_length,
