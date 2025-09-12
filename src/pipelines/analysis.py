@@ -5,6 +5,7 @@
 import re
 import torch
 import logging
+from torch.nn import functional as F
 from matplotlib import pyplot as plt
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
@@ -27,7 +28,7 @@ def horizontal_comparison_of_forward_hook(
 	hook_data_paths = None,
 	hook_module_names = ["model.layers[0].self_attn.q_proj", "model.layers[1].self_attn.k_proj", "model.layers[2].self_attn.v_proj",],
 	hook_module_name_suffixes = ["q_proj", "k_proj", "v_proj"],
-	comparison_index = ["mean_diff", "max_diff", "corr"],
+	comparison_index = ["mean_diff", "max_diff", "corr", "sim"],
 	max_length = 999,
 	figure_size = 5,
 ):
@@ -45,6 +46,7 @@ def horizontal_comparison_of_forward_hook(
 			"mean_diff": {module_name_suffix: {"input": list(), "output": list()} for module_name_suffix in hook_module_name_suffixes},	# Mean difference between two tensors
 			"max_diff": {module_name_suffix: {"input": list(), "output": list()} for module_name_suffix in hook_module_name_suffixes},	# Max differernce by element-wise value between two tensors
 			"corr": {module_name_suffix: {"input": list(), "output": list()} for module_name_suffix in hook_module_name_suffixes},	# Correlation coefficient between two tensors
+			"sim": {module_name_suffix: {"input": list(), "output": list()} for module_name_suffix in hook_module_name_suffixes},	# Similarity between two tensors
 		}
 		for module_name in hook_module_names:
 			module_name_suffix = module_name.split('.')[-1]
@@ -92,8 +94,13 @@ def horizontal_comparison_of_forward_hook(
 				input_corr = torch.corrcoef(torch.stack([input_tensors[0].flatten(), input_tensors[1].flatten()]))[0, 1]
 				output_corr = torch.corrcoef(torch.stack([output_tensors[0].flatten(), output_tensors[1].flatten()]))[0, 1]
 				comparison_summary_dict["corr"][module_name_suffix]["input"].append(input_corr.item())
-				comparison_summary_dict["corr"][module_name_suffix]["output"].append(output_corr.item())				
-				## 3.4 TO BE CONTINUE ......
+				comparison_summary_dict["corr"][module_name_suffix]["output"].append(output_corr.item())
+				## 3.4 Calculate Similarity
+				input_sim = F.cosine_similarity(input_tensors[0].flatten(), input_tensors[1].flatten(), dim=0)
+				output_sim = F.cosine_similarity(output_tensors[0].flatten(), output_tensors[1].flatten(), dim=0)
+				comparison_summary_dict["sim"][module_name_suffix]["input"].append(input_corr.item())
+				comparison_summary_dict["sim"][module_name_suffix]["output"].append(output_corr.item())				
+				## 3.5 TO BE CONTINUE ......
 				# ...
 		nrows, ncols = len(comparison_index), len(hook_module_name_suffixes)
 		fig, axes = plt.subplots(
@@ -137,7 +144,7 @@ def vertical_comparison_of_forward_hook(
 	hook_data = None,
 	hook_data_path = None,
 	hook_module_names = ["model.layers[0]", "model.layers[1]", "model.layers[2]"],
-	comparison_index = ["mean_diff", "max_diff", "corr"],
+	comparison_index = ["mean_diff", "max_diff", "corr", "sim"],
 	max_length = 999,
 	figure_size = 5,
 	watched_module_names = ["model.layers[0]"],
@@ -150,6 +157,7 @@ def vertical_comparison_of_forward_hook(
 			"mean_diff": list(),
 			"max_diff": list(),
 			"corr": list(),
+			"sim": list()
 		}
 		# Plot heatmap of input-output difference
 		fig, axes = plt.subplots(1, len(watched_module_names), figsize=(1.2 * figure_size * len(watched_module_names), figure_size))
@@ -161,9 +169,11 @@ def vertical_comparison_of_forward_hook(
 			mean_diff = torch.norm(diff, p="fro") / input_tensor.numel()                                                              
 			max_diff = torch.max(torch.abs(diff))
 			corr = torch.corrcoef(torch.stack([input_tensor.flatten(), output_tensor.flatten()]))[0, 1]
+			sim = F.cosine_similarity(input_tensor.flatten(), output_tensor.flatten(), dim=0)
 			comparison_summary_dict["mean_diff"].append(mean_diff.item())
 			comparison_summary_dict["max_diff"].append(max_diff.item())
 			comparison_summary_dict["corr"].append(corr.item())
+			comparison_summary_dict["sim"].append(sim.item())
 			if module_name in watched_module_names:
 				subplot_index += 1
 				assert diff.size(0) == 1
