@@ -14,6 +14,7 @@ model_names = [
 	"deepseek-ai/deepseek-math-7b-base",
 	"deepseek-ai/deepseek-moe-16b-base",	# `trust_remote`
 	"Qwen/Qwen1.5-7B",
+	"Qwen/Qwen2.5-7B-Instruct",
 ]
 
 dataset_names = [
@@ -22,3 +23,5 @@ dataset_names = [
 	"trl-internal-testing/descriptiveness-sentiment-trl-style", # sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
 	"YeungNLP/firefly-train-1.1M", # train["input", "target"]
 ]
+
+

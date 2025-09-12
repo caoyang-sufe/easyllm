@@ -4,17 +4,13 @@
 
 import os
 import re
+import gc
 import torch
 import string
 import logging
 from torch import nn
 from torch.nn import functional as F
-if not "CHDIR_FLAG" in dir():
-    os.chdir("../")
-    CHDIR_FLAG = True
-    
-import numpy as np
-import pandas as pd
+
 from datasets import load_dataset
 
 from src.tools.transformers import get_generation_eos_token_ids
@@ -72,7 +68,6 @@ def horizontal_comparison_of_forward_hook_test():
 		max_length = 4,
 	)
 
-
 def vertical_comparison_of_forward_hook_test():
 	vertical_comparison_of_forward_hook(
 		hook_data = None,
@@ -94,16 +89,20 @@ def vertical_comparison_of_forward_hook_test():
 	
 def skip_layer_generation_test():
 	logging.info("skip layer unittest ...")
-	model_id = 8
+	model_id = 9
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers	
 
 	prompts = [
-		f"""英文单词strawberry中有几个字母r？<think>""",
-		f"""很久很久以前，""",
-		f"""素因子分解：512<think>""",
-		f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。<think>""",
+		f"""很久很久以前""",
+		f"""解方程：x^2 - 3x + 2 = 0""",
+		f"""使用python写一段冒泡排序算法""",
+		f"""我今年20岁，妹妹的年龄是我的一半。则我40岁时，我的妹妹多少岁？""",
+		f"""素因子分解：126。""",
+		f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。""",
+		f"""请写一首七言律诗作为中华人民共和国成立八十周年的祝词，注意用词的平仄押韵：
+《八十周年庆》"""
 	]
 	max_length = 64
 	use_kv_cache = True
@@ -138,4 +137,6 @@ def skip_layer_generation_test():
 				save_path = f"./temp/bhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-skip{str(skip_layer_id).zfill(2)}.pt"
 				logging.info(f"Export backward hook data to {save_path}")
 				torch.save(backward_hook_data, save_path)
+			del logits, forward_hook_data, backward_hook_data
+			gc.collect()
 		logging.info("  - OK!")
