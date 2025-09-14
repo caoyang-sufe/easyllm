@@ -157,7 +157,6 @@ def ppo_pipeline_test():
 	}
 	ppo_pipeline(data_processor, config_kwargs, trainer_kwargs)
 
-
 def dpo_pipeline_test():
 	logging.info("DPO unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[0])

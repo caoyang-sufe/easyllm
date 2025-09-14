@@ -98,15 +98,15 @@ def horizontal_comparison_of_forward_hook(
 				## 3.4 Calculate Similarity
 				input_sim = F.cosine_similarity(input_tensors[0].flatten(), input_tensors[1].flatten(), dim=0)
 				output_sim = F.cosine_similarity(output_tensors[0].flatten(), output_tensors[1].flatten(), dim=0)
-				comparison_summary_dict["sim"][module_name_suffix]["input"].append(input_corr.item())
-				comparison_summary_dict["sim"][module_name_suffix]["output"].append(output_corr.item())				
+				comparison_summary_dict["sim"][module_name_suffix]["input"].append(input_sim.item())
+				comparison_summary_dict["sim"][module_name_suffix]["output"].append(output_sim.item())				
 				## 3.5 TO BE CONTINUE ......
 				# ...
 		nrows, ncols = len(comparison_index), len(hook_module_name_suffixes)
 		fig, axes = plt.subplots(
 			nrows = nrows, 
 			ncols = ncols,
-			figsize = (figure_sAutoTokenizerize * 1.2 * ncols, figure_size * nrows),
+			figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
 		)
 		for i, summary_key in enumerate(comparison_index):
 			for j, module_name_suffix in enumerate(hook_module_name_suffixes):
@@ -127,7 +127,7 @@ def horizontal_comparison_of_forward_hook(
 					target_ax = axes[i, j]
 				target_ax.bar(x, y_input, label=f"input_{summary_key}", alpha=.5)
 				target_ax.bar(x, y_output, label=f"output_{summary_key}", alpha=.5)
-				target_ax.set_xlabel("Layer #"), target_ax.set_ylabel("Diff"), target_ax.set_title(f"{summary_key} for {module_name_suffix} on token {token_i}")
+				target_ax.set_xlabel("Layer #"), target_ax.set_ylabel(summary_key), target_ax.set_title(f"{summary_key} for {module_name_suffix} on token {token_i}")
 				target_ax.legend()
 		plt.show(), plt.close()
 	
@@ -163,7 +163,7 @@ def vertical_comparison_of_forward_hook(
 		fig, axes = plt.subplots(1, len(watched_module_names), figsize=(1.2 * figure_size * len(watched_module_names), figure_size))
 		subplot_index = -1
 		for module_name in hook_module_names:
-			input_tensor = hook_dAutoTokenizerata[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
+			input_tensor = hook_data[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
 			output_tensor = hook_data[token_i][module_name]["output"][0][0]
 			diff = input_tensor - output_tensor
 			mean_diff = torch.norm(diff, p="fro") / input_tensor.numel()                                                              
@@ -204,6 +204,15 @@ def vertical_comparison_of_forward_hook(
 					target_ax = axes[r, c]
 				x = list(range(len(hook_module_names)))
 				target_ax.plot(x, comparison_summary_dict[summary_key], label=summary_key, marker='o')
+				# Plot text on each dot
+				if summary_key in ["corr", "sim"]:
+					for i, (x_i, y_i) in enumerate(zip(x, comparison_summary_dict[summary_key])):
+						text_flag = i % 3 == 0
+						last_y_flag = abs(y_i - comparison_summary_dict[summary_key][i - 1]) > .1 if i > 0 else True
+						next_y_flag = abs(y_i - comparison_summary_dict[summary_key][i + 1]) > .1 if i < len(x) - 1 else True
+						if text_flag or (last_y_flag and next_y_flag):
+							target_ax.text(x_i, y_i, str(round(y_i, 3)), ha="center", va="bottom", fontsize=12, color="red")
+					
 				target_ax.legend(), target_ax.set_xlabel("Layer #"), target_ax.set_ylabel(summary_key), target_ax.set_title(f"{comparison_index[c]} on token {token_i}")
 		plt.show(), plt.close()
 
