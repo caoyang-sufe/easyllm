@@ -6,7 +6,7 @@ import torch
 from functools import wraps
 from torch.nn import functional as F
 
-# Forward hook decorator
+# Forward hook decorator: Register this decorator to any functions with keyword argument `model`
 # @params module_names: List[Str], e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
 def register_forward_hook_decorator(module_names):
 	# @param func: the call of `func` must include a keyword argument "model"
@@ -39,7 +39,7 @@ def register_forward_hook_decorator(module_names):
 		return wrapper
 	return decorator
 
-# Backward hook decorator (for gradient)
+# Backward hook decorator (for gradient): Register this decorator to any functions with keyword argument `model`
 # @params module_names: List[Str], e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
 def register_backward_hook_decorator(module_names):
 	# @param func: the call of `func` must include a keyword argument "model"

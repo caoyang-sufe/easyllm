@@ -282,7 +282,7 @@ def easy_skip_layer_generation(
 		prompt = prompt, 
 		max_length = max_length,
 		device = "cpu",
-		use_kv_cache = False,
+		use_kv_cache = True,
 		forward_hook_module_names = forward_hook_module_names,
 		backward_hook_module_names = backward_hook_module_names,
 	)

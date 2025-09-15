@@ -89,12 +89,12 @@ def greedy_decode(model,
 	if hook_flag == 2:
 		backward_hook_data = list()	
 	for i in range(max_length):
-		# logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
-		logging.info(f"Round {i}: {past_key_values.key_cache if past_key_values is not None else None}")
+		logging.info(f"Round {i}: {past_key_values.key_cache[0].size() if past_key_values is not None else None}")
+		# logging.debug(f"{model.device, inputs.device}")
 		with torch.no_grad():
 			if use_kv_cache:
 				if past_key_values is None:
-					outputs = easy_forward(inputs, model=model, past_key_values=None)
+					outputs = easy_forward(inputs, model=model, past_key_values=None, use_cache=True)
 				else:
 					outputs = easy_forward(inputs[:, -1].unsqueeze(0), model=model, past_key_values=past_key_values, use_cache=True)
 				past_key_values = outputs.past_key_values	# Dictlike[key_cache: Float(1, 2, X, hidden_size), value_cache: Float(1, 2, X, hidden_size)], where X = (i + 1) * (n_tokens + i / 2)

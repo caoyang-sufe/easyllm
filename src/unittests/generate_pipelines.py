@@ -15,7 +15,7 @@ from src.pipelines.generate import decode_pipeline, generate_pipeline
 
 def decode_pipeline_test():
 	logging.info("Decode unittest ...")
-	model_id = 8
+	model_id = 0
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers
@@ -63,6 +63,7 @@ def decode_pipeline_test():
 		[f"model.layers[{i}].self_attn.v_proj" for i in range(num_hidden_layers)] + \
 		[f"model.layers[{i}].self_attn.o_proj" for i in range(num_hidden_layers)]
 	forward_hook_module_names = [f"model.layers[{i}]" for i in range(num_hidden_layers)]
+	# forward_hook_module_names = None
 	for i in range(len(prompts)):
 		returned_dict = decode_pipeline(
 			model_name_or_path,
@@ -77,15 +78,16 @@ def decode_pipeline_test():
 		forward_hook_data = returned_dict["forward_hook_data"]
 		backward_hook_data = returned_dict["backward_hook_data"]
 		# Save returned data
-		save_path = f"./temp/decode+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}.csv"
+		model_name = model_names[model_id].split('/')[-1].split('\\')[-1]
+		save_path = f"./temp/decode+{model_name}+{use_kv_cache}-{i}.csv"
 		logging.info(f"Export table to {save_path}")
 		df_display.to_csv(save_path, sep='\t', header=True, index=False)
 		if forward_hook_data is not None:
-			save_path = f"./temp/fhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}.pt"
+			save_path = f"./temp/fhook+{model_name}+{use_kv_cache}-{i}.pt"
 			logging.info(f"Export forward hook data to {save_path}")
 			torch.save(forward_hook_data, save_path)
 		if backward_hook_data is not None:
-			save_path = f"./temp/bhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}.pt"
+			save_path = f"./temp/bhook+{model_name}+{use_kv_cache}-{i}.pt"
 			logging.info(f"Export backward hook data to {save_path}")
 			torch.save(backward_hook_data, save_path)
 		logging.info("  - OK!")

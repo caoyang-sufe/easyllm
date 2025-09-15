@@ -2,7 +2,6 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
-import wandb
 import logging
 from copy import deepcopy
 from datasets import load_dataset

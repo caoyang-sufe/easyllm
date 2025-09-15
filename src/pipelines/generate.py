@@ -93,19 +93,19 @@ def generate_pipeline(model_name_or_path,
 def decode_pipeline(model_name_or_path,
 					prompt,
 					max_length,
-					device = None,
+					device = "cuda",
 					use_kv_cache = True,
 					forward_hook_module_names = None,
 					backward_hook_module_names = None,
 					):
 	logging.info("Load model and tokenizer ...")
-	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
-	eos_token_ids = get_generation_eos_token_ids(model)
-	logging.info(f"  - EOS Tokens: {eos_token_ids}")
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
+	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
+	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
+	eos_token_ids = get_generation_eos_token_ids(model)
+	logging.info(f"  - EOS Tokens: {eos_token_ids}")
 	logging.info("Greedy decode ...")
 	returned_dict = greedy_decode(
 		model = model,
