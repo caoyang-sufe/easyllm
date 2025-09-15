@@ -66,13 +66,13 @@ def generate_pipeline(model_name_or_path,
 					  generate_kwargs = None,
 					  ):
 	logging.info("Load model and tokenizer ...")
-	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
-	eos_token_ids = get_generation_eos_token_ids(model)
-	logging.info(f"  - EOS Tokens: {eos_token_ids}")
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device}")
+	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
+	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
+	eos_token_ids = get_generation_eos_token_ids(model)
+	logging.info(f"  - EOS Tokens: {eos_token_ids}")
 	logging.info("Model Generate ...")
 	if generate_kwargs is None:
 		# Greedy decode configurations

@@ -160,7 +160,7 @@ def vertical_comparison_of_forward_hook(
 			"sim": list()
 		}
 		# Plot heatmap of input-output difference
-		fig, axes = plt.subplots(1, len(watched_module_names), figsize=(1.2 * figure_size * len(watched_module_names), figure_size))
+		fig, axes = plt.subplots(1, len(watched_module_names), figsize=(1.2 * 5 * figure_size * len(watched_module_names), figure_size))
 		subplot_index = -1
 		for module_name in hook_module_names:
 			input_tensor = hook_data[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
@@ -178,7 +178,7 @@ def vertical_comparison_of_forward_hook(
 				subplot_index += 1
 				assert diff.size(0) == 1
 				plot_tensor_heatmap(
-					tensor = torch.abs(diff)[0, :, :], 
+					tensor = torch.abs(diff)[0, :, :],
 					ax = axes[subplot_index] if len(watched_module_names) > 1 else axes, 
 					is_show=False, 
 					title=f"Diff in {module_name} of Token {token_i}",
@@ -266,6 +266,7 @@ def easy_skip_layer_generation(
 	prompt, 
 	max_length,
 	skip_layer_ids = list(),
+	use_kv_cache = True,
 	forward_hook_module_names = None,
 	backward_hook_module_names = None,
 ):
@@ -282,7 +283,7 @@ def easy_skip_layer_generation(
 		prompt = prompt, 
 		max_length = max_length,
 		device = "cpu",
-		use_kv_cache = True,
+		use_kv_cache = use_kv_cache,
 		forward_hook_module_names = forward_hook_module_names,
 		backward_hook_module_names = backward_hook_module_names,
 	)

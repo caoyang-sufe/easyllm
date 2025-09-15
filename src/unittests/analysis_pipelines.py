@@ -15,7 +15,6 @@ from datasets import load_dataset
 
 from src.tools.transformers import get_generation_eos_token_ids
 from src.tools.torch import register_forward_hook_decorator, register_backward_hook_decorator
-from src.tools.plot import plot_tensor_histogram, plot_tensor_heatmap
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.unittests import model_home, dataset_home, model_names, dataset_names
@@ -87,13 +86,14 @@ def vertical_comparison_of_forward_hook_test():
 		figure_size = 5,
 	)
 	
-def skip_layer_generation_test():
+def skip_layer_generation_test(model_id=-1, device=None):
 	logging.info("skip layer unittest ...")
-	model_id = 9
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers	
-
+	if device is None:
+		device = "cuda" if torch.cuda.is_available() else "cpu"
+	
 	prompts = [
 		f"""很久很久以前""",
 		f"""解方程：x^2 - 3x + 2 = 0""",
@@ -106,8 +106,10 @@ def skip_layer_generation_test():
 	]
 	max_length = 64
 	use_kv_cache = True
+	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
+	# Load tokenizer and model
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-	model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
+	model = AutoModelForCausalLM.from_pretrained(model_name_or_path).to(device)
 	eos_token_ids = get_generation_eos_token_ids(model)
 	forward_hook_module_names = [f"model.layers[{j}]" for j in range(num_hidden_layers - 1)]
 	for i in range(len(prompts)):
@@ -119,7 +121,9 @@ def skip_layer_generation_test():
 				prompt = prompts[i],
 				max_length = max_length,
 				skip_layer_ids = skip_layer_ids,
+				use_kv_cache = use_kv_cache,
 				forward_hook_module_names = forward_hook_module_names,
+				backward_hook_module_names = None,				
 			)
 			text, token_probs, logits = results["text"], results["token_probs"], results["logits"]
 			forward_hook_data, backward_hook_data = results["forward_hook_data"], results["backward_hook_data"]

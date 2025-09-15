@@ -13,13 +13,11 @@ from transformers import AutoConfig
 from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.generate import decode_pipeline, generate_pipeline
 
-def decode_pipeline_test():
+def decode_pipeline_test(model_id=-1, device=None):
 	logging.info("Decode unittest ...")
-	model_id = 0
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers
-	
 	logging.info(f"  - Model: {model_name_or_path}")
 	# prompts = \
 		# [f"""英文单词strawberry中有几个字母{i}？""" for i in string.ascii_letters] + \
@@ -53,7 +51,6 @@ def decode_pipeline_test():
 		f"""请写一首七言律诗作为中华人民共和国成立八十周年的祝词，注意用词的平仄押韵：
 《八十周年庆》"""
 	]
-	
 	max_length = 64
 	use_kv_cache = True
 	forward_hook_module_names = \
@@ -69,7 +66,7 @@ def decode_pipeline_test():
 			model_name_or_path,
 			prompts[i],
 			max_length,
-			device = None,
+			device = device,
 			use_kv_cache = use_kv_cache,
 			forward_hook_module_names = forward_hook_module_names,
 			backward_hook_module_names = None,
@@ -92,19 +89,17 @@ def decode_pipeline_test():
 			torch.save(backward_hook_data, save_path)
 		logging.info("  - OK!")
 
-def generate_pipeline_test():
+def generate_pipeline_test(model_id=-1, device=None):
 	logging.info("Generate unittest ...")
-	model_id = 0
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
 	prompt = """英文单词strawberry中有几个字母r？"""
 	max_length = 40
-
 	df_display = generate_pipeline(
 		model_name_or_path,
 		prompt,
 		max_length,
-		device = None,
+		device = device,
 		generate_kwargs = None,
 	)
 	save_path = f"./generate+{model_names[model_id].split('/')[-1]}.csv"

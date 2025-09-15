@@ -32,9 +32,10 @@ with open("check.txt", 'w', encoding="utf8") as f:
 # function_name = "dpo_pipeline_test"
 # function_name = "grpo_pipeline_test"
 # function_name = "ppo_pipeline_test"
-function_name = "decode_pipeline_test"
+# function_name = "decode_pipeline_test"
 # function_name = "generate_pipeline_test"
-# function_name = "skip_layer_generation_test"
+function_name = "skip_layer_generation_test"
 logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
-eval(function_name)()
+eval(function_name)(model_id=8, device="cpu")
+eval(function_name)(model_id=9, device="cpu")
 terminate_logger(logger)
