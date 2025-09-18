@@ -25,8 +25,12 @@ def create_model_class(SuperModel):
 					if i not in self.skip_layer_ids
 				]
 				self.layers = torch.nn.ModuleList(filtered_layers)
+			self.config.num_hidden_layers -= len(self.skip_layer_ids)
+			self.config
 			result = super(SkipLayerModel, self).forward(*args, **kwargs)
-			self.layers = original_layers	# Recover for follow-up callback
+			# Recover for follow-up callback
+			self.layers = original_layers	
+			self.config.num_hidden_layers += len(self.skip_layer_ids)
 			return result
 	return SkipLayerModel
 

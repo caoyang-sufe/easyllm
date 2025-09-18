@@ -7,7 +7,6 @@ import logging
 from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
 
-
 def sft_pipeline_test():
 	logging.info("SFT unittest ...")
 	# # Qwen2.5-0.5B-Instruct + tldr

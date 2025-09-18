@@ -41,6 +41,8 @@ def horizontal_comparison_of_forward_hook_test():
 		hook_module_name_suffixes = ["q_proj", "k_proj", "v_proj"],
 		comparison_index = ["mean_diff", "max_diff", "corr"],
 		max_length = 4,
+		figure_size = 5,
+		outlier_ratio = .0,
 	)
 	comparison_summary_dict = horizontal_comparison_of_forward_hook(
 		hook_datas = None,
@@ -49,6 +51,8 @@ def horizontal_comparison_of_forward_hook_test():
 		hook_module_name_suffixes = ["q_proj"],
 		comparison_index = ["mean_diff", "max_diff", "corr"],
 		max_length = 4,
+		figure_size = 5,
+		outlier_ratio = .1,
 	)
 	comparison_summary_dict = horizontal_comparison_of_forward_hook(
 		hook_datas = None,
@@ -57,6 +61,8 @@ def horizontal_comparison_of_forward_hook_test():
 		hook_module_name_suffixes = ["q_proj", "k_proj", "v_proj"],
 		comparison_index = ["corr"],
 		max_length = 4,
+		figure_size = 5,
+		outlier_ratio = .1,
 	)
 	comparison_summary_dict = horizontal_comparison_of_forward_hook(
 		hook_datas = None,
@@ -65,6 +71,8 @@ def horizontal_comparison_of_forward_hook_test():
 		hook_module_name_suffixes = ["q_proj"],
 		comparison_index = ["corr"],
 		max_length = 4,
+		figure_size = 5,
+		outlier_ratio = .1,
 	)
 
 def vertical_comparison_of_forward_hook_test():
@@ -76,6 +84,7 @@ def vertical_comparison_of_forward_hook_test():
 		max_length = 16,
 		figure_size = 5,
 		watched_module_names = [f"model.layers[{i}]" for i in [0, 1, 4, 5]],
+		outlier_ratio = .0,
 	)
 	vertical_comparison_of_forward_hook(
 		hook_data = None,
@@ -84,6 +93,8 @@ def vertical_comparison_of_forward_hook_test():
 		comparison_index = ["mean_diff"],
 		max_length = 16,
 		figure_size = 5,
+		watched_module_names = [],
+		outlier_ratio = .1,
 	)
 	
 def skip_layer_generation_test(model_id=-1, device=None):
@@ -111,6 +122,8 @@ def skip_layer_generation_test(model_id=-1, device=None):
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 	model = AutoModelForCausalLM.from_pretrained(model_name_or_path).to(device)
 	eos_token_ids = get_generation_eos_token_ids(model)
+	
+	# # 1. Skip 1 layer
 	forward_hook_module_names = [f"model.layers[{j}]" for j in range(num_hidden_layers - 1)]
 	for i in range(len(prompts)):
 		for skip_layer_id in range(num_hidden_layers):	
@@ -144,3 +157,40 @@ def skip_layer_generation_test(model_id=-1, device=None):
 			del logits, forward_hook_data, backward_hook_data
 			gc.collect()
 		logging.info("  - OK!")
+
+	# 2. Skip from tail, i.e. decode at each layer
+	forward_hook_module_names = None
+	for i in range(len(prompts)):
+		for j in range(num_hidden_layers):
+			skip_layer_ids = list(range(j + 1, num_hidden_layers))
+			results = easy_skip_layer_generation(
+				model = model,
+				tokenizer = tokenizer,
+				prompt = prompts[i],
+				max_length = max_length,
+				skip_layer_ids = skip_layer_ids,
+				use_kv_cache = use_kv_cache,
+				forward_hook_module_names = forward_hook_module_names,
+				backward_hook_module_names = None,				
+			)
+			text, token_probs, logits = results["text"], results["token_probs"], results["logits"]
+			forward_hook_data, backward_hook_data = results["forward_hook_data"], results["backward_hook_data"]
+			logging.info(f"Generated text: {text}")
+			df_display = display_pipeline(tokenizer, text, token_probs, logits, eos_token_id=eos_token_ids[0])
+			# Save returned data
+			save_path = f"./temp1/decode+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.csv"
+			logging.info(f"Export table to {save_path}")
+			df_display.to_csv(save_path, sep='\t', header=True, index=False)
+			if forward_hook_data is not None:
+				save_path = f"./temp1/fhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
+				logging.info(f"Export forward hook data to {save_path}")
+				torch.save(forward_hook_data, save_path)
+			if backward_hook_data is not None:
+				save_path = f"./temp1/bhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
+				logging.info(f"Export backward hook data to {save_path}")
+				torch.save(backward_hook_data, save_path)
+			del logits, forward_hook_data, backward_hook_data
+			gc.collect()
+		logging.info("  - OK!")
+		
+

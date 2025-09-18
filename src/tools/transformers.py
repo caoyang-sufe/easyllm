@@ -298,55 +298,31 @@ def generate_token_prob(model,
 		generated_token_probs.append((token_id, token, token_prob))
 	return generated_text, generated_token_probs, generated_logits
 
+# Calculate cosine similarity by filtering outlier
+# @param x: [torch.Tensor]
+# @param y: [torch.Tensor]
+# @param filter_outlier: [Float] range from [0, 1)
+def robust_cosine_similarity(x, y, outlier_ratio = .1):
+	x, y = x.flatten(), y.flatten()
+	assert x.size(0) == y.size(0)
+	abs_diff = torch.abs(x - y)
+	k = int(len(abs_diff) * (1 - outlier_ratio))
+	_, indices = torch.topk(abs_diff, k=k, largest=False)
+	x_filtered, y_filtered = x[indices], y[indices]
+	similarity = F.cosine_similarity(x_filtered, y_filtered, dim=0).item()
+	return similarity
+	
 
-# Given prompt, calculate the generation probability of the response (i.e. completion) by given model
-# @param model: Huggingface model object
-# @param tokenizer: Huggingface tokenizer Object
-# @param prompt_token_ids: [List/torch.LongTensor] e.g. [1, 2, 3] / Long([[1, 2, 3]])
-# @param completion_token_ids: [List/torch.LongTensor] e.g. [1, 2, 3] / Long([[1, 2, 3]])
-# @param device: [Str] e.g. "cuda" or "cpu"
-# @param use_kv_cache: [Boolean] whether to use KV-cache to accelerate, if True then large memory will be consumed
-def calculate_completion_prob(model,
-							  tokenizer,
-							  prompt_token_ids,
-							  completion_token_ids,
-							  device = "cuda",
-							  use_kv_cache = True,
-							  ):
-	prompt_tokens  = tokenizer.encode(prompt, return_tensor="pt").to(device)
-	completion_tokens = tokenizer.encode(completion, return_tensor="pt").to(device)
-	past_key_values = None
-	if isinstance(prompt_token_ids, list):
-		prompt_token_ids = torch.LongTensor([prompt_token_ids])
-	if isinstance(completion_token_ids, list):
-		completion_token_ids = torch.LongTensor([completion_token_ids])
-	inputs = prompt_token_ids	# Long(1, n_tokens)
-	generated_token_probs = list()
-	generated_logits = list()
-	with torch.no_grad():
-		for i in range(completion_token_ids.size(1)):
-			if use_kv_cache:
-				if past_key_value is None:
-					outputs = model(inputs, past_key_values=None)
-				else:
-					outputs = model(inputs[:, -1].unsqueeze(0), past_key_values=past_key_values, use_cache=True)
-			else:
-				outputs = model(inputs, past_key_values=None, use_cache=False)
-			logits = outputs.logits	# Float(1, n_tokens + i + 1, n_vocab), where `n_vocab` is 151936 in Qwen-series
-			next_token_probs = F.softmax(logits[:, -1, :], dim=-1)	# Float(1, n_tokens + i + 1, n_vocab) => Float(1, n_vocab)
-			next_token_id = completion_token_ids[:, i]	# Float(1, n_vocab) => Long(1, )
-			next_token_prob = next_token_probs[0, next_token_id].item()	# Float(1, n_vocab) => Float()
-			next_token = tokenizer.decode(next_token_id[0].item(), skip_special_tokens=False)	# Long(1, ) => Str
-			inputs = torch.cat([inputs, next_token_id.unsqueeze(-1)], dim=-1)	# Long(1, n_tokens + i) => Long(1, n_tokens + i + 1)
-			generated_token_probs.append((next_token_id.item(), next_token, next_token_prob))	# List[] <- (Int, Str, Float)
-			generated_logits.append(logits[:, -1, :])	# List[] <- Float(1, n_vocab)	
-	generated_text = tokenizer.decode(
-		token_ids = inputs[0], 
-		skip_special_tokens=True, 
-		clean_up_tokenization_spaces=True,
-	)	# Long(1, n_tokens + max_length) => Str
-	return {
-		"text": generated_text,
-		"token_probs": generated_token_probs,
-		"logits": tuple(generated_logits),
-	}
+# Calculate correlation coefficient by filtering outlier
+# @param x: [torch.Tensor]
+# @param y: [torch.Tensor]
+# @param outlier_ratio: [Float] range from [0, 1)
+def robust_corrcoef(x, y, outlier_ratio = .1):
+	x, y = x.flatten(), y.flatten()
+	assert x.size(0) == y.size(0)
+	abs_diff = torch.abs(x - y)
+	k = int(len(abs_diff) * (1 - outlier_ratio))
+	_, indices = torch.topk(abs_diff, k=k, largest=False)
+	x_filtered, y_filtered = x[indices], y[indices]
+	corrcoef = torch.corrcoef(torch.stack([x_filtered, y_filtered]))[0, 1].item()
+	return corrcoef
