@@ -111,6 +111,9 @@ class ParallelQwen2Model(Qwen2Model):
 
 class ParallelQwen2ForCausalLM(Qwen2ForCausalLM):
 	def __init__(self, config, n_cuda = 2):
-		super(ParallelQwen2ForCausalLM, self).__init__(config)
-		self.register_load_state_dict_post_hook(self._module_to_device)	
-	
+		super(Qwen2ForCausalLM, self).__init__(config)
+		self.model = ParallelQwen2Model(config, n_cuda = n_cuda)
+		self.vocab_size = config.vocab_size
+		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False).to(f"cuda:{n_cuda - 1}")
+		# Initialize weights and apply final processing
+		self.post_init()

@@ -71,7 +71,11 @@ def sft_pipeline_test():
 		"report_to": "none",
 		"lora_target_modules": [f"model.layers.{i}.self_attn.q_proj" for i in target_layer_ids] + \
 			[f"model.layers.{i}.self_attn.k_proj" for i in target_layer_ids] + \
-			[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids]
+			[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids],
+		"logging_strategy": "steps",
+		"logging_steps": 10,
+		"evaluation_strategy": "steps", 
+		"eval_steps": 50,
 	}
 	trainer_kwargs = {
 	}
@@ -204,3 +208,4 @@ def grpo_pipeline_test():
 		"reward_funcs": reward_funcs,
 	}
 	grpo_pipeline(data_processor, config_kwargs, trainer_kwargs)
+

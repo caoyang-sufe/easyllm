@@ -2,6 +2,7 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
+import trl
 import logging
 from copy import deepcopy
 from datasets import load_dataset
@@ -9,14 +10,18 @@ from transformers import AutoModelForCausalLM, AutoModelForSequenceClassificatio
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 from trl import (
 	ScriptArguments, ModelConfig, 
-	SFTConfig, SFTTrainer,
-	PPOConfig, PPOTrainer,
-	DPOConfig, DPOTrainer,
-	GRPOConfig, GRPOTrainer,
+	# SFTConfig, SFTTrainer,
+	# PPOConfig, PPOTrainer,
+	# DPOConfig, DPOTrainer,
+	# GRPOConfig, GRPOTrainer,
 	get_peft_config, get_quantization_config,
 )
 from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
 from src.tools.trl import update_trl_config, generate_simple_data_processor
+from src.module import (
+	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
+	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
+)
 
 # Trainer Pipeline
 # @param name: [Str] e.g. "SFT", "PPO", "DPO", "GRPO"
@@ -36,7 +41,7 @@ from src.tools.trl import update_trl_config, generate_simple_data_processor
 #   - keyword arguments for `GRPOTrainer`: e.g. "reward_funcs[required]"
 def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs):
 	# 1 Configuration
-	TRLConfig, TRLTrainer = eval(f"{name}Config"), eval(f"{name}Trainer")
+	TRLConfig, TRLTrainer = getattr(trl, f"{name}Config"), getattr(trl, f"{name}Trainer")
 	parser = HfArgumentParser((ScriptArguments, TRLConfig, ModelConfig))
 	script_arguments, trainer_config, model_config = parser.parse_args_into_dataclasses()
 	script_arguments = update_trl_config(script_arguments, **config_kwargs)

@@ -11,8 +11,11 @@ from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.plot import plot_tensor_heatmap
 from src.tools.transformers import greedy_decode, robust_cosine_similarity, robust_corrcoef
-from src.module import SkipLayerQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, ParallelQwen2Model, ParallelQwen2ForCausalLM
 from src.pipelines.generate import display_pipeline
+from src.module import (
+	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
+	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
+)
 
 # Horizontal comparison: Compare hook data (which comes from different prompts) by module names
 # Focusing on comparing the inputs or outputs of the same modules in different hooks
