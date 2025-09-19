@@ -18,7 +18,8 @@ def create_model_class(SuperModel):
 			super(SkipLayerModel, self).__init__(config, **kwargs)
 			self.skip_layer_ids = skip_layer_ids
 		def forward(self, *args, **kwargs):
-			original_layers = self.layers
+			backup_layers = self.layers
+			back_up_layer_types = self.config.layer_types[:]
 			if self.skip_layer_ids:
 				filtered_layers = [
 					layer for i, layer in enumerate(self.layers)
@@ -26,10 +27,10 @@ def create_model_class(SuperModel):
 				]
 				self.layers = torch.nn.ModuleList(filtered_layers)
 			self.config.num_hidden_layers -= len(self.skip_layer_ids)
-			self.config
+			self.config.layer_types = back_up_layer_types[:]
 			result = super(SkipLayerModel, self).forward(*args, **kwargs)
 			# Recover for follow-up callback
-			self.layers = original_layers	
+			self.layers = backup_layers	
 			self.config.num_hidden_layers += len(self.skip_layer_ids)
 			return result
 	return SkipLayerModel
