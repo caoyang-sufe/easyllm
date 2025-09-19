@@ -1,29 +1,29 @@
 # -*- coding: utf8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
+# Overwrite according to /transformers/models/qwen2/modeling_qwen2.py
+# Version transformers 4.56.3
 
 import torch
+from torch import nn
 from transformers import Qwen2Model, Qwen2ForCausalLM
 from transformers.cache_utils import Cache, DynamicCache
 
-# Overwrite according to /transformers/models/qwen2/modeling_qwen2.py
-# Version transformers 4.56.3
-class MyParallelQwen2Model(Qwen2Model):
+class ParallelQwen2Model(Qwen2Model):
 	def __init__(self, config, n_cuda = 2, **kwargs):
 		super().__init__(config, **kwargs)
-		self.register_load_state_dict_post_hook(self._module_to_device)
+		self.n_cuda = n_cuda
 
-	def _module_to_device(self, module, incompatible_keys):
+	def module_to_device(self):
 		self.embed_tokens = self.embed_tokens.to("cuda:0")
 		self.norm = self.norm.to(f"cuda:{self.n_cuda - 1}")
 		n_layers = len(self.layers)
 		self.layer_to_device = dict()
 		for layer_id in range(n_layers):
-			for device_id in range(self.n_cuda):
-				if layer_id <= (device_id + 1) * n_layers // self.n_cuda:
-					self.layers[layer_id] = self.layers[layer_id].to(f"cuda:{device_id}")
-					self.layer_id_to_device[layer_id] = device_id
-					break
+			device_id = layer_id * self.n_cuda // n_layers
+			self.layers[layer_id] = self.layers[layer_id].to(f"cuda:{device_id}")
+			self.layer_to_device[layer_id] = device_id
+			print(f"Layer {layer_id} moved to cuda:{device_id}")
 
 	def forward(self,
 				input_ids = None,
@@ -85,13 +85,16 @@ class MyParallelQwen2Model(Qwen2Model):
 				**kwargs,
 			)
 			if layer_id < self.config.num_hidden_layers - 1:
-				next_device_id = self.layer_to_device[layer_id]
+				next_device_id = self.layer_to_device[layer_id + 1]
 				if not current_device_id == next_device_id:
 					next_device_name = f"cuda:{next_device_id}"
 					hidden_states = hidden_states.to(next_device_name)
-					attention_mask = causal_mask_mapping[decoder_layer.attention_type].to(next_device_name)
-					position_ids = position_ids.to(next_device_name)
-					cache_position = cache_position.to(next_device_name)
+					if attention_mask is not None:
+						attention_mask = causal_mask_mapping[decoder_layer.attention_type].to(next_device_name)
+					if position_ids is not None:
+						position_ids = position_ids.to(next_device_name)
+					if cache_position is not None:
+						cache_position = cache_position.to(next_device_name)
 					# Deal with KV-Cache
 					if past_key_values is not None:
 						for i in range(past_key_values):
@@ -106,6 +109,8 @@ class MyParallelQwen2Model(Qwen2Model):
 			past_key_values = past_key_values if use_cache else None,
 		)
 
-
-class MyParallelQwen2ForCausalLM(Qwen2ForCausalLM):
-	pass
+class ParallelQwen2ForCausalLM(Qwen2ForCausalLM):
+	def __init__(self, config, n_cuda = 2):
+		super(ParallelQwen2ForCausalLM, self).__init__(config)
+		self.register_load_state_dict_post_hook(self._module_to_device)	
+	

@@ -11,7 +11,7 @@ from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.plot import plot_tensor_heatmap
 from src.tools.transformers import greedy_decode, robust_cosine_similarity, robust_corrcoef
-from src.module.skip_layer import create_model_class, create_model_class_for_causal_lm
+from src.module import SkipLayerQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, ParallelQwen2Model, ParallelQwen2ForCausalLM
 from src.pipelines.generate import display_pipeline
 
 # Horizontal comparison: Compare hook data (which comes from different prompts) by module names
@@ -45,8 +45,10 @@ def horizontal_comparison_of_forward_hook(
 		# Hook data when generating token i
 		# Summary dictionary contains all the compared index
 		comparison_summary_dict = {
-			index: {module_name_suffix: {"input": list(), "output": list()} 
-			for module_name_suffix in hook_module_name_suffixes} for index in ["mean_diff", "max_diff", "corr", "sim", "robust_corr", "robust_sim"]
+			index: {
+				module_name_suffix: {"input": list(), "output": list()}
+				for module_name_suffix in hook_module_name_suffixes
+			} for index in ["mean_diff", "max_diff", "corr", "sim", "robust_corr", "robust_sim"]
 		}
 		for module_name in hook_module_names:
 			module_name_suffix = module_name.split('.')[-1]
@@ -230,6 +232,10 @@ def vertical_comparison_of_forward_hook(
 
 # Generating by skipping decoder blocks
 # Focusing on the generating results under skipping different layers
+# *** VERY IMPORT NOTICE ***
+# Notice that no matter what `skip_layer_ids` is, the `forward_hook_module_names` (as well as `backward_hook_module_names`) should be always range from 0-`num_hidden_layers-1`
+# However, to those layerId in `skip_layer_ids`, the hook data is None 
+# This is different from `easy_skip_layer_generation`
 # @param Model: AutoModel class, e.g. Qwen2Model
 # @param ModelForCausalLM: AutoModelForCausalLM class, e.g. Qwen2ForCausalLM
 # @param model_name_or_path: Str
@@ -237,16 +243,20 @@ def vertical_comparison_of_forward_hook(
 # @param prompt: Str
 # @param max_length: Int
 # @param skip_layer_ids: List[Int], Layer # to be skipped
+# @param use_kv_cache: [Boolean]
+# @param forward_hook_module_names: [List[Str]] Default None, otherwise register backward hook for `forward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
+# @param backward_hook_module_names: [List[Str]] Default None, otherwise register backward hook for `backward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
 def skip_layer_generation(
-	Model, 
-	ModelForCausalLM,
+	SkipLayerModelForCausalLM,
 	model_name_or_path,
 	tokenizer,
 	prompt, 
 	max_length,
 	skip_layer_ids = list(),
+	use_kv_cache = True,
+	forward_hook_module_names = None,
+	backward_hook_module_names = None,
 ):
-	SkipLayerModelForCausalLM = create_model_class_for_causal_lm(Model, ModelForCausalLM)
 	config = AutoConfig.from_pretrained(model_name_or_path)
 	model = SkipLayerModelForCausalLM.from_pretrained(
 		model_name_or_path,
@@ -259,14 +269,17 @@ def skip_layer_generation(
 		prompt = prompt, 
 		max_length = max_length,
 		device = "cpu",
-		use_kv_cache = True,
-		forward_hook_module_names = None,
-		backward_hook_module_names = None,
+		use_kv_cache = use_kv_cache,
+		forward_hook_module_names = forward_hook_module_names,
+		backward_hook_module_names = backward_hook_module_names,
 	)
 	return results
 
-# Generating by skipping decoder blocks
+# Generating by skipping decoder blocks (Need not load model each time)
 # Focusing on the generating results under skipping different layers
+# *** VERY IMPORT NOTICE ***
+# Notice that if `skip_layer_ids = [0]`, then `forward_hook_module_names` (as well as `backward_hook_module_names`) should be like ["model.layers[1]", "model.layers[2]", ...]
+# None of the hook data should be `None`
 # @param model: HuggingFace model object
 # @param tokenizer: HuggingFace tokenizer object
 # @param prompt: Str
@@ -282,18 +295,25 @@ def easy_skip_layer_generation(
 	forward_hook_module_names = None,
 	backward_hook_module_names = None,
 ):
-	
 	if skip_layer_ids:
+		filtered_layers = list()
+		backup_layer_ids = list()
 		backup_layers = model.model.layers
 		back_up_layer_types = model.model.config.layer_types[:]
-		filtered_layers = [
-			layer for i, layer in enumerate(model.model.layers)
-			if i not in skip_layer_ids
-		]
+		# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx` 
+		for layer_id, layer in enumerate(model.model.layers):
+			if layer_id not in skip_layer_ids:
+				backup_layer_ids.append(layer_id)
+				layer.self_attn.layer_idx = len(filtered_layers)
+				filtered_layers.append(layer)
 		model.model.layers = torch.nn.ModuleList(filtered_layers)
+		# 2. Delete `self.config.layer_types`
+		filtered_layer_types = [
+			layer_type for layer_id, layer_type in enumerate(model.model.config.layer_types)
+			if layer_id not in skip_layer_ids
+		]
+		# 3. Minus `self.config.num_hidden_layers`
 		model.model.config.num_hidden_layers -= len(skip_layer_ids)
-		for layer_id in sorted(skip_layer_ids, reverse=True):
-			del model.model.config.layer_types[layer_id]
 	results = greedy_decode(
 		model,
 		tokenizer,
@@ -306,8 +326,13 @@ def easy_skip_layer_generation(
 	)
 	# Recover for follow-up callback
 	if skip_layer_ids:
-		model.model.layers = backup_layers
-		model.model.config.num_hidden_layers += len(skip_layer_ids)
+		# 1. Recover `self.layers`
+		assert len(backup_layer_ids) == len(filtered_layers)
+		for back_up_layer_id, layer in zip(backup_layer_ids, filtered_layers):
+			layer.self_attn.layer_idx = back_up_layer_id
+		model.model.layers = backup_layers	
+		# 2. Recover `self.config.layer_types`
 		model.model.config.layer_types = back_up_layer_types[:]
+		# 4. Recover `self.config.num_hidden_layers`
+		model.model.config.num_hidden_layers += len(skip_layer_ids)
 	return results
-

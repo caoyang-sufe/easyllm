@@ -96,15 +96,15 @@ def vertical_comparison_of_forward_hook_test():
 		watched_module_names = [],
 		outlier_ratio = .1,
 	)
-	
-def skip_layer_generation_test(model_id=-1, device=None):
-	logging.info("skip layer unittest ...")
+
+# Skip 1 layer only
+def skip_layer_generation_test_1(model_id=-1, device=None):
+	logging.info("skip layer unittest 1 ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers	
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
-	
 	prompts = [
 		f"""很久很久以前""",
 		f"""解方程：x^2 - 3x + 2 = 0""",
@@ -122,8 +122,7 @@ def skip_layer_generation_test(model_id=-1, device=None):
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 	model = AutoModelForCausalLM.from_pretrained(model_name_or_path).to(device)
 	eos_token_ids = get_generation_eos_token_ids(model)
-	
-	# # 1. Skip 1 layer
+
 	forward_hook_module_names = [f"model.layers[{j}]" for j in range(num_hidden_layers - 1)]
 	for i in range(len(prompts)):
 		for skip_layer_id in range(num_hidden_layers):	
@@ -158,7 +157,32 @@ def skip_layer_generation_test(model_id=-1, device=None):
 			gc.collect()
 		logging.info("  - OK!")
 
-	# 2. Skip from tail, i.e. decode at each layer
+# Skip from tail
+def skip_layer_generation_test_2(model_id=-1, device=None):
+	logging.info("skip layer unittest 2 ...")
+	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_config = AutoConfig.from_pretrained(model_name_or_path)
+	num_hidden_layers = model_config.num_hidden_layers	
+	if device is None:
+		device = "cuda" if torch.cuda.is_available() else "cpu"
+	
+	prompts = [
+		f"""很久很久以前""",
+		f"""解方程：x^2 - 3x + 2 = 0""",
+		f"""使用python写一段冒泡排序算法""",
+		f"""我今年20岁，妹妹的年龄是我的一半。则我40岁时，我的妹妹多少岁？""",
+		f"""素因子分解：126。""",
+		f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。""",
+		f"""请写一首七言律诗作为中华人民共和国成立八十周年的祝词，注意用词的平仄押韵：
+《八十周年庆》"""
+	]
+	max_length = 64
+	use_kv_cache = True
+	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
+	# Load tokenizer and model
+	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+	model = AutoModelForCausalLM.from_pretrained(model_name_or_path).to(device)
+	eos_token_ids = get_generation_eos_token_ids(model)
 	forward_hook_module_names = None
 	for i in range(len(prompts)):
 		for j in range(num_hidden_layers):
@@ -192,5 +216,3 @@ def skip_layer_generation_test(model_id=-1, device=None):
 			del logits, forward_hook_data, backward_hook_data
 			gc.collect()
 		logging.info("  - OK!")
-		
-

@@ -1,0 +1,59 @@
+# -*- coding: utf8 -*-
+# @author: caoyang
+# @email: caoyang@stu.sufe.edu.cn
+# Overwrite according to /transformers/models/qwen3/modeling_qwen3.py
+# Version transformers 4.56.3
+
+import torch
+from torch import nn
+from transformers import Qwen3Model, Qwen3ForCausalLM
+from transformers.cache_utils import Cache, DynamicCache
+
+class SkipLayerQwen3Model(Qwen3Model):
+	def __init__(self, config, skip_layer_ids):
+		super(SkipLayerQwen3Model, self).__init__(config)
+		self.skip_layer_ids = skip_layer_ids[:]
+		
+	def forward(self, *args, **kwargs):
+		if self.skip_layer_ids:
+			filtered_layers = list()
+			backup_layer_ids = list()
+			backup_layers = self.layers
+			back_up_layer_types = self.config.layer_types[:]
+			# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx`
+			for layer_id, layer in enumerate(self.layers):
+				if layer_id not in self.skip_layer_ids:
+					backup_layer_ids.append(layer_id)
+					layer.self_attn.layer_idx = len(filtered_layers)
+					filtered_layers.append(layer)
+			self.layers = torch.nn.ModuleList(filtered_layers)
+			# 2. Delete `self.config.layer_types`
+			filtered_layer_types = [
+				layer_type for layer_id, layer_type in enumerate(self.config.layer_types)
+				if layer_id not in self.skip_layer_ids
+			]
+			# 3. Minus `self.config.num_hidden_layers`
+			self.config.num_hidden_layers -= len(self.skip_layer_ids)
+		result = super(SkipLayerQwen3Model, self).forward(*args, **kwargs)
+		# Recover for follow-up callback
+		if self.skip_layer_ids:
+			# 1. Recover `self.layers`
+			assert len(backup_layer_ids) == len(filtered_layers)
+			for back_up_layer_id, layer in zip(backup_layer_ids, filtered_layers):
+				layer.self_attn.layer_idx = back_up_layer_id
+			self.layers = backup_layers	
+			# 2. Recover `self.config.layer_types`
+			self.config.layer_types = back_up_layer_types[:]
+			# 3. Recover `self.config.num_hidden_layers`
+			self.config.num_hidden_layers += len(self.skip_layer_ids)
+		return result
+
+
+class SkipLayerQwen3ForCausalLM(Qwen3ForCausalLM):
+	def __init__(self, config, skip_layer_ids):
+		super(Qwen3ForCausalLM, self).__init__(config)
+		self.model = SkipLayerQwen3Model(config, skip_layer_ids)
+		self.vocab_size = config.vocab_size
+		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+		# Initialize weights and apply final processing
+		self.post_init()

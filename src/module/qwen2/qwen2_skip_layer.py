@@ -1,46 +1,59 @@
 # -*- coding: utf8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
+# Overwrite according to /transformers/models/qwen2/modeling_qwen2.py
+# Version transformers 4.56.3
 
-import re
 import torch
-import logging
-from matplotlib import pyplot as plt
+from torch import nn
+from transformers import Qwen2Model, Qwen2ForCausalLM
+from transformers.cache_utils import Cache, DynamicCache
 
-from src.tools.plot import plot_tensor_heatmap
-from src.tools.transformers import greedy_decode
-
-def create_model_class(SuperModel):
-	class SkipLayerModel(SuperModel):
-		# @param config: AutoConfig object
-		# @param skip_layer_ids: List[Int], Layer # to be skipped
-		def __init__(self, config, skip_layer_ids = list(), **kwargs):
-			super(SkipLayerModel, self).__init__(config, **kwargs)
-			self.skip_layer_ids = skip_layer_ids
-		def forward(self, *args, **kwargs):
+class SkipLayerQwen2Model(Qwen2Model):
+	def __init__(self, config, skip_layer_ids):
+		super(SkipLayerQwen2Model, self).__init__(config)
+		self.skip_layer_ids = skip_layer_ids[:]
+		
+	def forward(self, *args, **kwargs):
+		if self.skip_layer_ids:
+			filtered_layers = list()
+			backup_layer_ids = list()
 			backup_layers = self.layers
 			back_up_layer_types = self.config.layer_types[:]
-			if self.skip_layer_ids:
-				filtered_layers = [
-					layer for i, layer in enumerate(self.layers)
-					if i not in self.skip_layer_ids
-				]
-				self.layers = torch.nn.ModuleList(filtered_layers)
+			# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx`
+			for layer_id, layer in enumerate(self.layers):
+				if layer_id not in self.skip_layer_ids:
+					backup_layer_ids.append(layer_id)
+					layer.self_attn.layer_idx = len(filtered_layers)
+					filtered_layers.append(layer)
+			self.layers = torch.nn.ModuleList(filtered_layers)
+			# 2. Delete `self.config.layer_types`
+			filtered_layer_types = [
+				layer_type for layer_id, layer_type in enumerate(self.config.layer_types)
+				if layer_id not in self.skip_layer_ids
+			]
+			# 3. Minus `self.config.num_hidden_layers`
 			self.config.num_hidden_layers -= len(self.skip_layer_ids)
-			self.config.layer_types = back_up_layer_types[:]
-			result = super(SkipLayerModel, self).forward(*args, **kwargs)
-			# Recover for follow-up callback
+		result = super(SkipLayerQwen2Model, self).forward(*args, **kwargs)
+		# Recover for follow-up callback
+		if self.skip_layer_ids:
+			# 1. Recover `self.layers`
+			assert len(backup_layer_ids) == len(filtered_layers)
+			for back_up_layer_id, layer in zip(backup_layer_ids, filtered_layers):
+				layer.self_attn.layer_idx = back_up_layer_id
 			self.layers = backup_layers	
+			# 2. Recover `self.config.layer_types`
+			self.config.layer_types = back_up_layer_types[:]
+			# 3. Recover `self.config.num_hidden_layers`
 			self.config.num_hidden_layers += len(self.skip_layer_ids)
-			return result
-	return SkipLayerModel
+		return result
 
-def create_model_class_for_causal_lm(SuperModel, SuperModelForCausalLM):
-	Model = create_model_class(SuperModel)
-	class SkipLayerModelForCausalLM(SuperModelForCausalLM):
-		# @param config: AutoConfig object
-		# @param Model: AutoModel class
-		def __init__(self, config, skip_layer_ids = list()):
-			super(SkipLayerModelForCausalLM, self).__init__(config)
-			self.model = Model(config = config, skip_layer_ids = skip_layer_ids)	
-	return SkipLayerModelForCausalLM
+
+class SkipLayerQwen2ForCausalLM(Qwen2ForCausalLM):
+	def __init__(self, config, skip_layer_ids):
+		super(Qwen2ForCausalLM, self).__init__(config)
+		self.model = SkipLayerQwen2Model(config, skip_layer_ids)
+		self.vocab_size = config.vocab_size
+		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+		# Initialize weights and apply final processing
+		self.post_init()
