@@ -15,6 +15,10 @@ from src.pipelines.generate import display_pipeline
 from src.module import (
 	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
 	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
+	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 
+	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
+	ParallelLlamaModel, SkipLayerLlamaModel, 
+	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM,
 )
 
 # Horizontal comparison: Compare hook data (which comes from different prompts) by module names
@@ -299,11 +303,10 @@ def easy_skip_layer_generation(
 	backward_hook_module_names = None,
 ):
 	if skip_layer_ids:
+		# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx`
 		filtered_layers = list()
-		backup_layer_ids = list()
+		backup_layer_ids = list() 
 		backup_layers = model.model.layers
-		back_up_layer_types = model.model.config.layer_types[:]
-		# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx` 
 		for layer_id, layer in enumerate(model.model.layers):
 			if layer_id not in skip_layer_ids:
 				backup_layer_ids.append(layer_id)
@@ -311,10 +314,11 @@ def easy_skip_layer_generation(
 				filtered_layers.append(layer)
 		model.model.layers = torch.nn.ModuleList(filtered_layers)
 		# 2. Delete `self.config.layer_types`
-		filtered_layer_types = [
-			layer_type for layer_id, layer_type in enumerate(model.model.config.layer_types)
-			if layer_id not in skip_layer_ids
-		]
+		# back_up_layer_types = model.model.config.layer_types[:]
+		# filtered_layer_types = [
+			# layer_type for layer_id, layer_type in enumerate(model.model.config.layer_types)
+			# if layer_id not in skip_layer_ids
+		# ]
 		# 3. Minus `self.config.num_hidden_layers`
 		model.model.config.num_hidden_layers -= len(skip_layer_ids)
 	results = greedy_decode(
@@ -335,7 +339,7 @@ def easy_skip_layer_generation(
 			layer.self_attn.layer_idx = back_up_layer_id
 		model.model.layers = backup_layers	
 		# 2. Recover `self.config.layer_types`
-		model.model.config.layer_types = back_up_layer_types[:]
-		# 4. Recover `self.config.num_hidden_layers`
+		# model.model.config.layer_types = back_up_layer_types[:]
+		# 3. Recover `self.config.num_hidden_layers`
 		model.model.config.num_hidden_layers += len(skip_layer_ids)
 	return results

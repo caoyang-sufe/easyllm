@@ -2,9 +2,10 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 # Overwrite according to /transformers/models/qwen2/modeling_qwen2.py
-# Version transformers 4.56.3
+# Version transformers 4.56.1
 
 import torch
+import logging
 from torch import nn
 from transformers import Qwen2Model, Qwen2ForCausalLM
 from transformers.cache_utils import Cache, DynamicCache
@@ -23,7 +24,7 @@ class ParallelQwen2Model(Qwen2Model):
 			device_id = layer_id * self.n_cuda // n_layers
 			self.layers[layer_id] = self.layers[layer_id].to(f"cuda:{device_id}")
 			self.layer_to_device[layer_id] = device_id
-			print(f"Layer {layer_id} moved to cuda:{device_id}")
+			logging.info(f"Layer {layer_id} moved to cuda:{device_id}")
 
 	def forward(self,
 				input_ids = None,
@@ -102,6 +103,7 @@ class ParallelQwen2Model(Qwen2Model):
 								past_key_values[i][0] = past_key_values[i][0].to(next_device_name)
 							if past_key_values[i][1] is not None:
 								past_key_values[i][1] = past_key_values[i][1].to(next_device_name)
+		hidden_states = self.norm(hidden_states).to("cuda:0")
 		# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 		hidden_states = self.norm(hidden_states)
 		return BaseModelOutputWithPast(
@@ -117,3 +119,9 @@ class ParallelQwen2ForCausalLM(Qwen2ForCausalLM):
 		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False).to(f"cuda:{n_cuda - 1}")
 		# Initialize weights and apply final processing
 		self.post_init()
+		
+	def module_to_device(self):
+		self.model.module_to_device()
+		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to 
+		# That is to say: `id(self.lm_head) == id(self.model.embed_tokens)`
+		# self.lm_head = self.lm_head.to(f"cuda:{self.n_cuda - 1}")

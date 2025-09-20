@@ -41,16 +41,31 @@ def decode_pipeline_test(model_id=-1, device=None):
 		# f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。<think>""",
 	# ]
 	
-	prompts = [
-		f"""很久很久以前""",
-		f"""解方程：x^2 - 3x + 2 = 0""",
-		f"""使用python写一段冒泡排序算法""",
-		f"""我今年20岁，妹妹的年龄是我的一半。则我40岁时，我的妹妹多少岁？""",
-		f"""素因子分解：126。""",
-		f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。""",
-		f"""请写一首七言律诗作为中华人民共和国成立八十周年的祝词，注意用词的平仄押韵：
-《八十周年庆》"""
-	]
+	if "meta-llama" in model_name_or_path:
+		logging.info("Use English prompts ...")
+		prompts = [
+			f"""Once upon a time""",
+			f"""Solve the equation: x^2 - 3x + 2 = 0""",
+			f"""Write a bubble sort algorithm using Python""",
+			f"""I am 20 years old now, and my sister is half my age. How old will my sister be when I am 40?""",
+			f"""Prime factorization: 126.""",
+			f"""Please use markdown syntax to create a 3-row, 4-column table. The headers should be "Name", "Age", and "Gender". For the remaining 3 rows, please randomly generate names, ages, and genders for 3 fictional characters.""",
+			f"""Write a 12-line English poem celebrating the 80th anniversary of a nation's founding. Use iambic pentameter with an ABAB rhyme scheme for the first two stanzas, and incorporate themes of unity, progress, and hope for the future. Include at least three poetic devices such as metaphor, alliteration, or personification. The tone should be uplifting and ceremonial.
+Ode to Eighty Years"""
+		]
+
+	else:
+		logging.info("Use Chinese prompts ...")
+		prompts = [
+			f"""很久很久以前""",
+			f"""解方程：x^2 - 3x + 2 = 0""",
+			f"""使用python写一段冒泡排序算法""",
+			f"""我今年20岁，妹妹的年龄是我的一半。则我40岁时，我的妹妹多少岁？""",
+			f"""素因子分解：126。""",
+			f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。""",
+			f"""请写一首七言律诗作为中华人民共和国成立八十周年的祝词，注意用词的平仄押韵：
+	《八十周年庆》"""
+		]
 	max_length = 64
 	use_kv_cache = True
 	forward_hook_module_names = \

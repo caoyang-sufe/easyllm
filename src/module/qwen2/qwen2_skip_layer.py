@@ -2,7 +2,7 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 # Overwrite according to /transformers/models/qwen2/modeling_qwen2.py
-# Version transformers 4.56.3
+# Version transformers 4.56.1
 
 import torch
 from torch import nn
@@ -16,23 +16,17 @@ class SkipLayerQwen2Model(Qwen2Model):
 		
 	def forward(self, *args, **kwargs):
 		if self.skip_layer_ids:
+			# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx`
 			filtered_layers = list()
 			backup_layer_ids = list()
 			backup_layers = self.layers
-			back_up_layer_types = self.config.layer_types[:]
-			# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx`
 			for layer_id, layer in enumerate(self.layers):
 				if layer_id not in self.skip_layer_ids:
 					backup_layer_ids.append(layer_id)
 					layer.self_attn.layer_idx = len(filtered_layers)
 					filtered_layers.append(layer)
 			self.layers = torch.nn.ModuleList(filtered_layers)
-			# 2. Delete `self.config.layer_types`
-			filtered_layer_types = [
-				layer_type for layer_id, layer_type in enumerate(self.config.layer_types)
-				if layer_id not in self.skip_layer_ids
-			]
-			# 3. Minus `self.config.num_hidden_layers`
+			# 2. Minus `self.config.num_hidden_layers`
 			self.config.num_hidden_layers -= len(self.skip_layer_ids)
 		result = super(SkipLayerQwen2Model, self).forward(*args, **kwargs)
 		# Recover for follow-up callback
@@ -42,9 +36,7 @@ class SkipLayerQwen2Model(Qwen2Model):
 			for back_up_layer_id, layer in zip(backup_layer_ids, filtered_layers):
 				layer.self_attn.layer_idx = back_up_layer_id
 			self.layers = backup_layers	
-			# 2. Recover `self.config.layer_types`
-			self.config.layer_types = back_up_layer_types[:]
-			# 3. Recover `self.config.num_hidden_layers`
+			# 2. Recover `self.config.num_hidden_layers`
 			self.config.num_hidden_layers += len(self.skip_layer_ids)
 		return result
 

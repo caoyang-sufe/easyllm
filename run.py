@@ -28,17 +28,18 @@ with open("check.txt", 'w', encoding="utf8") as f:
 	f.write(f"{torch.backends.mps.is_available()}\n")
 	f.write(f"{torch.cuda.device_count()}\n")
 
-function_name = "sft_pipeline_test"
+# function_name = "sft_pipeline_test"
 # function_name = "dpo_pipeline_test"
 # function_name = "grpo_pipeline_test"
 # function_name = "ppo_pipeline_test"
 # function_name = "decode_pipeline_test"
 # function_name = "generate_pipeline_test"
 # function_name = "skip_layer_generation_test_1"
-# function_name = "skip_layer_generation_test_2"
+function_name = "skip_layer_generation_test_2"
 
 logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
-# eval(function_name)(model_id=8, device="cpu")	# skip_layer_generation_test_X
-# eval(function_name)(model_id=9, device="cpu")	# skip_layer_generation_test_X
-eval(function_name)()
+# eval(function_name)(model_id=10, device="cpu")	# skip_layer_generation_test_X
+# eval(function_name)(model_id=11, device="cpu")	# skip_layer_generation_test_X
+eval(function_name)(model_id=12, device="cpu")	# skip_layer_generation_test_X
+# eval(function_name)()
 terminate_logger(logger)

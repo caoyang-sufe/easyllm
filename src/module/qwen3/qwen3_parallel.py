@@ -2,12 +2,14 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 # Overwrite according to /transformers/models/qwen3/modeling_qwen3.py
-# Version transformers 4.56.3
+# Version transformers 4.56.1
 
 import torch
+import logging
 from torch import nn
 from transformers import Qwen3Model, Qwen3ForCausalLM
 from transformers.cache_utils import Cache, DynamicCache
+
 
 class ParallelQwen3Model(Qwen3Model):
 	def __init__(self, config, n_cuda = 2, **kwargs):
@@ -23,7 +25,7 @@ class ParallelQwen3Model(Qwen3Model):
 			device_id = layer_id * self.n_cuda // n_layers
 			self.layers[layer_id] = self.layers[layer_id].to(f"cuda:{device_id}")
 			self.layer_to_device[layer_id] = device_id
-			print(f"Layer {layer_id} moved to cuda:{device_id}")
+			logging.info(f"Layer {layer_id} moved to cuda:{device_id}")
 
 	def forward(self,
 				input_ids = None,
@@ -35,40 +37,42 @@ class ParallelQwen3Model(Qwen3Model):
 				cache_position = None,
 				**kwargs,
 				):
-        if (input_ids is None) ^ (inputs_embeds is not None):
-            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
-        if inputs_embeds is None:
-            inputs_embeds = self.embed_tokens(input_ids)
-        if use_cache and past_key_values is None:
-            past_key_values = DynamicCache(config=self.config)
-        if cache_position is None:
-            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = torch.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device
-            )
-        if position_ids is None:
-            position_ids = cache_position.unsqueeze(0)
-        # It may already have been prepared by e.g. `generate`
-        if not isinstance(causal_mask_mapping := attention_mask, dict):
-            # Prepare mask arguments
-            mask_kwargs = {
-                "config": self.config,
-                "input_embeds": inputs_embeds,
-                "attention_mask": attention_mask,
-                "cache_position": cache_position,
-                "past_key_values": past_key_values,
-                "position_ids": position_ids,
-            }
-            # Create the masks
-            causal_mask_mapping = {
-                "full_attention": create_causal_mask(**mask_kwargs),
-            }
-            # The sliding window alternating layers are not always activated depending on the config
-            if self.has_sliding_layers:
-                causal_mask_mapping["sliding_attention"] = create_sliding_window_causal_mask(**mask_kwargs)
-        hidden_states = inputs_embeds
-        # create position embeddings to be shared across the decoder layers
-        position_embeddings = self.rotary_emb(hidden_states, position_ids)
+		if (input_ids is None) ^ (inputs_embeds is not None):
+			raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
+		if inputs_embeds is None:
+			inputs_embeds = self.embed_tokens(input_ids)
+		if use_cache and past_key_values is None:
+			past_key_values = DynamicCache(config=self.config)
+		if cache_position is None:
+			past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+			cache_position = torch.arange(
+				past_seen_tokens, 
+				past_seen_tokens + inputs_embeds.shape[1], 
+				device = inputs_embeds.device,
+			)
+		if position_ids is None:
+			position_ids = cache_position.unsqueeze(0)
+		# It may already have been prepared by e.g. `generate`
+		if not isinstance(causal_mask_mapping := attention_mask, dict):
+			# Prepare mask arguments
+			mask_kwargs = {
+				"config": self.config,
+				"input_embeds": inputs_embeds,
+				"attention_mask": attention_mask,
+				"cache_position": cache_position,
+				"past_key_values": past_key_values,
+				"position_ids": position_ids,
+			}
+			# Create the masks
+			causal_mask_mapping = {
+				"full_attention": create_causal_mask(**mask_kwargs),
+			}
+			# The sliding window alternating layers are not always activated depending on the config
+			if self.has_sliding_layers:
+				causal_mask_mapping["sliding_attention"] = create_sliding_window_causal_mask(**mask_kwargs)
+		hidden_states = inputs_embeds
+		# create position embeddings to be shared across the decoder layers
+		position_embeddings = self.rotary_emb(hidden_states, position_ids)
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		for layer_id, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):
 			current_device_id = self.layer_to_device[layer_id]
@@ -100,6 +104,7 @@ class ParallelQwen3Model(Qwen3Model):
 								past_key_values[i][0] = past_key_values[i][0].to(next_device_name)
 							if past_key_values[i][1] is not None:
 								past_key_values[i][1] = past_key_values[i][1].to(next_device_name)
+		hidden_states = self.norm(hidden_states).to("cuda:0")
 		# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 		hidden_states = self.norm(hidden_states)
 		return BaseModelOutputWithPast(
@@ -109,6 +114,15 @@ class ParallelQwen3Model(Qwen3Model):
 
 class ParallelQwen3ForCausalLM(Qwen3ForCausalLM):
 	def __init__(self, config, n_cuda = 2):
-		super(ParallelQwen3ForCausalLM, self).__init__(config)
-		self.register_load_state_dict_post_hook(self._module_to_device)	
-	
+		super(Qwen3ForCausalLM, self).__init__(config)
+		self.model = ParallelQwen3Model(config, n_cuda = n_cuda)
+		self.vocab_size = config.vocab_size
+		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False).to(f"cuda:{n_cuda - 1}")
+		# Initialize weights and apply final processing
+		self.post_init()
+		
+	def module_to_device(self):
+		self.model.module_to_device()
+		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to 
+		# That is to say: `id(self.lm_head) == id(self.model.embed_tokens)`
+		# self.lm_head = self.lm_head.to(f"cuda:{self.n_cuda - 1}")
