@@ -3,6 +3,7 @@
 # @email: caoyang@stu.sufe.edu.cn
 
 import trl
+import torch
 import logging
 from copy import deepcopy
 from datasets import load_dataset
@@ -39,7 +40,8 @@ from src.module import (
 #   - keyword arguments for `PPOTrainer`: e.g. "ref_model[required]", "reward_model[required]", "value_model[required]"
 #   - keyword arguments for `DPOTrainer`: e.g. "ref_model"
 #   - keyword arguments for `GRPOTrainer`: e.g. "reward_funcs[required]"
-def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs):
+#@param parallel_model_class: [Str] e.g. "ParallelQwen2ForCausalLM", "ParallelQwen2Model", default `None` refer to AutoModelForCausalLM
+def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
 	# 1 Configuration
 	TRLConfig, TRLTrainer = getattr(trl, f"{name}Config"), getattr(trl, f"{name}Trainer")
 	parser = HfArgumentParser((ScriptArguments, TRLConfig, ModelConfig))
@@ -57,12 +59,21 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs):
 		tokenizer.add_special_tokens({"pad_token": "[PAD]"})
 	if tokenizer.chat_template is None:
 		tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
-	model = AutoModelForCausalLM.from_pretrained(
-		model_config.model_name_or_path,
-		device_map = "auto",
-		trust_remote_code = model_config.trust_remote_code,
-		quantization_config = quantization_config,
-	)
+	if parallel_model_class is None:
+		logging.info("Using AutoModelForCausalLM ...")
+		model = AutoModelForCausalLM.from_pretrained(
+			model_config.model_name_or_path,
+			device_map = "auto",
+			trust_remote_code = model_config.trust_remote_code,
+			quantization_config = quantization_config,
+		)
+	else:
+		logging.info(f"Using {parallel_model_class} ...")
+		model = eval(parallel_model_class).from_pretrained(
+			model_config.model_name_or_path,
+			n_cuda = n_cuda,
+			device_map = "cpu",
+		)
 	if peft_config is not None:
 		logging.info("Prepare model for PEFT ...")
 		model.config.pretraining_tp = 1
@@ -141,37 +152,45 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs):
 	trainer.save_model(trainer_config.output_dir)
 
 # SFT Pipeline
-def sft_pipeline(data_processor, config_kwargs, trainer_kwargs):
+def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
 	base_pipeline(
 		name = "SFT",
 		data_processor = data_processor,
 		config_kwargs = config_kwargs,
 		trainer_kwargs = trainer_kwargs,
+		parallel_model_class = parallel_model_class,
+		n_cuda = n_cuda,
 	)
 
 # PPO Pipeline
-def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs):
+def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
 	base_pipeline(
 		name = "PPO",
 		data_processor = data_processor,
 		config_kwargs = config_kwargs,
 		trainer_kwargs = trainer_kwargs,
+		parallel_model_class = parallel_model_class,
+		n_cuda = n_cuda,
 	)
 
 # DPO Pipeline
-def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs):
+def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
 	base_pipeline(
 		name = "DPO",
 		data_processor = data_processor,
 		config_kwargs = config_kwargs,
 		trainer_kwargs = trainer_kwargs,
+		parallel_model_class = parallel_model_class,
+		n_cuda = n_cuda,
 	)
 
 # GRPO Pipeline
-def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs):
+def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
 	base_pipeline(
 		name = "GRPO",
 		data_processor = data_processor,
 		config_kwargs = config_kwargs,
 		trainer_kwargs = trainer_kwargs,
+		parallel_model_class = parallel_model_class,
+		n_cuda = n_cuda,
 	)

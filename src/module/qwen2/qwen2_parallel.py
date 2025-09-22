@@ -9,22 +9,39 @@ import logging
 from torch import nn
 from transformers import Qwen2Model, Qwen2ForCausalLM
 from transformers.cache_utils import Cache, DynamicCache
+from transformers.masking_utils import create_causal_mask, create_sliding_window_causal_mask
+from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
+from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple
 
 class ParallelQwen2Model(Qwen2Model):
 	def __init__(self, config, n_cuda = 2, **kwargs):
 		super().__init__(config, **kwargs)
 		self.n_cuda = n_cuda
+		self.device_list = ["cpu", "cuda"] if self.n_cuda == 1 else [f"cuda:{i}" for i in range(n_cuda)]
+		self.n_device = len(self.device_list)
+		self.is_parallelizable = True
+		self.model_parallel = True		
+		self.module_to_device_flag = False
+		# self._tp_size = self.n_device
+		
+	# @property
+	# def tp_size(self):
+		# return self._tp_size
+	
+	# @tp_size.setter
+	# def tp_size(self, value):
+		# self._tp_size = value
 
 	def module_to_device(self):
-		self.embed_tokens = self.embed_tokens.to("cuda:0")
-		self.norm = self.norm.to(f"cuda:{self.n_cuda - 1}")
+		self.embed_tokens = self.embed_tokens.to(self.device_list[0])
+		self.norm = self.norm.to(self.device_list[-1])
 		n_layers = len(self.layers)
 		self.layer_to_device = dict()
 		for layer_id in range(n_layers):
-			device_id = layer_id * self.n_cuda // n_layers
-			self.layers[layer_id] = self.layers[layer_id].to(f"cuda:{device_id}")
+			device_id = layer_id * self.n_device // n_layers
+			self.layers[layer_id] = self.layers[layer_id].to(self.device_list[device_id])
 			self.layer_to_device[layer_id] = device_id
-			logging.info(f"Layer {layer_id} moved to cuda:{device_id}")
+			logging.info(f"Layer {layer_id} moved to {self.device_list[device_id]}")
 
 	def forward(self,
 				input_ids = None,
@@ -36,6 +53,16 @@ class ParallelQwen2Model(Qwen2Model):
 				cache_position = None,
 				**kwargs,
 				):
+		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+		if not self.module_to_device_flag:
+			self.module_to_device()
+			self.module_to_device_flag = True
+		input_ids = input_ids.to(self.device_list[0])
+		if position_ids is not None:
+			position_ids = position_ids.to(self.device_list[0])
+		if cache_position is not None:
+			cache_position = cache_position.to(self.device_list[0])
+		# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 		if (input_ids is None) ^ (inputs_embeds is not None):
 			raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 		if inputs_embeds is None:
@@ -77,7 +104,7 @@ class ParallelQwen2Model(Qwen2Model):
 			current_device_id = self.layer_to_device[layer_id]
 			hidden_states = decoder_layer(
 				hidden_states,
-				attention_mask=causal_mask_mapping[decoder_layer.attention_type],
+				attention_mask=causal_mask_mapping[decoder_layer.attention_type].to(self.layer_to_device[layer_id]),
 				position_ids=position_ids,
 				past_key_values=past_key_values,
 				use_cache=use_cache,
@@ -88,10 +115,8 @@ class ParallelQwen2Model(Qwen2Model):
 			if layer_id < self.config.num_hidden_layers - 1:
 				next_device_id = self.layer_to_device[layer_id + 1]
 				if not current_device_id == next_device_id:
-					next_device_name = f"cuda:{next_device_id}"
+					next_device_name = self.device_list[next_device_id]
 					hidden_states = hidden_states.to(next_device_name)
-					if attention_mask is not None:
-						attention_mask = causal_mask_mapping[decoder_layer.attention_type].to(next_device_name)
 					if position_ids is not None:
 						position_ids = position_ids.to(next_device_name)
 					if cache_position is not None:
@@ -103,7 +128,10 @@ class ParallelQwen2Model(Qwen2Model):
 								past_key_values[i][0] = past_key_values[i][0].to(next_device_name)
 							if past_key_values[i][1] is not None:
 								past_key_values[i][1] = past_key_values[i][1].to(next_device_name)
-		hidden_states = self.norm(hidden_states).to("cuda:0")
+					# Deal with PostionEmbedding
+					if position_embeddings is not None:
+						# position_embeddings = (cos, sin)
+						position_embeddings = (position_embeddings[0].to(next_device_name), position_embeddings[1].to(next_device_name))
 		# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 		hidden_states = self.norm(hidden_states)
 		return BaseModelOutputWithPast(
@@ -116,12 +144,67 @@ class ParallelQwen2ForCausalLM(Qwen2ForCausalLM):
 		super(Qwen2ForCausalLM, self).__init__(config)
 		self.model = ParallelQwen2Model(config, n_cuda = n_cuda)
 		self.vocab_size = config.vocab_size
-		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False).to(f"cuda:{n_cuda - 1}")
+		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 		# Initialize weights and apply final processing
 		self.post_init()
+		self.is_parallelizable = True
+		self.model_parallel = True
+		# self._tp_size = self.model.n_device
+		
+	# @property
+	# def tp_size(self):
+		# return self._tp_size
+	
+	# @tp_size.setter
+	# def tp_size(self, value):
+		# self._tp_size = value
 		
 	def module_to_device(self):
 		self.model.module_to_device()
 		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to 
 		# That is to say: `id(self.lm_head) == id(self.model.embed_tokens)`
-		# self.lm_head = self.lm_head.to(f"cuda:{self.n_cuda - 1}")
+
+	@can_return_tuple
+	@auto_docstring
+	def forward(
+		self,
+		input_ids = None,
+		attention_mask = None,
+		position_ids = None,
+		past_key_values = None,
+		inputs_embeds = None,
+		labels = None,
+		use_cache = None,
+		cache_position = None,
+		logits_to_keep = 0,
+		**kwargs,
+	):
+		outputs = self.model(
+			input_ids=input_ids,
+			attention_mask=attention_mask,
+			position_ids=position_ids,
+			past_key_values=past_key_values,
+			inputs_embeds=inputs_embeds,
+			use_cache=use_cache,
+			cache_position=cache_position,
+			**kwargs,
+		)
+		
+		hidden_states = outputs.last_hidden_state.to(self.model.device_list[0])	# <<<<<<<< Because `lm_head` must be on CUDA:0 according to `embed_tokens` >>>>>>>>
+		# Only compute necessary logits, and do not upcast them to float if we are not computing the losse
+		slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+		logits = self.lm_head(hidden_states[:, slice_indices, :])
+		logging.info(f"Logits device: {logits.device}")
+		loss = None
+		if labels is not None:
+			# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+			loss = self.loss_function(logits=logits, labels=labels.to(self.model.device_list[-1]), vocab_size=self.config.vocab_size, **kwargs)
+			# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+		logging.info(f"Loss device: {loss.device}")
+		return CausalLMOutputWithPast(
+			loss=loss,
+			logits=logits,
+			past_key_values=outputs.past_key_values,
+			hidden_states=outputs.hidden_states,
+			attentions=outputs.attentions,
+		)

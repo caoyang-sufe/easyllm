@@ -249,6 +249,7 @@ def vertical_comparison_of_forward_hook(
 # @param tokenizer: HuggingFace tokenizer object
 # @param prompt: Str
 # @param max_length: Int
+# @param device: [Str] e.g. "cuda" or "cpu"
 # @param skip_layer_ids: List[Int], Layer # to be skipped
 # @param use_kv_cache: [Boolean]
 # @param forward_hook_module_names: [List[Str]] Default None, otherwise register backward hook for `forward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
@@ -259,6 +260,7 @@ def skip_layer_generation(
 	tokenizer,
 	prompt, 
 	max_length,
+	device,
 	skip_layer_ids = list(),
 	use_kv_cache = True,
 	forward_hook_module_names = None,
@@ -269,13 +271,13 @@ def skip_layer_generation(
 		model_name_or_path,
 		config = config,
 		skip_layer_ids = skip_layer_ids,
-	)
+	).to(device)
 	results = greedy_decode(
 		model,
 		tokenizer,
 		prompt = prompt, 
 		max_length = max_length,
-		device = "cpu",
+		device = device,
 		use_kv_cache = use_kv_cache,
 		forward_hook_module_names = forward_hook_module_names,
 		backward_hook_module_names = backward_hook_module_names,
@@ -291,12 +293,16 @@ def skip_layer_generation(
 # @param tokenizer: HuggingFace tokenizer object
 # @param prompt: Str
 # @param max_length: Int
+# @param device: [Str] e.g. "cuda" or "cpu"
 # @param skip_layer_ids: List[Int], Layer # to be skipped
+# @param forward_hook_module_names: [List[Str]] Default None, otherwise register backward hook for `forward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
+# @param backward_hook_module_names: [List[Str]] Default None, otherwise register backward hook for `backward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
 def easy_skip_layer_generation(
 	model,
 	tokenizer,
 	prompt, 
 	max_length,
+	device,
 	skip_layer_ids = list(),
 	use_kv_cache = True,
 	forward_hook_module_names = None,
@@ -326,7 +332,7 @@ def easy_skip_layer_generation(
 		tokenizer,
 		prompt = prompt, 
 		max_length = max_length,
-		device = "cpu",
+		device = device,
 		use_kv_cache = use_kv_cache,
 		forward_hook_module_names = forward_hook_module_names,
 		backward_hook_module_names = backward_hook_module_names,

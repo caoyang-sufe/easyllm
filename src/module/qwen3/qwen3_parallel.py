@@ -9,7 +9,10 @@ import logging
 from torch import nn
 from transformers import Qwen3Model, Qwen3ForCausalLM
 from transformers.cache_utils import Cache, DynamicCache
-
+from transformers.cache_utils import Cache, DynamicCache
+from transformers.masking_utils import create_causal_mask, create_sliding_window_causal_mask
+from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
+from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple
 
 class ParallelQwen3Model(Qwen3Model):
 	def __init__(self, config, n_cuda = 2, **kwargs):
@@ -36,7 +39,7 @@ class ParallelQwen3Model(Qwen3Model):
 				use_cache = None,
 				cache_position = None,
 				**kwargs,
-				):
+				):					
 		if (input_ids is None) ^ (inputs_embeds is not None):
 			raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 		if inputs_embeds is None:
@@ -117,7 +120,7 @@ class ParallelQwen3ForCausalLM(Qwen3ForCausalLM):
 		super(Qwen3ForCausalLM, self).__init__(config)
 		self.model = ParallelQwen3Model(config, n_cuda = n_cuda)
 		self.vocab_size = config.vocab_size
-		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False).to(f"cuda:{n_cuda - 1}")
+		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 		# Initialize weights and apply final processing
 		self.post_init()
 		
