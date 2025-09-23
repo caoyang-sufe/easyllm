@@ -238,15 +238,15 @@ Ode to Eighty Years"""
 			logging.info(f"Generated text: {text}")
 			df_display = display_pipeline(tokenizer, text, token_probs, logits, eos_token_id=eos_token_ids[0])
 			# Save returned data
-			save_path = f"./temp1/decode+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.csv"
+			save_path = f"./temp/decode+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.csv"
 			logging.info(f"Export table to {save_path}")
 			df_display.to_csv(save_path, sep='\t', header=True, index=False)
 			if forward_hook_data is not None:
-				save_path = f"./temp1/fhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
+				save_path = f"./temp/fhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
 				logging.info(f"Export forward hook data to {save_path}")
 				torch.save(forward_hook_data, save_path)
 			if backward_hook_data is not None:
-				save_path = f"./temp1/bhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
+				save_path = f"./temp/bhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
 				logging.info(f"Export backward hook data to {save_path}")
 				torch.save(backward_hook_data, save_path)
 			del logits, forward_hook_data, backward_hook_data

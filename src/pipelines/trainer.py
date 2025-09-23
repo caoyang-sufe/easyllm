@@ -22,6 +22,10 @@ from src.tools.trl import update_trl_config, generate_simple_data_processor
 from src.module import (
 	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
 	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
+	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 
+	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
+	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
+	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
 )
 
 # Trainer Pipeline
@@ -55,8 +59,6 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 	logging.info("Load models and tokenizer ...")
 	logging.info(f"  - Model: {model_config.model_name_or_path}")
 	tokenizer = AutoTokenizer.from_pretrained(model_config.model_name_or_path)
-	if not "pad_token" in tokenizer.special_tokens_map:
-		tokenizer.add_special_tokens({"pad_token": "[PAD]"})
 	if tokenizer.chat_template is None:
 		tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
 	if parallel_model_class is None:
@@ -100,14 +102,15 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 			num_labels = 1,
 		)
 		reward_tokenizer = AutoTokenizer.from_pretrained(trainer_config.reward_model_path)
-		if not "pad_token" in reward_tokenizer.special_tokens_map:
-			reward_tokenizer.add_special_tokens({"pad_token": "[PAD]"})
 		if reward_tokenizer.chat_template is None:
 			reward_tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
 		logging.info("  - Copy reference model ...")
+		
+		# Clone model: I prefer deepcopy
 		ref_model = deepcopy(model)
 		# ref_model = model.__class__(model.config)
 		# ref_model.load_state_dict(model.state_dict())
+		
 		trainer_kwargs["reward_model"] = reward_model
 		trainer_kwargs["value_model"] = value_model
 		trainer_kwargs["ref_model"] = ref_model

@@ -157,6 +157,79 @@ def plot_tensor_heatmap(tensor, *,
 	if is_show:
 		plt.show()
 		plt.close()
+		
+# Plot dynamics of trainer_state of `transformers.Trainer`
+# @param trainer_state_path: [Str] File path of trainer_state.json
+# @param plot_index_names: [List[Str]] index to plot in `log_history`, e.g. `["loss", "mean_token_accuracy", "entropy"]`
+# @param x_index_name: [Str] index to plot in `log_history`, "epoch" or "step"
+# @param figsize: [Tuple[Int, Int]]
+# @param save_path: [Str] Figure save path
+# @param is_show: [Boolean] Whether to show figure
+def plot_trainer_state(trainer_state_path,
+					   plot_index_names = ["loss", "mean_token_accuracy", "entropy"],
+					   x_index_name = "epoch",
+					   figure_size = 5,
+					   save_path = None,
+					   is_show = True,
+					   ):
+	with open(trainer_state_path, 'r', encoding="utf8") as f:
+		data = json.load(f)
+	log_history = data["log_history"]	# List[Dict]
+	x_data_train, x_data_eval = list(), list()
+	y_data_train = {index_name: list() for index_name in plot_index_names}
+	y_data_eval = {f"eval_{index_name}": list() for index_name in plot_index_names}
+	for entry in log_history:
+		if "loss" in entry:
+			x_data_train.append(entry[x_index_name])
+			for index_name in plot_index_names:
+				y_data_train[index_name].append(entry[index_name])
+		elif "eval_loss" in entry:
+			x_data_eval.append(entry[x_index_name])
+			for index_name in plot_index_names:
+				y_data_eval[f"eval_{index_name}"].append(entry[f"eval_{index_name}"])
+
+	if y_data_eval[f"eval_{plot_index_names[0]}"]:
+		nrows, ncols = 2, len(plot_index_names)	# nrows = 2 ==> train & eval
+	else:
+		nrows, ncols = 1, len(plot_index_names)	# nrows = 2 ==> train & eval
+	fig, axes = plt.subplots(
+		nrows = nrows, 
+		ncols = ncols,
+		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+	)
+	# Train plot
+	for i in range(ncols):
+		y_index_name = plot_index_names[i]
+		if nrows == 1 and ncols == 1:
+			target_ax = axes
+		elif ncols == 1:
+			target_ax = axes[0]
+		elif nrows == 1:
+			target_ax = axes[i]
+		else:
+			target_ax = axes[0][i]
+		target_ax.plot(x_data_train, y_data_train[y_index_name], label=y_index_name)
+		target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{y_index_name} by {x_index_name}")
+		target_ax.legend()
+		
+	if nrows == 2:
+		# Eval plot
+		for i in range(ncols):
+			y_index_name = f"eval_{plot_index_names[i]}"
+			if ncols == 1:
+				target_ax = axes[1]
+			else:
+				target_ax = axes[1][i]
+			target_ax.plot(x_data_eval, y_data_eval[y_index_name], label=y_index_name)
+			target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{y_index_name} by {x_index_name}")
+			target_ax.legend()
+	if save_path is not None:
+		plt.savefig(save_path)		
+	if is_show:
+		plt.show()
+		plt.close()
+
+	
 
 # Plot dynamics of trainer state of `trl.PPOTrainer`
 # @param trainer_state_path: [Str] File path of trainer_state.json
@@ -182,6 +255,7 @@ def plot_ppo_dynamics(trainer_state_path,
 	non_score_rewards = [entry["objective/non_score_reward"] for entry in log_history]
 	rlhf_rewards = [entry["objective/rlhf_reward"] for entry in log_history]
 	scores = [entry["objective/scores"] for entry in log_history]
+	
 	plt.figure(figsize=figsize)
 	ax_1 = plt.subplot(2, 2, 1)
 	ax_2 = plt.subplot(4, 2, 2)

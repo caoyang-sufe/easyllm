@@ -22,15 +22,6 @@ class ParallelQwen2Model(Qwen2Model):
 		self.is_parallelizable = True
 		self.model_parallel = True		
 		self.module_to_device_flag = False
-		# self._tp_size = self.n_device
-		
-	# @property
-	# def tp_size(self):
-		# return self._tp_size
-	
-	# @tp_size.setter
-	# def tp_size(self, value):
-		# self._tp_size = value
 
 	def module_to_device(self):
 		self.embed_tokens = self.embed_tokens.to(self.device_list[0])
@@ -76,6 +67,7 @@ class ParallelQwen2Model(Qwen2Model):
 				past_seen_tokens + inputs_embeds.shape[1], 
 				device = inputs_embeds.device,
 			)
+
 		if position_ids is None:
 			position_ids = cache_position.unsqueeze(0)
 		# It may already have been prepared by e.g. `generate`
@@ -123,7 +115,7 @@ class ParallelQwen2Model(Qwen2Model):
 						cache_position = cache_position.to(next_device_name)
 					# Deal with KV-Cache
 					if past_key_values is not None:
-						for i in range(past_key_values):
+						for i in range(len(past_key_values)):
 							if past_key_values[i][0] is not None:
 								past_key_values[i][0] = past_key_values[i][0].to(next_device_name)
 							if past_key_values[i][1] is not None:
