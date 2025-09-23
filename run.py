@@ -50,7 +50,7 @@ logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%
 
 
 # eval(function_name)(model_id=13, parallel_model_class=None, n_cuda=2)
-eval(function_name)(model_id=11, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
+eval(function_name)(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
 # eval(function_name)(model_id=9, parallel_model_class="ParallelQwen2ForCausalLM", n_cuda=2)
 
 terminate_logger(logger)

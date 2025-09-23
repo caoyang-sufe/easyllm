@@ -44,8 +44,8 @@ class ParallelLlamaModel(LlamaModel):
 				use_cache = None,
 				**kwargs,
 				):
-		logging.info(f"CUDA memory allocated: {torch.cuda.memory_allocated()}")
-		logging.info(f"CUDA memory cached: {torch.cuda.memory_reserved()}")
+		logging.debug(f"CUDA memory allocated: {torch.cuda.memory_allocated()}")
+		logging.debug(f"CUDA memory cached: {torch.cuda.memory_reserved()}")
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		if not self.module_to_device_flag:
 			self.module_to_device()
@@ -59,18 +59,18 @@ class ParallelLlamaModel(LlamaModel):
 		if (input_ids is None) ^ (inputs_embeds is not None):
 			raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 		if inputs_embeds is None:
-			logging.info(f"self.embed_tokens.weight.data: {self.embed_tokens.weight.data.size()}")
-			logging.info(f"input_ids: {input_ids}")
-			logging.info(f"input_ids: {torch.max(input_ids)}")
+			logging.debug(f"self.embed_tokens.weight.data: {self.embed_tokens.weight.data.size()}")
+			logging.debug(f"input_ids: {input_ids}")
+			logging.debug(f"input_ids: {torch.max(input_ids)}")
 			inputs_embeds = self.embed_tokens(input_ids)
 		if use_cache and past_key_values is None:
 			past_key_values = DynamicCache(config=self.config)
 			
 		if cache_position is None:
 			past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0	
-			logging.info(f"past_seen_tokens: {past_seen_tokens}")
-			logging.info(f"inputs_embeds.shape: {inputs_embeds.shape}")
-			logging.info(f"inputs_embeds.device: {inputs_embeds.device}")
+			logging.debug(f"past_seen_tokens: {past_seen_tokens}")
+			logging.debug(f"inputs_embeds.shape: {inputs_embeds.shape}")
+			logging.debug(f"inputs_embeds.device: {inputs_embeds.device}")
 			cache_position = torch.arange(
 				past_seen_tokens, 
 				past_seen_tokens + inputs_embeds.shape[1], 
@@ -117,11 +117,11 @@ class ParallelLlamaModel(LlamaModel):
 			current_device_id = self.layer_to_device[layer_id]
 			hidden_states = decoder_layer(
 				hidden_states,
-				attention_mask=causal_mask.to(self.layer_to_device[layer_id]),
-				position_ids=position_ids,
-				past_key_values=past_key_values,
-				cache_position=cache_position,
-				position_embeddings=position_embeddings,
+				attention_mask = causal_mask.to(self.layer_to_device[layer_id]),
+				position_ids = position_ids,
+				past_key_values = past_key_values,
+				cache_position = cache_position,
+				position_embeddings = position_embeddings,
 				**kwargs,
 			)
 			if layer_id < self.config.num_hidden_layers - 1:
