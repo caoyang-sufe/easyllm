@@ -32,7 +32,6 @@ def generate_simple_data_processor(name, **kwargs):
 		def _data_processor(_data):
 			outputs = tokenizer(_data["prompt"] + _data["completion"], padding = False)
 			return {"input_ids": outputs["input_ids"]}
-		
 	elif name == "DPO":
 		def _data_processor(_data):
 			return {"prompt": _data["prompt"], "chosen": _data["chosen"], "rejected": _data["rejected"]}

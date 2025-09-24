@@ -10,11 +10,12 @@ from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.transformers import generate_token_prob
+from src.tools.metric import calc_mean_token_accuracy, calc_perplexity
 
 # Base pipeline for evalution
 # Currently support two metrics: "mean_token_accuracy" and "perplexity"
 # @param model: Huggingface model object
-# @param model: Huggingface tokenizer object
+# @param tokenizer: Huggingface tokenizer object
 # @param dataset: Huggingface dataset object, usually comes from a split of a whole dataset , e.g. dataset["test"]
 # @param model_name_or_path: [Str] Either `model` or `model_name_or_path` is not None
 # @param dataset_name_or_path: [Str] Either `dataset` or `dataset_name_or_path` is not None
@@ -69,85 +70,86 @@ def base_pipeline(model = None,
 			dataset = dataset.select(range(min(test_data_size, len(dataset))))
 	logging.info(f"Dataset ({len(dataset)} samples): {dataset.cache_files if dataset_name_or_path is None else dataset_name_or_path}")
 
-	test_predicts = list()	# List[Str] or List[List[Str]]
-	test_targets = list()	# List[Str]
-	perplexity_scores = []
+	test_predicts = list()	# List[List[<token_id>]] or List[List[List[<token_id>]]]: the former is `do_sample=False` while the latter is `do_sample=True`
+	test_targets = list()	# List[List[<token_id>]]: <token_id> is Int only
+	token_accuracys = list()
+	perplexitys = list()
+	token_accuracy_history = list()
+	perplexity_history = list()
 	for i, data in enumerate(dataset):
 		logging.info(f"Test data {i} ...")
-		input_text = data[input_column]
-		target_text = data[target_column]
-		test_targets.append(target_text)
+		input_text = data[input_column]	# Str
+		target_text = data[target_column]	# Str
+		target_token_ids = tokenizer.encode(target_text, return_tensors=None)	# List[<token_id>]
 		if do_sample:
-			predict_text_list = list()
-			for _ in range(do_sample_times):
-				predict_text, _, _ = generate_token_prob(
+			predict_token_ids_group = list()
+			token_accuracy_group = list()
+			perplexity_group = list()
+			for j in range(do_sample_times):
+				logging.info(f"  - Sample {j}")
+				_, predict_token_prob, _ = generate_token_prob(
 					model = model, 
 					tokenizer = tokenizer, 
 					prompt = input_text, 
 					max_length = inputs["input_ids"].size(1) + target_max_length, 
-					generate_kwargs = {"do_sample": do_sample, "use_cache": use_cache, **do_sample_kwargs}, 
+					generate_kwargs = {"do_sample": True, "use_cache": use_cache, **do_sample_kwargs}, 
 					device = device,
+				)	# predict_token_prob: List[Tuple(Int, Str, Float)]
+				predict_token_ids = [predict_token_prob[i][0] for i in range(len(predict_token_prob))]	# List[<token_id>]
+				predict_token_ids_group.append(predict_token_ids)	# List[<token_id>] -> List[]
+				token_accuracy = calc_mean_token_accuracy(predict=[predict_token_ids_group], target=[target_token_ids])
+				perplexity = calc_perplexity(
+					prompt = predict_token_ids_group,
+					completion = target_token_ids,
+					model = model,
+					tokenizer = tokenizer,
+					apply_chat_template = None,
 				)
-				predict_text_list.append(predict_text)	
-				test_predicts.append(predict_text_list)		
+				logging.info(f"    - Token Accuracy: {token_accuracy}")
+				logging.info(f"    - Perplexity: {perplexity}")
+				token_accuracy_group.append(token_accuracy)
+				perplexity_group.append(perplexity)
+			token_accuracy_history.append(token_accuracy_group)
+			perplexity_history.append(perplexity_group)
+			token_accuracys.append(numpy.mean(token_accuracy_group))
+			perplexitys.append(numpy.mean(perplexity_group))
 		else:
-			predict_text, _, _ = generate_token_prob(
+			predict_text, predict_token_prob, predict_logits = generate_token_prob(
 				model = model, 
 				tokenizer = tokenizer, 
 				prompt = input_text, 
 				max_length = inputs["input_ids"].size(1) + target_max_length, 
-				generate_kwargs = {"do_sample": do_sample, "use_cache": use_cache, **do_sample_kwargs}, 
+				generate_kwargs = {"do_sample": False, "use_cache": use_cache, **do_sample_kwargs}, 
 				device = device,
+			)	# predict_token_prob: List[Tuple(Int, Str, Float)]
+			predict_token_ids = [predict_token_prob[i][0] for i in range(len(predict_token_prob))]	# List[<token_id>]
+			test_predicts.append(predict_token_ids)	# List[<token_id>] -> List[]
+			token_accuracy = calc_mean_token_accuracy(predict=[predict_token_ids], target=[target_token_ids])
+			perplexity = calc_perplexity(
+				prompt = predict_token_ids,
+				completion = target_token_ids,
+				model = model,
+				tokenizer = tokenizer,
+				apply_chat_template = None,
 			)
-			test_predicts.append(predict_text)
-		
-		gen_tokens
-		
-		# Mean token accuracy
-		gen_tokens = self.tokenizer.encode(generated, add_special_tokens=False)
-		ref_tokens = self.tokenizer.encode(reference, add_special_tokens=False)
-		token_acc = self.mean_token_accuracy([gen_tokens], [ref_tokens])
-		token_accuracies.append(token_acc)
-		# Perplexity
-		full_text = prompt + " " + reference
-		ppl = self.perplexity([full_text])
-		perplexity_scores.append(ppl)
-		
-		logging.info(f"  - Input text: {input_text}")
-		logging.info(f"  - Target text: {target_text}")
-		logging.info(f"  - Predict text: {predict_text}")
-		logging.info(f"  - Token accuracy: {token_accuracy}")
-		logging.info(f"  - Perplexity: {perplexity}")
-
-	
+			logging.info(f"  - Token Accuracy: {token_accuracy}")
+			logging.info(f"  - Perplexity: {perplexity}")
+			token_accuracys.append(token_accuracy)
+			perplexitys.append(perplexity)
 	metrics = {
-		"mean_token_accuracy": numpy.mean(token_accuracies),
-		"perplexity_mean": numpy.mean(perplexity_scores),
+		"mean_token_accuracy": numpy.mean(token_accuracys),
+		"perplexity_mean": numpy.mean(perplexitys),
 	}
-	return metrics, generated_responses, reference_completions
+	if do_sample:
+		return metrics, token_accuracy_history, perplexity_history
+	else:
+		return metrics, token_accuracys, perplexitys
 
 	
 	
 
 
-# @param output_tokens: [List[List[Int|Str]]]
-# @param target_tokens: [List[List[Int|Str]]]
-def mean_token_accuary(output_tokens, target_tokens):
-	correct_tokens = 0
-	total_tokens = 0
-	
-	for output_token, target_token in zip(predictions, references):
-		# 对齐长度，取较短的长度
-		min_len = min(len(pred), len(ref))
-		if min_len == 0:
-			continue       
-		pred_tokens = pred[:min_len]
-		ref_tokens = ref[:min_len]
-		correct_tokens += sum(1 for p, r in zip(pred_tokens, ref_tokens) if p == r)
-		total_tokens += min_len
-	
-	return correct_tokens / total_tokens if total_tokens > 0 else 0
-	
+
 
 
 class CausalLMEvaluator:
