@@ -275,7 +275,7 @@ def generate_token_prob(model,
 						tokenizer, 
 						prompt, 
 						max_length,
-						generate_kwargs,
+						generate_kwargs = {"do_sample": False, "top_k": 0, "top_p": 1., "num_beams": 1, "temperature": 1},
 						device = "cuda",
 						):
 	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)

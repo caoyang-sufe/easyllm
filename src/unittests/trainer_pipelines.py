@@ -10,6 +10,58 @@ from transformers import AutoConfig, AutoTokenizer
 from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
 
+
+def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2):
+	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_config = AutoConfig.from_pretrained(model_name_or_path)
+	num_hidden_layers = model_config.num_hidden_layers
+	target_layer_ids_list = [
+		list(range(num_hidden_layers)),	# Full
+		[0, 1, 2, 7, 8, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
+		list(range(3, num_hidden_layers - 3)),	# Body only
+		[4, 5, 16, 18], # Random
+	]
+	for target_layer_ids in target_layer_ids_list:
+		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
+		dataset_name = os.path.join(dataset_home, dataset_names[4])
+		logging.info(f"  - Model: {model_name_or_path}")
+		logging.info(f"  - Dataset: {dataset_name}")
+		data_processor = lambda _data: {"prompt": _data["question"], "completion": _data["answer"]}
+		time_string = time.strftime("%Y%m%d%H%M%S")
+		config_kwargs = {
+			"output_dir": f"./temp/sft+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}+{time_string}",
+			"model_name_or_path": model_name_or_path,
+			"dataset_name": dataset_name,
+			"trust_remote_code": True,
+			"dataset_train_split": "train",
+			"dataset_test_split": "test",
+			"use_peft": True,
+			"report_to": "none",
+			# LoRA
+			"lora_target_modules": [f"model.layers.{i}.self_attn.q_proj" for i in target_layer_ids] + \
+				[f"model.layers.{i}.self_attn.k_proj" for i in target_layer_ids] + \
+				[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids],
+			"lora_r": 16,
+			"lora_alpha": 16,
+			"lora_dropout": .05,	
+			"lora_task_type": "CAUSAL_LM",
+			# Logging 
+			"logging_strategy": "steps",
+			"logging_steps": 1,
+			"eval_strategy": "epoch",
+			"save_strategy": "epoch",
+			# Train
+			"per_device_train_batch_size": 16,
+			"per_device_eval_batch_size": 16,
+			"num_train_epochs": 32,
+		}
+		trainer_kwargs = {
+		}
+		sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = parallel_model_class, n_cuda = n_cuda)
+		with open(os.path.join(config_kwargs["output_dir"], "config_kwargs.json"), 'w', encoding="utf8") as f:
+			json.dump(config_kwargs, f, ensure_ascii=False)	
+
+
 def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
@@ -41,17 +93,18 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 				[f"model.layers.{i}.self_attn.k_proj" for i in target_layer_ids] + \
 				[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids],
 			"lora_r": 16,
-			"lora_alpha": 32,
+			"lora_alpha": 16,
 			"lora_dropout": .05,	
 			"lora_task_type": "CAUSAL_LM",
 			# Logging 
 			"logging_strategy": "steps",
-			"logging_steps": 32,
+			"logging_steps": 1,
 			"eval_strategy": "epoch",
+			"save_strategy": "epoch",
 			# Train
-			"per_device_train_batch_size": 8,
-			"per_device_eval_batch_size": 8,
-			"num_train_epochs": 4,
+			"per_device_train_batch_size": 64,
+			"per_device_eval_batch_size": 64,
+			"num_train_epochs": 32,
 		}
 		trainer_kwargs = {
 		}

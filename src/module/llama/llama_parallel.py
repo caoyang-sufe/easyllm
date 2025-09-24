@@ -114,10 +114,10 @@ class ParallelLlamaModel(LlamaModel):
 		position_embeddings = self.rotary_emb(hidden_states, position_ids)
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		for layer_id, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):
-			current_device_id = self.layer_to_device[layer_id]
+			current_device_id = self.layer_to_device[layer_id]		
 			hidden_states = decoder_layer(
 				hidden_states,
-				attention_mask = causal_mask.to(self.layer_to_device[layer_id]),
+				attention_mask = causal_mask.to(self.layer_to_device[layer_id]) if causal_mask is not None else None,
 				position_ids = position_ids,
 				past_key_values = past_key_values,
 				cache_position = cache_position,

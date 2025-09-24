@@ -56,7 +56,7 @@ def display_pipeline(tokenizer,
 # @param model_name_or_path: [Str]
 # @param prompt: [Str]
 # @param max_length: [Int]
-# @param device: [Str/torch.device] e.g. "cuda", "cpu", torch.device("cpu")
+# @param device: [Str|torch.device] e.g. "cuda", "cpu", torch.device("cpu")
 # @param generate_kwargs: [Dict] keyword arguments for `model.generate`
 # @return df_display: the returned of `display_pipeline`
 def generate_pipeline(model_name_or_path,
@@ -85,7 +85,7 @@ def generate_pipeline(model_name_or_path,
 # @param model_name_or_path: [Str]
 # @param prompt: [Str]
 # @param max_length: [Int]
-# @param device: [Str/torch.device] e.g. "cuda", "cpu", torch.device("cpu")
+# @param device: [Str|torch.device] e.g. "cuda", "cpu", torch.device("cpu")
 # @param use_kv_cache: [Boolean]
 # @param forward_hook_module_names: List[Str]
 # @param backward_hook_module_names: List[Str]
