@@ -211,7 +211,6 @@ def plot_trainer_state(trainer_state_path,
 		target_ax.plot(x_data_train, y_data_train[y_index_name], label=y_index_name)
 		target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{y_index_name} by {x_index_name}")
 		target_ax.legend()
-		
 	if nrows == 2:
 		# Eval plot
 		for i in range(ncols):

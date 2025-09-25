@@ -10,7 +10,12 @@ from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.transformers import generate_token_prob
-from src.tools.metric import calc_mean_token_accuracy, calc_perplexity
+from src.tools.metric import (
+	calc_token_accuracy, 
+	calc_perplexity, 
+	calc_bleu, 
+	calc_rouge,
+)
 
 # Base pipeline for evalution
 # Currently support two metrics: "mean_token_accuracy" and "perplexity"
@@ -34,7 +39,7 @@ from src.tools.metric import calc_mean_token_accuracy, calc_perplexity
 # @param use_cache: [Boolean] Keyword argument `use_cache` of `model.generate` (whether to use KV-Cache)
 # @param metrics: [List[Str]] e.g. ["mean_token_accuracy", "perplexity"]
 def base_pipeline(model = None,
-				  tokenizer = None
+				  tokenizer = None,
 				  dataset = None,
 				  model_name_or_path = None,
 				  dataset_name_or_path = None,
@@ -61,11 +66,12 @@ def base_pipeline(model = None,
 		logging.info(f"Load dataset from {dataset_name_or_path} with split {test_data_split}")
 		dataset = load_dataset(dataset_name_or_path, split=test_data_split)
 	if model_name_or_path is None:
-		model_name_or_path = model.config.name_or_pathssss
+		model_name_or_path = model.config.name_or_path
 	logging.info(f"Evaluating {model_name_or_path} ...")
 	if test_data_size is not None:
 		if test_data_size < 1:
-			dataset = dataset.select(range(int(self.dataset) * test_data_size))
+			test_data_size = int(len(dataset) * test_data_size)
+			dataset = dataset.select(range(int(test_data_size)))
 		else:
 			dataset = dataset.select(range(min(test_data_size, len(dataset))))
 	logging.info(f"Dataset ({len(dataset)} samples): {dataset.cache_files if dataset_name_or_path is None else dataset_name_or_path}")
@@ -77,9 +83,10 @@ def base_pipeline(model = None,
 	token_accuracy_history = list()
 	perplexity_history = list()
 	for i, data in enumerate(dataset):
-		logging.info(f"Test data {i} ...")
 		input_text = data[input_column]	# Str
 		target_text = data[target_column]	# Str
+		logging.info(f"Test data {i}: {input_text} || {target_text}")
+		print(f"Test data {i}: {input_text} || {target_text}")
 		target_token_ids = tokenizer.encode(target_text, return_tensors=None)	# List[<token_id>]
 		if do_sample:
 			predict_token_ids_group = list()
@@ -87,26 +94,30 @@ def base_pipeline(model = None,
 			perplexity_group = list()
 			for j in range(do_sample_times):
 				logging.info(f"  - Sample {j}")
-				_, predict_token_prob, _ = generate_token_prob(
+				print(f"  - Sample {j}")
+				predict_text, predict_token_prob, predict_logits = generate_token_prob(
 					model = model, 
 					tokenizer = tokenizer, 
 					prompt = input_text, 
-					max_length = inputs["input_ids"].size(1) + target_max_length, 
+					max_length = target_max_length, 
 					generate_kwargs = {"do_sample": True, "use_cache": use_cache, **do_sample_kwargs}, 
 					device = device,
 				)	# predict_token_prob: List[Tuple(Int, Str, Float)]
 				predict_token_ids = [predict_token_prob[i][0] for i in range(len(predict_token_prob))]	# List[<token_id>]
 				predict_token_ids_group.append(predict_token_ids)	# List[<token_id>] -> List[]
-				token_accuracy = calc_mean_token_accuracy(predict=[predict_token_ids_group], target=[target_token_ids])
+				token_accuracy = calc_token_accuracy(predict=predict_token_ids_group, target=target_token_ids)
 				perplexity = calc_perplexity(
-					prompt = predict_token_ids_group,
+					prompt = predict_token_ids,
 					completion = target_token_ids,
 					model = model,
-					tokenizer = tokenizer,
-					apply_chat_template = None,
 				)
+				logging.info(f"    - Predict text: {predict_text}")
 				logging.info(f"    - Token Accuracy: {token_accuracy}")
 				logging.info(f"    - Perplexity: {perplexity}")
+				print(f"    - Predict text: {predict_text}")
+				print(f"    - Token Accuracy: {token_accuracy}")
+				print(f"    - Perplexity: {perplexity}")
+				
 				token_accuracy_group.append(token_accuracy)
 				perplexity_group.append(perplexity)
 			token_accuracy_history.append(token_accuracy_group)
@@ -118,13 +129,13 @@ def base_pipeline(model = None,
 				model = model, 
 				tokenizer = tokenizer, 
 				prompt = input_text, 
-				max_length = inputs["input_ids"].size(1) + target_max_length, 
+				max_length = target_max_length, 
 				generate_kwargs = {"do_sample": False, "use_cache": use_cache, **do_sample_kwargs}, 
 				device = device,
 			)	# predict_token_prob: List[Tuple(Int, Str, Float)]
 			predict_token_ids = [predict_token_prob[i][0] for i in range(len(predict_token_prob))]	# List[<token_id>]
 			test_predicts.append(predict_token_ids)	# List[<token_id>] -> List[]
-			token_accuracy = calc_mean_token_accuracy(predict=[predict_token_ids], target=[target_token_ids])
+			token_accuracy = calc_token_accuracy(predict=predict_token_ids, target=target_token_ids)
 			perplexity = calc_perplexity(
 				prompt = predict_token_ids,
 				completion = target_token_ids,
@@ -132,8 +143,14 @@ def base_pipeline(model = None,
 				tokenizer = tokenizer,
 				apply_chat_template = None,
 			)
+			logging.info(f"  - Predict text: {predict_text}")
 			logging.info(f"  - Token Accuracy: {token_accuracy}")
 			logging.info(f"  - Perplexity: {perplexity}")
+			
+			print(f"  - Predict text: {predict_text}")
+			print(f"  - Token Accuracy: {token_accuracy}")
+			print(f"  - Perplexity: {perplexity}")
+			
 			token_accuracys.append(token_accuracy)
 			perplexitys.append(perplexity)
 	metrics = {
@@ -144,53 +161,3 @@ def base_pipeline(model = None,
 		return metrics, token_accuracy_history, perplexity_history
 	else:
 		return metrics, token_accuracys, perplexitys
-
-	
-	
-
-
-
-
-
-class CausalLMEvaluator:
-    def __init__(self, model_name, dataset_name):
-        self.model_name = model_name
-        self.dataset_name = dataset_name
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-            device_map="auto"
-        )
-        self.dataset = load_dataset(dataset_name)
-        
-    def mean_token_accuracy(self, predictions, references):
-        correct_tokens = 0
-        total_tokens = 0
-        
-        for pred, ref in zip(predictions, references):
-            # 对齐长度，取较短的长度
-            min_len = min(len(pred), len(ref))
-            if min_len == 0:
-                continue       
-            pred_tokens = pred[:min_len]
-            ref_tokens = ref[:min_len]
-            correct_tokens += sum(1 for p, r in zip(pred_tokens, ref_tokens) if p == r)
-            total_tokens += min_len
-        
-        return correct_tokens / total_tokens if total_tokens > 0 else 0
-    
-    def perplexity(self, texts):
-        perplexities = []
-        for text in texts:
-            inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            with torch.no_grad():
-                outputs = self.model(**inputs, labels=inputs["input_ids"])
-                loss = outputs.loss
-                ppl = torch.exp(loss).item()
-                perplexities.append(ppl)
-        return numpy.mean(perplexities)
-    

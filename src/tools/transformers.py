@@ -280,7 +280,13 @@ def generate_token_prob(model,
 						):
 	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)
 	with torch.no_grad():
-		outputs = model.generate(inputs, max_length=max_length, output_scores=True, return_dict_in_generate=True, **generate_kwargs)
+		outputs = model.generate(
+			inputs, 
+			max_length = inputs.size(1) + max_length, 
+			output_scores = True, 
+			return_dict_in_generate=True, 
+			**generate_kwargs,
+		)
 		generated_token_ids = outputs.sequences	# Long(1, max_length)
 		generated_logits = outputs.scores	# Tuple(Float(1, n_vocab)) with length (max_length - n_tokens)
 		generated_probs = tuple(map(lambda _logits: F.softmax(_logits, dim=-1), generated_logits))

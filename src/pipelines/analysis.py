@@ -349,3 +349,13 @@ def easy_skip_layer_generation(
 		# 3. Recover `self.config.num_hidden_layers`
 		model.model.config.num_hidden_layers += len(skip_layer_ids)
 	return results
+
+
+# Generating by edit layer parameters or layer inputs
+# @param targe
+def easy_edit_layer_generation(
+	edit_dict,
+	
+):
+	target_layer_ids
+	NotImplemented
