@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 # Overwrite according to /transformers/models/qwen2/modeling_qwen2.py

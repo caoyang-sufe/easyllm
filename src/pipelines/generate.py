@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
@@ -17,7 +17,7 @@ from src.tools.hook import register_forward_hook_decorator, register_backward_ho
 # @param token_prob: List[Tuple(Int, Str, Float)], `len(generated_id_prob)` is `max_length`, indicating the generated probability of each token
 # @param logits: Tuple[FloatTensor(1, n_vocab)], `len(generated_logits)` is `max_length`, indicating the logits when each token is generated
 # @param k: [Int] top-k decode candidates to be display
-# @param eos_token_id: [Int] tokenId of <eos> token, e.g. 151643(<|endoftext|>) for Qwen model 
+# @param eos_token_id: [Int] tokenId of <eos> token, e.g. 151643(<|endoftext|>) for Qwen model
 # @return df_display: [pandas.DataFrame] ["id", "token", "prob", "max_id", "cand_tokens", "cand_probs", "eos_prob"]
 def display_pipeline(tokenizer,
 					 text,
@@ -51,7 +51,7 @@ def display_pipeline(tokenizer,
 		df_display["eos_prob"].append(eos_prob)
 	df_display = pandas.DataFrame(df_display, columns=["max_id", "cand_tokens", "cand_probs", "eos_prob"])
 	return pandas.concat([df_token_probs, df_display], axis=1)
-	
+
 # Generate tokens by a given prompt
 # @param model_name_or_path: [Str]
 # @param prompt: [Str]
@@ -120,11 +120,11 @@ def decode_pipeline(model_name_or_path,
 	text, token_probs, logits = returned_dict["text"], returned_dict["token_probs"], returned_dict["logits"]
 	forward_hook_data, backward_hook_data = returned_dict["forward_hook_data"], returned_dict["backward_hook_data"]
 	logging.info(f"Generated text: {text}")
-	
+
 	# # Beam decoding
 	# logging.info("Beam decode ...")
 	# beam_search_decode(
-		# model = model, 
+		# model = model,
 		# tokenizer = tokenizer,
 		# prompt = prompt,
 		# max_length = max_length,
@@ -133,7 +133,7 @@ def decode_pipeline(model_name_or_path,
 		# device = device,
 		# use_kv_cache = use_kv_cache,
 	# )
-	
+
 	# # K-step greedy decoding
 	# logging.info("K step greedy decode ...") bn
 	# k_step_greedy_decode(

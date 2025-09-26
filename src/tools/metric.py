@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 # Token-in-token-out Metrics
@@ -13,13 +13,12 @@ from collections import Counter
 # @param prompt: [List[<token_id>]]
 # @param completion: [List[<token_id>]]
 # @param model: Huggingface model object
-# @param tokenizer: Huggingface tokenizer object, which can be None when `prompt` and `completion` are List
-# @param apply_chat_template: [Function] consist of two positional or keyword arguments: (prompt, completion), default `None` refers to simply concatenation
+# @param device: [Str|torch.device]
 # @return: [Float]
-def calc_perplexity(prompt, completion, model):
-	prompt_length = len(List)
-	input_ids = torch.LongTensor([List + completion])
-	labels = input_ids.clone()
+def calc_perplexity(prompt, completion, model, device="cuda"):
+	prompt_length = len(prompt)
+	input_ids = torch.LongTensor([prompt + completion]).to(device)
+	labels = input_ids.clone().to(device)
 	labels[:, : prompt_length] = -100	# -100 refers to not calculating loss at this position
 	with torch.no_grad():
 		outputs = model(input_ids=input_ids, labels=labels)
@@ -60,9 +59,8 @@ def calc_bleu(predict, target, min_grams = 1, max_grams = 3):
 			correct = sum(min(predict_n_grams_counter[gram], target_n_grams_counter[gram]) 
 				for gram in predict_n_grams_counter)
 			precision = correct / total
-		else:
-			precision = None
-		precisions_by_n_grams.append(precision)
+			precisions_by_n_grams.append(precision)
+		
 	if any(p == 0 for p in precisions_by_n_grams):
 		return 0
 	log_precisions = [math.log(p) for p in precisions_by_n_grams]
@@ -89,19 +87,20 @@ def calc_rouge_n(predict, target, n = 3, beta = 1):
 			for gram in predict_n_grams_counter)
 		precision = correct / total_p
 		recall = correct / total_r
-		f1_score = (1 + beta ** 2) * precision * recall / ((beta ** 2) * precision + recall)
+		denominator = (beta ** 2) * precision + recall
+		f1_score = 0 if denominator == 0 else (1 + beta ** 2) * precision * recall / denominator
 	else:
 		precision = 0
 		recall = 0
-		f_1 = 0
+		f1_score = 0
 	return {"precision": precision, "recall": recall, "f1_score": f1_score}
 
 # Calculate ROUGE-W (Weighted ROUGE-L): https://aclanthology.org/W04-1013.pdf
 # @param target: [List[<token>]]
 # @param predict: [List[<token>]]
 # @param weight_function: [Function] 
-#   - Usually we can use `lambda _x: _x ** 2` or `lambda _x: _x * lambda`
-#   - Default function refers to ROUGE-L, see https://aclanthology.org/W04-1013.pdf for more details
+#   - Default function refers to the implementation in  https://aclanthology.org/W04-1013.pdf for more details
+#   - Set `weight_function = lambda _x: _x` then degrade to ROUGE-L
 # @param weight_function_reverse: [Function] the reverse function of weight_function
 # @param beta: [Float] F1 weight
 # @return: Dict["prediction": Float, "recall": Float, "f1_score": Float]
@@ -134,9 +133,10 @@ def calc_rouge_w(predict,
 		weighted_lcs = _weighted_lcs(predict, target, weight_function)
 		precision = weight_function_reverse(weighted_lcs / weight_function(predict_length))
 		recall = weight_function_reverse(weighted_lcs / weight_function(target_length))
-		f1_score = (1 + beta ** 2) * precision * recall / ((beta ** 2) * precision + recall)
+		denominator = (beta ** 2) * precision + recall
+		f1_score = 0 if denominator == 0 else (1 + beta ** 2) * precision * recall / denominator
 	else:
 		precision = 0
 		recall = 0
-		f_1 = 0
+		f1_score = 0
 	return {"precision": precision, "recall": recall, "f1_score": f1_score}

@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
@@ -227,8 +227,6 @@ def plot_trainer_state(trainer_state_path,
 	if is_show:
 		plt.show()
 		plt.close()
-
-	
 
 # Plot dynamics of trainer state of `trl.PPOTrainer`
 # @param trainer_state_path: [Str] File path of trainer_state.json

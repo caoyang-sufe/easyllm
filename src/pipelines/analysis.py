@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
@@ -13,17 +13,17 @@ from src.tools.plot import plot_tensor_heatmap
 from src.tools.transformers import greedy_decode, robust_cosine_similarity, robust_corrcoef
 from src.pipelines.generate import display_pipeline
 from src.module import (
-	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
-	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
-	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 
-	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
-	ParallelLlamaModel, SkipLayerLlamaModel, 
+	ParallelQwen2Model, SkipLayerQwen2ForCausalLM,
+	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM,
+	ParallelQwen3Model, SkipLayerQwen3ForCausalLM,
+	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM,
+	ParallelLlamaModel, SkipLayerLlamaModel,
 	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM,
 )
 
 # Horizontal comparison: Compare hook data (which comes from different prompts) by module names
 # Focusing on comparing the inputs or outputs of the same modules in different hooks
-# @param hook_datas: List[Dict] of length 2, i.e. currently we only compare two series of hook data 
+# @param hook_datas: List[Dict] of length 2, i.e. currently we only compare two series of hook data
 # @param hook_data_paths: List[Str], default None but at least one of `hook_datas` and `hook_data_paths` is not None
 # @param hook_module_names: List[Str], e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj", "model.layers[0].self_attn.v_proj"]
 # @param hook_module_name_suffixes: List[Str], e.g. ["q_proj", "k_proj", "v_proj"]
@@ -46,7 +46,6 @@ def horizontal_comparison_of_forward_hook(
 	if hook_datas is None:
 		hook_datas = [torch.load(hook_data_path) for hook_data_path in hook_data_paths]
 	for token_i, hook_data_group in enumerate(zip(*hook_datas)):
-		print(token_i)
 		if token_i >= max_length:
 			break
 		# Hook data when generating token i
@@ -63,7 +62,7 @@ def horizontal_comparison_of_forward_hook(
 			if module_name_suffix in hook_module_name_suffixes:
 				# 1. Process inputs in hook data
 				input_data_group = [data[module_name].get("input", data[module_name].get("args")) for data in hook_data_group]
-				for j, input_data in enumerate(input_data_group):     
+				for j, input_data in enumerate(input_data_group):
 					# Assertation for ensuring data format of inputs
 					assert len(input_data) == 1 and isinstance(input_data[0], tuple)
 					if len(input_data[0]) > 1:
@@ -85,7 +84,7 @@ def horizontal_comparison_of_forward_hook(
 							logging.warning(f"Output data {j} has more than 1 components: {len(output_data[0])}")
 						output_tensor = output_tensor[0][0]
 					output_tensors.append(output_tensor)
-					
+
 				# 3. Summary data calculation
 				## 3.1 Calculate Mean Difference
 				input_diff = input_tensors[0] - input_tensors[1]
@@ -108,21 +107,21 @@ def horizontal_comparison_of_forward_hook(
 				input_sim = F.cosine_similarity(input_tensors[0].flatten(), input_tensors[1].flatten(), dim=0).item()
 				output_sim = F.cosine_similarity(output_tensors[0].flatten(), output_tensors[1].flatten(), dim=0).item()
 				comparison_summary_dict["sim"][module_name_suffix]["input"].append(input_sim)
-				comparison_summary_dict["sim"][module_name_suffix]["output"].append(output_sim)				
+				comparison_summary_dict["sim"][module_name_suffix]["output"].append(output_sim)
 				## 3.5 Robust Correlation Coefficient
 				input_robust_corr = robust_corrcoef(input_tensors[0], input_tensors[1], outlier_ratio = outlier_ratio)
 				output_robust_corr = robust_corrcoef(output_tensors[0], output_tensors[1], outlier_ratio = outlier_ratio)
 				comparison_summary_dict["robust_corr"][module_name_suffix]["input"].append(input_robust_corr)
-				comparison_summary_dict["robust_corr"][module_name_suffix]["output"].append(output_robust_corr)			
+				comparison_summary_dict["robust_corr"][module_name_suffix]["output"].append(output_robust_corr)
 				## 3.6 Robust Similarity
 				input_robust_sim = robust_cosine_similarity(input_tensors[0], input_tensors[1], outlier_ratio = outlier_ratio)
 				output_robust_sim = robust_cosine_similarity(output_tensors[0], output_tensors[1], outlier_ratio = outlier_ratio)
 				comparison_summary_dict["robust_sim"][module_name_suffix]["input"].append(input_robust_sim)
-				comparison_summary_dict["robust_sim"][module_name_suffix]["output"].append(output_robust_sim)						
+				comparison_summary_dict["robust_sim"][module_name_suffix]["output"].append(output_robust_sim)
 				# ...
 		nrows, ncols = len(comparison_index), len(hook_module_name_suffixes)
 		fig, axes = plt.subplots(
-			nrows = nrows, 
+			nrows = nrows,
 			ncols = ncols,
 			figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
 		)
@@ -148,7 +147,7 @@ def horizontal_comparison_of_forward_hook(
 				target_ax.set_xlabel("Layer #"), target_ax.set_ylabel(summary_key), target_ax.set_title(f"{summary_key} for {module_name_suffix} on token {token_i}")
 				target_ax.legend()
 		plt.show(), plt.close()
-	
+
 # Vertical comparison: Compare data in a single hook
 # Focusing on comparing the inputs and outputs of the same modules
 # @param hook_data: [Dict] Hook data object
@@ -182,12 +181,12 @@ def vertical_comparison_of_forward_hook(
 			input_tensor = hook_data[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
 			output_tensor = hook_data[token_i][module_name]["output"][0][0]
 			diff = input_tensor - output_tensor
-			mean_diff = torch.norm(diff, p="fro") / input_tensor.numel()                                                             
+			mean_diff = torch.norm(diff, p="fro") / input_tensor.numel()
 			max_diff = torch.max(torch.abs(diff)).item()
 			corr = torch.corrcoef(torch.stack([input_tensor.flatten(), output_tensor.flatten()]))[0, 1].item()
 			sim = F.cosine_similarity(input_tensor.flatten(), output_tensor.flatten(), dim=0).item()
 			robust_corr = robust_corrcoef(input_tensor, output_tensor, outlier_ratio = outlier_ratio)
-			robust_sim = robust_cosine_similarity(input_tensor, output_tensor, outlier_ratio = outlier_ratio)		
+			robust_sim = robust_cosine_similarity(input_tensor, output_tensor, outlier_ratio = outlier_ratio)
 			comparison_summary_dict["mean_diff"].append(mean_diff.item())
 			comparison_summary_dict["max_diff"].append(max_diff)
 			comparison_summary_dict["corr"].append(corr)
@@ -199,8 +198,8 @@ def vertical_comparison_of_forward_hook(
 				assert diff.size(0) == 1
 				plot_tensor_heatmap(
 					tensor = torch.abs(diff)[0, :, :],
-					ax = axes[subplot_index] if len(watched_module_names) > 1 else axes, 
-					is_show=False, 
+					ax = axes[subplot_index] if len(watched_module_names) > 1 else axes,
+					is_show=False,
 					title=f"Diff in {module_name} of Token {token_i}",
 				)
 		if watched_module_names:
@@ -209,8 +208,8 @@ def vertical_comparison_of_forward_hook(
 		ncols = len(comparison_index)
 		nrows = 1
 		fig, axes = plt.subplots(
-			nrows = nrows, 
-			ncols = ncols, 
+			nrows = nrows,
+			ncols = ncols,
 			figsize = (ncols * figure_size * 1.2, nrows * figure_size),
 		)
 		for c, summary_key in enumerate(comparison_index):
@@ -233,7 +232,7 @@ def vertical_comparison_of_forward_hook(
 						next_y_flag = abs(y_i - comparison_summary_dict[summary_key][i + 1]) > .1 if i < len(x) - 1 else True
 						if text_flag or (last_y_flag and next_y_flag):
 							target_ax.text(x_i, y_i, str(round(y_i, 3)), ha="center", va="bottom", fontsize=12, color="red")
-					
+
 				target_ax.legend(), target_ax.set_xlabel("Layer #"), target_ax.set_ylabel(summary_key), target_ax.set_title(f"{comparison_index[c]} on token {token_i}")
 		plt.show(), plt.close()
 
@@ -241,7 +240,7 @@ def vertical_comparison_of_forward_hook(
 # Focusing on the generating results under skipping different layers
 # *** VERY IMPORT NOTICE ***
 # Notice that no matter what `skip_layer_ids` is, the `forward_hook_module_names` (as well as `backward_hook_module_names`) should be always range from 0-`num_hidden_layers-1`
-# However, to those layerId in `skip_layer_ids`, the hook data is None 
+# However, to those layerId in `skip_layer_ids`, the hook data is None
 # This is different from `easy_skip_layer_generation`
 # @param Model: AutoModel class, e.g. Qwen2Model
 # @param ModelForCausalLM: AutoModelForCausalLM class, e.g. Qwen2ForCausalLM
@@ -258,7 +257,7 @@ def skip_layer_generation(
 	SkipLayerModelForCausalLM,
 	model_name_or_path,
 	tokenizer,
-	prompt, 
+	prompt,
 	max_length,
 	device,
 	skip_layer_ids = list(),
@@ -275,7 +274,7 @@ def skip_layer_generation(
 	results = greedy_decode(
 		model,
 		tokenizer,
-		prompt = prompt, 
+		prompt = prompt,
 		max_length = max_length,
 		device = device,
 		use_kv_cache = use_kv_cache,
@@ -300,7 +299,7 @@ def skip_layer_generation(
 def easy_skip_layer_generation(
 	model,
 	tokenizer,
-	prompt, 
+	prompt,
 	max_length,
 	device,
 	skip_layer_ids = list(),
@@ -311,7 +310,7 @@ def easy_skip_layer_generation(
 	if skip_layer_ids:
 		# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx`
 		filtered_layers = list()
-		backup_layer_ids = list() 
+		backup_layer_ids = list()
 		backup_layers = model.model.layers
 		for layer_id, layer in enumerate(model.model.layers):
 			if layer_id not in skip_layer_ids:
@@ -330,7 +329,7 @@ def easy_skip_layer_generation(
 	results = greedy_decode(
 		model,
 		tokenizer,
-		prompt = prompt, 
+		prompt = prompt,
 		max_length = max_length,
 		device = device,
 		use_kv_cache = use_kv_cache,
@@ -343,7 +342,7 @@ def easy_skip_layer_generation(
 		assert len(backup_layer_ids) == len(filtered_layers)
 		for back_up_layer_id, layer in zip(backup_layer_ids, filtered_layers):
 			layer.self_attn.layer_idx = back_up_layer_id
-		model.model.layers = backup_layers	
+		model.model.layers = backup_layers
 		# 2. Recover `self.config.layer_types`
 		# model.model.config.layer_types = back_up_layer_types[:]
 		# 3. Recover `self.config.num_hidden_layers`
@@ -352,10 +351,12 @@ def easy_skip_layer_generation(
 
 
 # Generating by edit layer parameters or layer inputs
-# @param targe
+# @param edit_layer_id: Int
+# @param edit_layer_input: torch.Tensor
 def easy_edit_layer_generation(
-	edit_dict,
-	
+	model,
+	edit_layer_id,
+	edit_layer_input,
+
 ):
-	target_layer_ids
 	NotImplemented

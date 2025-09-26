@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
@@ -43,9 +43,9 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 				[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids],
 			"lora_r": 16,
 			"lora_alpha": 16,
-			"lora_dropout": .05,	
+			"lora_dropout": .05,
 			"lora_task_type": "CAUSAL_LM",
-			# Logging 
+			# Logging
 			"logging_strategy": "steps",
 			"logging_steps": 1,
 			"eval_strategy": "epoch",
@@ -59,7 +59,7 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 		}
 		sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = parallel_model_class, n_cuda = n_cuda)
 		with open(os.path.join(config_kwargs["output_dir"], "config_kwargs.json"), 'w', encoding="utf8") as f:
-			json.dump(config_kwargs, f, ensure_ascii=False)	
+			json.dump(config_kwargs, f, ensure_ascii=False)
 
 
 def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2):
@@ -94,9 +94,9 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 				[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids],
 			"lora_r": 16,
 			"lora_alpha": 16,
-			"lora_dropout": .05,	
+			"lora_dropout": .05,
 			"lora_task_type": "CAUSAL_LM",
-			# Logging 
+			# Logging
 			"logging_strategy": "steps",
 			"logging_steps": 1,
 			"eval_strategy": "epoch",
@@ -110,7 +110,7 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 		}
 		sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = parallel_model_class, n_cuda = n_cuda)
 		with open(os.path.join(config_kwargs["output_dir"], "config_kwargs.json"), 'w', encoding="utf8") as f:
-			json.dump(config_kwargs, f, ensure_ascii=False)	
+			json.dump(config_kwargs, f, ensure_ascii=False)
 
 
 def sft_pipeline_test(model_id=0, parallel_model_class=None, n_cuda=2):
@@ -160,18 +160,18 @@ def sft_pipeline_test(model_id=0, parallel_model_class=None, n_cuda=2):
 	# sft_pipeline(data_processor, config_kwargs, trainer_kwargs)
 	# ------------------------------------------------------------------
 	# Qwen2.5-0.5B-Instruct + tldr
-	
+
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers
-	
+
 	target_layer_ids_list = [
 		list(range(num_hidden_layers)),	# Full
 		[0, 1, 2, 7, 8, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
 		list(range(3, num_hidden_layers - 3)),	# Body only
 		[4, 5, 16, 18], # Random
 	]
-	
+
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
 		dataset_name = os.path.join(dataset_home, dataset_names[0])
@@ -194,9 +194,9 @@ def sft_pipeline_test(model_id=0, parallel_model_class=None, n_cuda=2):
 				[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids],
 			"lora_r": 16,
 			"lora_alpha": 32,
-			"lora_dropout": .05,	
+			"lora_dropout": .05,
 			"lora_task_type": "CAUSAL_LM",
-			# Logging 
+			# Logging
 			"logging_strategy": "steps",
 			"logging_steps": 1,
 			"eval_strategy": "epoch",

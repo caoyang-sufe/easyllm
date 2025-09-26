@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 # Overwrite according to /transformers/models/llama/modeling_llama.py
@@ -20,7 +20,7 @@ class ParallelLlamaModel(LlamaModel):
 		self.device_list = ["cpu", "cuda"] if self.n_cuda == 1 else [f"cuda:{i}" for i in range(n_cuda)]
 		self.n_device = len(self.device_list)
 		self.is_parallelizable = True
-		self.model_parallel = True		
+		self.model_parallel = True
 		self.module_to_device_flag = False
 
 	def module_to_device(self):
@@ -65,21 +65,21 @@ class ParallelLlamaModel(LlamaModel):
 			inputs_embeds = self.embed_tokens(input_ids)
 		if use_cache and past_key_values is None:
 			past_key_values = DynamicCache(config=self.config)
-			
+
 		if cache_position is None:
-			past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0	
+			past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
 			logging.debug(f"past_seen_tokens: {past_seen_tokens}")
 			logging.debug(f"inputs_embeds.shape: {inputs_embeds.shape}")
 			logging.debug(f"inputs_embeds.device: {inputs_embeds.device}")
 			cache_position = torch.arange(
-				past_seen_tokens, 
-				past_seen_tokens + inputs_embeds.shape[1], 
+				past_seen_tokens,
+				past_seen_tokens + inputs_embeds.shape[1],
 				device="cpu",
 			)
 			cache_position = cache_position.to(inputs_embeds.device)
 		if position_ids is None:
 			position_ids = cache_position.unsqueeze(0)
-			
+
 		# ---
 		# # It may already have been prepared by e.g. `generate`
 		# if not isinstance(causal_mask_mapping := attention_mask, dict):
@@ -107,14 +107,14 @@ class ParallelLlamaModel(LlamaModel):
 			cache_position=cache_position,
 			past_key_values=past_key_values,
 			position_ids=position_ids,
-		)				
-	
+		)
+
 		hidden_states = inputs_embeds
 		# create position embeddings to be shared across the decoder layers
 		position_embeddings = self.rotary_emb(hidden_states, position_ids)
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		for layer_id, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):
-			current_device_id = self.layer_to_device[layer_id]		
+			current_device_id = self.layer_to_device[layer_id]
 			hidden_states = decoder_layer(
 				hidden_states,
 				attention_mask = causal_mask.to(self.layer_to_device[layer_id]) if causal_mask is not None else None,
@@ -133,13 +133,19 @@ class ParallelLlamaModel(LlamaModel):
 						position_ids = position_ids.to(next_device_name)
 					if cache_position is not None:
 						cache_position = cache_position.to(next_device_name)
-					# Deal with KV-Cache
-					if past_key_values is not None:
-						for i in range(len(past_key_values)):
-							if past_key_values[i][0] is not None:
-								past_key_values[i][0] = past_key_values[i][0].to(next_device_name)
-							if past_key_values[i][1] is not None:
-								past_key_values[i][1] = past_key_values[i][1].to(next_device_name)
+					# Need not deal with KV-Cache
+					# # Deal with KV-Cache
+					# if past_key_values is not None:
+						# new_past_key_values = DynamicCache(config=self.config)
+						# for i in range(len(past_key_values)):
+							# if not (past_key_values[i][0] is None and past_key_values[i][1] is None):
+								# assert past_key_values[i][0] is not None and past_key_values[i][1] is not None
+								# new_past_key_values.update(
+									# key_states = past_key_values[i][0].to(next_device_name),
+									# value_states = past_key_values[i][1].to(next_device_name),
+									# layer_idx = i,
+								# )
+						# past_key_values = new_past_key_values
 					# Deal with PostionEmbedding
 					if position_embeddings is not None:
 						# position_embeddings = (cos, sin)
@@ -161,19 +167,11 @@ class ParallelLlamaForCausalLM(LlamaForCausalLM):
 		self.post_init()
 		self.is_parallelizable = True
 		self.model_parallel = True
-		# self._tp_size = self.model.n_device
-		
-	# @property
-	# def tp_size(self):
-		# return self._tp_size
-	
-	# @tp_size.setter
-	# def tp_size(self, value):
-		# self._tp_size = value
-		
+
 	def module_to_device(self):
 		self.model.module_to_device()
-		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to 
+		self.lm_head = self.lm_head.to(self.model.device_list[0])
+		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to
 		# That is to say: `id(self.lm_head) == id(self.model.embed_tokens)`
 
 	@can_return_tuple
@@ -201,18 +199,16 @@ class ParallelLlamaForCausalLM(LlamaForCausalLM):
 			cache_position=cache_position,
 			**kwargs,
 		)
-		
+
 		hidden_states = outputs.last_hidden_state.to(self.model.device_list[0])	# <<<<<<<< Because `lm_head` must be on CUDA:0 according to `embed_tokens` >>>>>>>>
 		# Only compute necessary logits, and do not upcast them to float if we are not computing the losse
 		slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
 		logits = self.lm_head(hidden_states[:, slice_indices, :])
-		logging.info(f"Logits device: {logits.device}")
 		loss = None
 		if labels is not None:
 			# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 			loss = self.loss_function(logits=logits, labels=labels.to(self.model.device_list[-1]), vocab_size=self.config.vocab_size, **kwargs)
 			# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-		logging.info(f"Loss device: {loss.device}")
 		return CausalLMOutputWithPast(
 			loss=loss,
 			logits=logits,
