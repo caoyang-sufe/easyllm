@@ -19,7 +19,7 @@ from src.tools.transformers import greedy_decode, k_step_greedy_decode, beam_sea
 from src.unittests.trainer_pipelines import sft_pipeline_test, dpo_pipeline_test, grpo_pipeline_test, ppo_pipeline_test, sft_train_math_500, sft_train_gsm8k
 from src.unittests.generate_pipelines import decode_pipeline_test, generate_pipeline_test
 from src.unittests.analysis_pipelines import skip_layer_generation_test_1, skip_layer_generation_test_2
-from src.unittests.evaluator_pipelines import evaluate_math_500
+from src.unittests.evaluator_pipelines import evaluate_math_500, evaluate_gsm8k
 
 os.makedirs("./log", exist_ok=True)
 os.makedirs("./temp", exist_ok=True)
@@ -31,7 +31,7 @@ with open("check.txt", 'w', encoding="utf8") as f:
 
 # function_name = "sft_pipeline_test"
 # function_name = "sft_train_math_500"
-function_name = "sft_train_gsm8k"
+# function_name = "sft_train_gsm8k"
 # function_name = "dpo_pipeline_test"
 # function_name = "grpo_pipeline_test"
 # function_name = "ppo_pipeline_test"
@@ -42,6 +42,7 @@ function_name = "sft_train_gsm8k"
 # function_name = "skip_layer_generation_test_2"
 
 function_name = "evaluate_math_500"
+function_name = "evaluate_gsm8k"
 logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
 # ----------------------------------------------------------------------
 
@@ -63,8 +64,8 @@ logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%
 # eval(function_name)(model_id=0, parallel_model_class=None)
 eval(function_name)(model_id=9, parallel_model_class="ParallelQwen2ForCausalLM", n_cuda=2)
 eval(function_name)(model_id=12, parallel_model_class="ParallelQwen3ForCausalLM", n_cuda=2)
-# eval(function_name)(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
-# eval(function_name)(model_id=11, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
+eval(function_name)(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
+eval(function_name)(model_id=11, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
 
 terminate_logger(logger)
 
