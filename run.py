@@ -35,16 +35,18 @@ with open("check.txt", 'w', encoding="utf8") as f:
 # function_name = "dpo_pipeline_test"
 # function_name = "grpo_pipeline_test"
 # function_name = "ppo_pipeline_test"
-# function_name = "decode_pipeline_test"
+function_name = "decode_pipeline_test"
 
 # function_name = "generate_pipeline_test"
 # function_name = "skip_layer_generation_test_1"
 # function_name = "skip_layer_generation_test_2"
 
-function_name = "evaluate_math_500"
-function_name = "evaluate_gsm8k"
+# function_name = "evaluate_math_500"
+# function_name = "evaluate_gsm8k"
 logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
 # ----------------------------------------------------------------------
+
+eval(function_name)()
 
 # eval(function_name)(model_id=9, device="cuda")	# skip_layer_generation_test_X
 # eval(function_name)(model_id=10, device="cuda")	# skip_layer_generation_test_X
@@ -62,10 +64,10 @@ logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%
 # eval(function_name)(model_id=9, parallel_model_class="ParallelQwen2ForCausalLM", n_cuda=2)
 
 # eval(function_name)(model_id=0, parallel_model_class=None)
-eval(function_name)(model_id=9, parallel_model_class="ParallelQwen2ForCausalLM", n_cuda=2)
-eval(function_name)(model_id=12, parallel_model_class="ParallelQwen3ForCausalLM", n_cuda=2)
-eval(function_name)(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
-eval(function_name)(model_id=11, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
+# eval(function_name)(model_id=9, parallel_model_class="ParallelQwen2ForCausalLM", n_cuda=2)
+# eval(function_name)(model_id=12, parallel_model_class="ParallelQwen3ForCausalLM", n_cuda=2)
+# eval(function_name)(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
+# eval(function_name)(model_id=11, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2)
 
 terminate_logger(logger)
 

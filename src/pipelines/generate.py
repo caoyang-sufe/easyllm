@@ -52,7 +52,7 @@ def display_pipeline(tokenizer,
 	df_display = pandas.DataFrame(df_display, columns=["max_id", "cand_tokens", "cand_probs", "eos_prob"])
 	return pandas.concat([df_token_probs, df_display], axis=1)
 
-# Generate tokens by a given prompt
+# Generate tokens by a given prompt, using `model.generate`
 # @param model_name_or_path: [Str]
 # @param prompt: [Str]
 # @param max_length: [Int]
@@ -80,74 +80,3 @@ def generate_pipeline(model_name_or_path,
 	text, token_prob, logits = generate_token_prob(model, tokenizer, prompt, max_length, generate_kwargs, device)
 	logging.info(f"Generated text: {text}")
 	return display_pipeline(tokenizer, text, token_prob, logits, eos_token_id=eos_token_ids[0])
-
-
-# @param model_name_or_path: [Str]
-# @param prompt: [Str]
-# @param max_length: [Int]
-# @param device: [Str|torch.device] e.g. "cuda", "cpu", torch.device("cpu")
-# @param use_kv_cache: [Boolean]
-# @param forward_hook_module_names: List[Str]
-# @param backward_hook_module_names: List[Str]
-# @return: Dict["df_display", "forward_hook_data", "backward_hook_data"]
-def decode_pipeline(model_name_or_path,
-					prompt,
-					max_length,
-					device = "cuda",
-					use_kv_cache = True,
-					forward_hook_module_names = None,
-					backward_hook_module_names = None,
-					):
-	logging.info("Load model and tokenizer ...")
-	if device is None:
-		device = "cuda" if torch.cuda.is_available() else "cpu"
-	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
-	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
-	eos_token_ids = get_generation_eos_token_ids(model)
-	logging.info(f"  - EOS Tokens: {eos_token_ids}")
-	logging.info("Greedy decode ...")
-	returned_dict = greedy_decode(
-		model = model,
-		tokenizer = tokenizer,
-		prompt = prompt,
-		max_length = max_length,
-		device = device,
-		use_kv_cache = use_kv_cache,
-		forward_hook_module_names = forward_hook_module_names,
-		backward_hook_module_names = backward_hook_module_names,
-	)
-	text, token_probs, logits = returned_dict["text"], returned_dict["token_probs"], returned_dict["logits"]
-	forward_hook_data, backward_hook_data = returned_dict["forward_hook_data"], returned_dict["backward_hook_data"]
-	logging.info(f"Generated text: {text}")
-
-	# # Beam decoding
-	# logging.info("Beam decode ...")
-	# beam_search_decode(
-		# model = model,
-		# tokenizer = tokenizer,
-		# prompt = prompt,
-		# max_length = max_length,
-		# num_beams = 2,
-		# length_penalty = 1.,
-		# device = device,
-		# use_kv_cache = use_kv_cache,
-	# )
-
-	# # K-step greedy decoding
-	# logging.info("K step greedy decode ...") bn
-	# k_step_greedy_decode(
-		# model = model,
-		# tokenizer = tokenizer,
-		# prompt = prompt,
-		# max_length = max_length,
-		# n_branches = 2,
-		# depth = 3,
-		# device = device,
-		# use_kv_cache = False,
-	# )
-	return {
-		"df_display": display_pipeline(tokenizer, text, token_probs, logits, eos_token_id=eos_token_ids[0]),
-		"forward_hook_data": forward_hook_data,
-		"backward_hook_data": backward_hook_data,
-	}
