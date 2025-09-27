@@ -2,5 +2,5 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
-from src.module.deepseek.deepseek_skip_layer import SkipLayerDeepseekModel, SkipLayerDeepseekForCausalLM
-from src.module.deepseek.deepseek_parallel import ParallelDeepseekModel, ParallelDeepseekForCausalLM
+# from src.module.deepseek.deepseek_skip_layer import SkipLayerDeepseekModel, SkipLayerDeepseekForCausalLM
+# from src.module.deepseek.deepseek_parallel import ParallelDeepseekModel, ParallelDeepseekForCausalLM

@@ -71,7 +71,7 @@ def evaluate_math_500(model_id=10, parallel_model_class=None, n_cuda=2):
 		json.dump(metric_summary, f, ensure_ascii=False)
 
 
-def evaluate_gsm8k():
+def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"Load model: {model_name_or_path} ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)

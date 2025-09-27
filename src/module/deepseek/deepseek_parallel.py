@@ -34,19 +34,22 @@ class ParallelDeepseekModel(DeepseekModel):
 			self.layers[layer_id] = self.layers[layer_id].to(self.device_list[device_id])
 			self.layer_to_device[layer_id] = device_id
 			logging.info(f"Layer {layer_id} moved to {self.device_list[device_id]}")
+			
 
 	def forward(self,
 				input_ids = None,
 				attention_mask = None,
 				position_ids= None,
 				past_key_values = None,
+				use_cache = None,
+				output_attentions = None,
+				output_hidden_states = None,
+				return_dict = None
 				inputs_embeds = None,
 				cache_position = None,
-				use_cache = None,
+				
 				**kwargs,
 				):
-		logging.debug(f"CUDA memory allocated: {torch.cuda.memory_allocated()}")
-		logging.debug(f"CUDA memory cached: {torch.cuda.memory_reserved()}")
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		if not self.module_to_device_flag:
 			self.module_to_device()
@@ -54,77 +57,95 @@ class ParallelDeepseekModel(DeepseekModel):
 		input_ids = input_ids.to(self.device_list[0])
 		if position_ids is not None:
 			position_ids = position_ids.to(self.device_list[0])
-		if cache_position is not None:
-			cache_position = cache_position.to(self.device_list[0])
 		# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-		if (input_ids is None) ^ (inputs_embeds is not None):
-			raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
-		if inputs_embeds is None:
-			logging.debug(f"self.embed_tokens.weight.data: {self.embed_tokens.weight.data.size()}")
-			logging.debug(f"input_ids: {input_ids}")
-			logging.debug(f"input_ids: {torch.max(input_ids)}")
-			inputs_embeds = self.embed_tokens(input_ids)
-		if use_cache and past_key_values is None:
-			past_key_values = DynamicCache(config=self.config)
-
-		if cache_position is None:
-			past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-			logging.debug(f"past_seen_tokens: {past_seen_tokens}")
-			logging.debug(f"inputs_embeds.shape: {inputs_embeds.shape}")
-			logging.debug(f"inputs_embeds.device: {inputs_embeds.device}")
-			cache_position = torch.arange(
-				past_seen_tokens,
-				past_seen_tokens + inputs_embeds.shape[1],
-				device="cpu",
-			)
-			cache_position = cache_position.to(inputs_embeds.device)
-		if position_ids is None:
-			position_ids = cache_position.unsqueeze(0)
-
-		# ---
-		# # It may already have been prepared by e.g. `generate`
-		# if not isinstance(causal_mask_mapping := attention_mask, dict):
-			# # Prepare mask arguments
-			# mask_kwargs = {
-				# "config": self.config,
-				# "input_embeds": inputs_embeds,
-				# "attention_mask": attention_mask,
-				# "cache_position": cache_position,
-				# "past_key_values": past_key_values,
-				# "position_ids": position_ids,
-			# }
-			# # Create the masks
-			# causal_mask_mapping = {
-				# "full_attention": create_causal_mask(**mask_kwargs),
-			# }
-			# # The sliding window alternating layers are not always activated depending on the config
-			# if self.has_sliding_layers:
-				# causal_mask_mapping["sliding_attention"] = create_sliding_window_causal_mask(**mask_kwargs)
-		# +++
-		causal_mask = create_causal_mask(
-			config=self.config,
-			input_embeds=inputs_embeds,
-			attention_mask=attention_mask,
-			cache_position=cache_position,
-			past_key_values=past_key_values,
-			position_ids=position_ids,
+		output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+		output_hidden_states = (
+			output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
 		)
-
-		hidden_states = inputs_embeds
-		# create position embeddings to be shared across the decoder layers
-		position_embeddings = self.rotary_emb(hidden_states, position_ids)
-		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-		for layer_id, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):
-			current_device_id = self.layer_to_device[layer_id]
-			hidden_states = decoder_layer(
-				hidden_states,
-				attention_mask = causal_mask.to(self.layer_to_device[layer_id]) if causal_mask is not None else None,
-				position_ids = position_ids,
-				past_key_values = past_key_values,
-				cache_position = cache_position,
-				position_embeddings = position_embeddings,
-				**kwargs,
+		use_cache = use_cache if use_cache is not None else self.config.use_cache
+		return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+		# retrieve input_ids and inputs_embeds
+		if input_ids is not None and inputs_embeds is not None:
+			raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+		elif input_ids is not None:
+			batch_size, seq_length = input_ids.shape[:2]
+		elif inputs_embeds is not None:
+			batch_size, seq_length = inputs_embeds.shape[:2]
+		else:
+			raise ValueError("You have to specify either input_ids or inputs_embeds")
+		if self.gradient_checkpointing and self.training:
+			if use_cache:
+				logger.warning_once(
+					"`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`transformers."
+				)
+				use_cache = False
+		past_key_values_length = 0
+		if use_cache:
+			use_legacy_cache = not isinstance(past_key_values, Cache)
+			if use_legacy_cache:
+				past_key_values = DynamicCache.from_legacy_cache(past_key_values)
+			past_key_values_length = past_key_values.get_usable_length(seq_length)
+		if position_ids is None:
+			device = input_ids.device if input_ids is not None else inputs_embeds.device
+			position_ids = torch.arange(
+				past_key_values_length, seq_length + past_key_values_length, dtype=torch.long, device=device
 			)
+			position_ids = position_ids.unsqueeze(0)
+		if inputs_embeds is None:
+			inputs_embeds = self.embed_tokens(input_ids)
+		if self._use_flash_attention_2:
+			# 2d mask is passed through the layers
+			attention_mask = attention_mask if (attention_mask is not None and 0 in attention_mask) else None
+		elif self._use_sdpa and not output_attentions:
+			# output_attentions=True can not be supported when using SDPA, and we fall back on
+			# the manual implementation that requires a 4D causal mask in all cases.
+			attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(
+				attention_mask,
+				(batch_size, seq_length),
+				inputs_embeds,
+				past_key_values_length,
+			)
+		else:
+			# 4d mask is passed through the layers
+			attention_mask = _prepare_4d_causal_attention_mask(
+				attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
+			)
+		# embed positions
+		hidden_states = inputs_embeds
+		# decoder layers
+		all_hidden_states = () if output_hidden_states else None
+		all_self_attns = () if output_attentions else None
+		next_decoder_cache = None
+		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+		for layer_id, decoder_layer in enumerate(self.layers):
+			current_device_id = self.layer_to_device[layer_id]
+			current_device = self.device_list[current_device_id]
+			if output_hidden_states:
+				all_hidden_states += (hidden_states,)
+			if self.gradient_checkpointing and self.training:
+				layer_outputs = self._gradient_checkpointing_func(
+					decoder_layer.__call__,
+					hidden_states,
+					None if attention_mask is None else attention_mask.to(current_device),
+					position_ids,
+					past_key_values,
+					output_attentions,
+					use_cache,
+				)
+			else:
+				layer_outputs = decoder_layer(
+					hidden_states,
+					attention_mask = None if attention_mask is None else attention_mask.to(current_device),
+					position_ids = position_ids,
+					past_key_value = past_key_values,
+					output_attentions = output_attentions,
+					use_cache = use_cache,
+				)
+			hidden_states = layer_outputs[0]
+			if use_cache:
+				next_decoder_cache = layer_outputs[2 if output_attentions else 1]
+			if output_attentions:
+				all_self_attns += (layer_outputs[1],)
 			if layer_id < self.config.num_hidden_layers - 1:
 				next_device_id = self.layer_to_device[layer_id + 1]
 				if not current_device_id == next_device_id:
@@ -132,8 +153,6 @@ class ParallelDeepseekModel(DeepseekModel):
 					hidden_states = hidden_states.to(next_device_name)
 					if position_ids is not None:
 						position_ids = position_ids.to(next_device_name)
-					if cache_position is not None:
-						cache_position = cache_position.to(next_device_name)
 					# Need not deal with KV-Cache
 					# # Deal with KV-Cache
 					# if past_key_values is not None:
@@ -147,18 +166,25 @@ class ParallelDeepseekModel(DeepseekModel):
 									# layer_idx = i,
 								# )
 						# past_key_values = new_past_key_values
-					# Deal with PostionEmbedding
-					if position_embeddings is not None:
-						# position_embeddings = (cos, sin)
-						position_embeddings = (position_embeddings[0].to(next_device_name), position_embeddings[1].to(next_device_name))
 		# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 		hidden_states = self.norm(hidden_states)
+		# add hidden states from the last decoder layer
+		if output_hidden_states:
+			all_hidden_states += (hidden_states,)
+		next_cache = None
+		if use_cache:
+			next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
+		if not return_dict:
+			return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
 		return BaseModelOutputWithPast(
-			last_hidden_state = hidden_states,
-			past_key_values = past_key_values if use_cache else None,
+			last_hidden_state=hidden_states,
+			past_key_values=next_cache,
+			hidden_states=all_hidden_states,
+			attentions=all_self_attns,
 		)
 
 class ParallelDeepseekForCausalLM(DeepseekForCausalLM):
+	_tied_weights_keys = ["lm_head.weight"]
 	def __init__(self, config, n_cuda = 2):
 		super(DeepseekForCausalLM, self).__init__(config)
 		self.model = ParallelDeepseekModel(config, n_cuda = n_cuda)
@@ -175,8 +201,24 @@ class ParallelDeepseekForCausalLM(DeepseekForCausalLM):
 		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to
 		# That is to say: `id(self.lm_head) == id(self.model.embed_tokens)`
 
-	@can_return_tuple
-	@auto_docstring
+	def get_input_embeddings(self):
+		return self.model.embed_tokens
+
+	def set_input_embeddings(self, value):
+		self.model.embed_tokens = value
+
+	def get_output_embeddings(self):
+		return self.lm_head
+
+	def set_output_embeddings(self, new_embeddings):
+		self.lm_head = new_embeddings
+
+	def set_decoder(self, decoder):
+		self.model = decoder
+
+	def get_decoder(self):
+		return self.model
+
 	def forward(
 		self,
 		input_ids = None,
@@ -186,30 +228,75 @@ class ParallelDeepseekForCausalLM(DeepseekForCausalLM):
 		inputs_embeds = None,
 		labels = None,
 		use_cache = None,
-		cache_position = None,
-		logits_to_keep = 0,
-		**kwargs,
+		output_attentions = None,
+		output_hidden_states = None,
+		return_dict = None,
 	):
-		outputs = self.model(
-			input_ids=input_ids,
-			attention_mask=attention_mask,
-			position_ids=position_ids,
-			past_key_values=past_key_values,
-			inputs_embeds=inputs_embeds,
-			use_cache=use_cache,
-			cache_position=cache_position,
-			**kwargs,
-		)
+		r"""
+		Args:
+			labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+				Labels for computing the masked language modeling loss. Indices should either be in `[0, transformers.,
+				config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+				(masked), the loss is only computed for the tokens with labels in `[0, transformers., config.vocab_size]`.
 
-		hidden_states = outputs.last_hidden_state.to(self.model.device_list[0])	# <<<<<<<< Because `lm_head` must be on CUDA:0 according to `embed_tokens` >>>>>>>>
-		# Only compute necessary logits, and do not upcast them to float if we are not computing the losse
-		slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
-		logits = self.lm_head(hidden_states[:, slice_indices, :])
+		Returns:
+
+		Example:
+
+		```python
+		>>> from transformers import AutoTokenizer, DeepseekForCausalLM
+
+		>>> model = DeepseekForCausalLM.from_pretrained(PATH_TO_CONVERTED_WEIGHTS)
+		>>> tokenizer = AutoTokenizer.from_pretrained(PATH_TO_CONVERTED_TOKENIZER)
+
+		>>> prompt = "Hey, are you conscious? Can you talk to me?"
+		>>> inputs = tokenizer(prompt, return_tensors="pt")
+
+		>>> # Generate
+		>>> generate_ids = model.generate(inputs.input_ids, max_length=30)
+		>>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+		"Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
+		```"""
+		output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+		output_hidden_states = (
+			output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+		)
+		return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+		# decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+		outputs = self.model(
+			input_ids = input_ids,
+			attention_mask = attention_mask,
+			position_ids = position_ids,
+			past_key_values = past_key_values,
+			inputs_embeds = inputs_embeds,
+			use_cache = use_cache,
+			output_attentions = output_attentions,
+			output_hidden_states = output_hidden_states,
+			return_dict = return_dict,
+		)
+		hidden_states = outputs[0].to(self.model.device_list[0])	# <<<<<<<< Because `lm_head` must be on CUDA:0 according to `embed_tokens` >>>>>>>>
+		if self.config.pretraining_tp > 1:
+			lm_head_slices = self.lm_head.weight.split(self.vocab_size // self.config.pretraining_tp, dim=0)
+			logits = [F.linear(hidden_states, lm_head_slices[i]) for i in range(self.config.pretraining_tp)]
+			logits = torch.cat(logits, dim=-1)
+		else:
+			logits = self.lm_head(hidden_states)
+		logits = logits.float()
 		loss = None
 		if labels is not None:
-			# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-			loss = self.loss_function(logits=logits, labels=labels.to(self.model.device_list[-1]), vocab_size=self.config.vocab_size, **kwargs)
-			# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+			# Shift so that tokens < n predict n
+			shift_logits = logits[..., :-1, :].contiguous()
+			shift_labels = labels[..., 1:].contiguous()
+			# Flatten the tokens
+			loss_fct = CrossEntropyLoss()
+			shift_logits = shift_logits.view(-1, self.config.vocab_size)
+			shift_labels = shift_labels.view(-1)
+			# Enable model parallelism
+			shift_labels = shift_labels.to(shift_logits.device)
+			loss = loss_fct(shift_logits, shift_labels)
+		if not return_dict:
+			output = (logits,) + outputs[1:]
+			return (loss,) + output if loss is not None else output
 		return CausalLMOutputWithPast(
 			loss=loss,
 			logits=logits,
@@ -217,3 +304,68 @@ class ParallelDeepseekForCausalLM(DeepseekForCausalLM):
 			hidden_states=outputs.hidden_states,
 			attentions=outputs.attentions,
 		)
+
+	def prepare_inputs_for_generation(
+		self, input_ids, past_key_values=None, attention_mask=None, inputs_embeds=None, **kwargs
+	):
+		if past_key_values is not None:
+			if isinstance(past_key_values, Cache):
+				cache_length = past_key_values.get_seq_length()
+				past_length = past_key_values.seen_tokens
+				max_cache_length = past_key_values.get_max_length()
+			else:
+				cache_length = past_length = past_key_values[0][0].shape[2]
+				max_cache_length = None
+
+			# Keep only the unprocessed tokens:
+			# 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where
+			# some of the inputs are exclusivelly passed as part of the cache (e.g. when passing input_embeds as
+			# input)
+			if attention_mask is not None and attention_mask.shape[1] > input_ids.shape[1]:
+				input_ids = input_ids[:, -(attention_mask.shape[1] - past_length) :]
+			# 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard
+			# input_ids based on the past_length.
+			elif past_length < input_ids.shape[1]:
+				input_ids = input_ids[:, past_length:]
+			# 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.
+
+			# If we are about to go beyond the maximum cache length, we need to crop the input attention mask.
+			if (
+				max_cache_length is not None
+				and attention_mask is not None
+				and cache_length + input_ids.shape[1] > max_cache_length
+			):
+				attention_mask = attention_mask[:, -max_cache_length:]
+
+		position_ids = kwargs.get("position_ids", None)
+		if attention_mask is not None and position_ids is None:
+			# create position_ids on the fly for batch generation
+			position_ids = attention_mask.long().cumsum(-1) - 1
+			position_ids.masked_fill_(attention_mask == 0, 1)
+			if past_key_values:
+				position_ids = position_ids[:, -input_ids.shape[1] :]
+
+		# if `inputs_embeds` are passed, we only want to use them in the 1st generation step
+		if inputs_embeds is not None and past_key_values is None:
+			model_inputs = {"inputs_embeds": inputs_embeds}
+		else:
+			model_inputs = {"input_ids": input_ids}
+
+		model_inputs.update(
+			{
+				"position_ids": position_ids,
+				"past_key_values": past_key_values,
+				"use_cache": kwargs.get("use_cache"),
+				"attention_mask": attention_mask,
+			}
+		)
+		return model_inputs
+
+	@staticmethod
+	def _reorder_cache(past_key_values, beam_idx):
+		reordered_past = ()
+		for layer_past in past_key_values:
+			reordered_past += (
+				tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past),
+			)
+		return reordered_past
