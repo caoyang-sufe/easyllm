@@ -25,7 +25,7 @@ def one_time_forward_pipeline(
 	model, 
 	tokenizer,
 	prompt,
-	device,
+	device = None,
 	forward_hook_module_names = None,
 	backward_hook_module_names = None,
 ):

@@ -66,6 +66,12 @@ else:
 
 
 LONG_PROMPT = [
+"""
+Mitchell is making nachos for his family. He buys two bags of chips with 55 chips each. If his family has five members, how many chips does each person get if they all get the same number?
+There are 110 chips because 2 x 55 = <<2*55=110>>110
+They each get 22 chips because 110 / 5 = <<110/5=22>>22
+#### 22
+"""
 # ----
 """# -*- coding: utf-8 -*-
 # @author: caoyang

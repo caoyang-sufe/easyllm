@@ -34,23 +34,28 @@ def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_clas
 		[f"model.layers[{i}].self_attn.v_proj" for i in range(num_hidden_layers)] + \
 		[f"model.layers[{i}].self_attn.o_proj" for i in range(num_hidden_layers)]
 	prompts = LONG_PROMPT[:]
+	logging.info(f"Load model from: {model_name_or_path}")
 	if parallel_model_class is None:
+		logging.info("  - Using AutoModel ...")
 		model = AutoModel.from_pretrained(model_name_or_path).to(device)
 	else:
+		logging.info(f"  - Using {parallel_model_class} ...")
 		model = eval(parallel_model_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
-		model.module_to_device()	
+		# model.module_to_device()	
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-	# for i in range(len(prompts)):
-		# hook_data = one_time_forward_pipeline(
-			# model = model,
-			# tokenizer = tokenizer,
-			# prompt = prompt,
-			# forward_hook_module_names = forward_hook_module_names,
-			# backward_hook_module_names = None,
-		# )
-		# save_path = f"./temp/1f+fhook+{model_name}+{i}.pt"
-		# logging.info(f"Export forward hook data to {save_path}")
-		# torch.save(hook_data, save_path)
+	for i in range(len(prompts)):
+		logging.info(f"Forward prompt {i}")
+		hook_data = one_time_forward_pipeline(
+			model = model,
+			tokenizer = tokenizer,
+			prompt = prompts[i],
+			device = "cuda:0",
+			forward_hook_module_names = forward_hook_module_names,
+			backward_hook_module_names = None,
+		)
+		save_path = f"./temp/1f+fhook+{model_name}+{i}.pt"
+		logging.info(f"Export forward hook data to {save_path}")
+		torch.save(hook_data, save_path)
 
 
 # Test `src.pipelines.generate.decode_pipeline`
