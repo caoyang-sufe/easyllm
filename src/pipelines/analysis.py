@@ -10,9 +10,10 @@ from matplotlib import pyplot as plt
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.plot import plot_tensor_heatmap
+from src.tools.hook import register_forward_hook_decorator
 from src.tools.transformers import greedy_decode, robust_cosine_similarity, robust_corrcoef
 from src.pipelines.generate import display_pipeline
-from src.module import (
+from src.modules import (
 	ParallelQwen2Model, SkipLayerQwen2ForCausalLM,
 	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM,
 	ParallelQwen3Model, SkipLayerQwen3ForCausalLM,
@@ -288,7 +289,7 @@ def skip_layer_generation(
 # *** VERY IMPORT NOTICE ***
 # Notice that if `skip_layer_ids = [0]`, then `forward_hook_module_names` (as well as `backward_hook_module_names`) should be like ["model.layers[1]", "model.layers[2]", ...]
 # None of the hook data should be `None`
-# @param model: HuggingFace model object
+# @param model: HuggingFace AutoModelForCausalLM object
 # @param tokenizer: HuggingFace tokenizer object
 # @param prompt: Str
 # @param max_length: Int
@@ -357,6 +358,6 @@ def easy_edit_layer_generation(
 	model,
 	edit_layer_id,
 	edit_layer_input,
-
 ):
 	NotImplemented
+

@@ -10,7 +10,7 @@ import logging
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.evaluator import base_pipeline
-from src.module import (
+from src.modules import (
 	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
 	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
 	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 

@@ -34,7 +34,7 @@ def get_generation_bos_token_ids(model):
 	return bos_token_ids	
 
 # Standard greedy decode supporting hook registration
-# @param model: Huggingface model object
+# @param model: Huggingface AutoModelForCausalLM object
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompt: [Str]
 # @param max_length: [Int]the number of tokens to be generated (exclude `prompt`)
@@ -72,7 +72,7 @@ def greedy_decode(model,
 				return model(inputs, **kwargs)
 		else:
 			hook_flag = 2
-			@register_backward_hook_decorator(module_names = forward_hook_module_names)
+			@register_backward_hook_decorator(module_names = backward_hook_module_names)
 			def easy_forward(inputs, *, model, **kwargs):
 				return model(inputs, **kwargs)			
 
@@ -131,7 +131,7 @@ def greedy_decode(model,
 	}
 
 # K-step greedy decode
-# @param model: Huggingface model object
+# @param model: Huggingface AutoModelForCausalLM object
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompt: [Str]
 # @param max_length: [Int] the number of tokens to be generated (exclude `prompt`)
@@ -191,7 +191,7 @@ def k_step_greedy_decode(model,
 	return generated_text
 
 # Beam search decode with KV-Cache
-# @param model: Huggingface model object
+# @param model: Huggingface AutoModelForCausalLM object
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompt: [Str]
 # @param max_length: [Int] the number of tokens to be generated (exclude `prompt`)
@@ -262,7 +262,7 @@ def beam_search_decode(model,
 	return generated_texts
 
 # Get the output probability of generated token by `model.generate`
-# @param model: Huggingface model object
+# @param model: Huggingface AutoModelForCausalLM object
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompt: [Str]
 # @param max_length: [Int] the number of tokens to be generated (include `prompt`)

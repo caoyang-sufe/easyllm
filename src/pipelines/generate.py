@@ -10,6 +10,38 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.transformers import greedy_decode, k_step_greedy_decode, beam_search_decode, generate_token_prob, get_generation_eos_token_ids
 from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
+from src.modules import (
+	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
+	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
+	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 
+	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
+	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
+	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
+)
+
+# Do only one time forward to check model outputs
+# @param model: Huggingface AutoModel object
+def one_time_forward_pipeline(
+	model, 
+	tokenizer,
+	prompt,
+	device,
+	forward_hook_module_names = None,
+	backward_hook_module_names = None,
+):
+	if backward_hook_module_names is not None:
+		raise NotImplementedError("Currently not support `backward_hook_module_names`")
+	@register_forward_hook_decorator(module_names = forward_hook_module_names)
+	def easy_forward(inputs, *, model, **kwargs):
+		return model(inputs, **kwargs)
+	if device is None:
+		device = "cuda" if torch.cuda.is_available() else "cpu"
+	logging.info(f"Device: {device}")	
+	inputs = tokenizer.encode(prompt, return_tensors="pt").to(device)	# Str => Long(1, n_tokens)
+	outputs = easy_forward(inputs, model=model, use_cache=False)
+	hook_data = outputs.hook_outputs
+	return hook_data
+
 
 # Display generation details token by token
 # @param tokenizer: Huggingface tokenizer Object
@@ -64,13 +96,19 @@ def generate_pipeline(model_name_or_path,
 					  max_length,
 					  device = None,
 					  generate_kwargs = None,
+					  model_parallel_class = None,
+					  n_cuda = 2,
 					  ):
 	logging.info("Load model and tokenizer ...")
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device}")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
+	if model_parallel_class is None:
+		model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
+	else:
+		model = eval(model_parallel_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
+		model.module_to_device()
 	eos_token_ids = get_generation_eos_token_ids(model)
 	logging.info(f"  - EOS Tokens: {eos_token_ids}")
 	logging.info("Model Generate ...")
@@ -80,3 +118,74 @@ def generate_pipeline(model_name_or_path,
 	text, token_prob, logits = generate_token_prob(model, tokenizer, prompt, max_length, generate_kwargs, device)
 	logging.info(f"Generated text: {text}")
 	return display_pipeline(tokenizer, text, token_prob, logits, eos_token_id=eos_token_ids[0])
+
+# Generate tokens by a given prompt, using `src.tools.transformers`
+# @param model_name_or_path: [Str]
+# @param prompt: [Str]
+# @param max_length: [Int]
+# @param device: [Str|torch.device] e.g. "cuda", "cpu", torch.device("cpu")
+# @param use_kv_cache: [Boolean]
+# @param forward_hook_module_names: List[Str]
+# @param backward_hook_module_names: List[Str]
+# @return: Dict["df_display", "forward_hook_data", "backward_hook_data"]
+def decode_pipeline(model_name_or_path,
+					prompt,
+					max_length,
+					device = "cuda",
+					use_kv_cache = True,
+					forward_hook_module_names = None,
+					backward_hook_module_names = None,
+					):
+	logging.info("Load model and tokenizer ...")
+	if device is None:
+		device = "cuda" if torch.cuda.is_available() else "cpu"
+	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
+	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
+	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
+	eos_token_ids = get_generation_eos_token_ids(model)
+	logging.info(f"  - EOS Tokens: {eos_token_ids}")
+	logging.info("Greedy decode ...")
+	returned_dict = greedy_decode(
+		model = model,
+		tokenizer = tokenizer,
+		prompt = prompt,
+		max_length = max_length,
+		device = device,
+		use_kv_cache = use_kv_cache,
+		forward_hook_module_names = forward_hook_module_names,
+		backward_hook_module_names = backward_hook_module_names,
+	)
+	text, token_probs, logits = returned_dict["text"], returned_dict["token_probs"], returned_dict["logits"]
+	forward_hook_data, backward_hook_data = returned_dict["forward_hook_data"], returned_dict["backward_hook_data"]
+	logging.info(f"Generated text: {text}")
+
+	# # Beam decoding
+	# logging.info("Beam decode ...")
+	# beam_search_decode(
+		# model = model,
+		# tokenizer = tokenizer,
+		# prompt = prompt,
+		# max_length = max_length,
+		# num_beams = 2,
+		# length_penalty = 1.,
+		# device = device,
+		# use_kv_cache = use_kv_cache,
+	# )
+
+	# # K-step greedy decoding
+	# logging.info("K step greedy decode ...") bn
+	# k_step_greedy_decode(
+		# model = model,
+		# tokenizer = tokenizer,
+		# prompt = prompt,
+		# max_length = max_length,
+		# n_branches = 2,
+		# depth = 3,
+		# device = device,
+		# use_kv_cache = False,
+	# )
+	return {
+		"df_display": display_pipeline(tokenizer, text, token_probs, logits, eos_token_id=eos_token_ids[0]),
+		"forward_hook_data": forward_hook_data,
+		"backward_hook_data": backward_hook_data,
+	}

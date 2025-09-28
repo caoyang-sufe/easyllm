@@ -8,11 +8,52 @@ import string
 import pandas
 import logging
 
-from transformers import AutoConfig
+from transformers import AutoConfig, AutoTokenizer, AutoModel, AutoModelForCausalLM
 
-from src.unittests import model_home, dataset_home, model_names, dataset_names
-from src.pipelines.generate import decode_pipeline, generate_pipeline
+from src.unittests import model_home, dataset_home, model_names, dataset_names, LONG_PROMPT
+from src.pipelines.generate import one_time_forward_pipeline, decode_pipeline, generate_pipeline
+from src.modules import (
+	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
+	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
+	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 
+	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
+	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
+	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
+)
 
+# Do one forward for long prompts
+def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2):
+	logging.info("One time forward unittest")
+	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_config = AutoConfig.from_pretrained(model_name_or_path)
+	num_hidden_layers = model_config.num_hidden_layers
+	forward_hook_module_names = \
+		[f"model.embed_tokens", "lm_head"] + \
+		[f"model.layers[{i}].self_attn.q_proj" for i in range(num_hidden_layers)] + \
+		[f"model.layers[{i}].self_attn.k_proj" for i in range(num_hidden_layers)] + \
+		[f"model.layers[{i}].self_attn.v_proj" for i in range(num_hidden_layers)] + \
+		[f"model.layers[{i}].self_attn.o_proj" for i in range(num_hidden_layers)]
+	prompts = LONG_PROMPT[:]
+	if parallel_model_class is None:
+		model = AutoModel.from_pretrained(model_name_or_path).to(device)
+	else:
+		model = eval(parallel_model_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
+		model.module_to_device()	
+	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+	# for i in range(len(prompts)):
+		# hook_data = one_time_forward_pipeline(
+			# model = model,
+			# tokenizer = tokenizer,
+			# prompt = prompt,
+			# forward_hook_module_names = forward_hook_module_names,
+			# backward_hook_module_names = None,
+		# )
+		# save_path = f"./temp/1f+fhook+{model_name}+{i}.pt"
+		# logging.info(f"Export forward hook data to {save_path}")
+		# torch.save(hook_data, save_path)
+
+
+# Test `src.pipelines.generate.decode_pipeline`
 def decode_pipeline_test(model_id=-1, device=None):
 	logging.info("Decode unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
@@ -104,6 +145,7 @@ Ode to Eighty Years"""
 			torch.save(backward_hook_data, save_path)
 		logging.info("  - OK!")
 
+# Test `src.pipelines.generate.generate_pipeline`
 def generate_pipeline_test(model_id=-1, device=None):
 	logging.info("Generate unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])

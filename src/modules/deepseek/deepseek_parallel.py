@@ -12,7 +12,7 @@ from transformers.cache_utils import Cache, DynamicCache
 from transformers.masking_utils import create_causal_mask, create_sliding_window_causal_mask
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple
-from src.module.deepseek import DeepseekModel, DeepseekForCausalLM
+from src.modules.deepseek import DeepseekModel, DeepseekForCausalLM
 
 class ParallelDeepseekModel(DeepseekModel):
 	def __init__(self, config, n_cuda = 2, **kwargs):

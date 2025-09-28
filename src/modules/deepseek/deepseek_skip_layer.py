@@ -8,7 +8,7 @@ import torch
 from torch import nn
 from transformers.cache_utils import Cache, DynamicCache
 
-from src.module.deepseek import DeepseekModel, DeepseekForCausalLM
+from src.modules.deepseek import DeepseekModel, DeepseekForCausalLM
 
 class SkipLayerDeepseekModel(DeepseekModel):
 	def __init__(self, config, skip_layer_ids):

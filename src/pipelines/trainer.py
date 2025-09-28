@@ -19,7 +19,7 @@ from trl import (
 )
 from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
 from src.tools.trl import update_trl_config, generate_simple_data_processor
-from src.module import (
+from src.modules import (
 	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
 	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
 	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 

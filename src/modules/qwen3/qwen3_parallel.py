@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
-# Overwrite according to /transformers/models/qwen2/modeling_qwen2.py
+# Overwrite according to /transformers/models/qwen3/modeling_qwen3.py
 # Version transformers 4.56.1
 
 import torch
 import logging
 from torch import nn
-from transformers import Qwen2Model, Qwen2ForCausalLM
+from transformers import Qwen3Model, Qwen3ForCausalLM
 from transformers.cache_utils import Cache, DynamicCache
 from transformers.masking_utils import create_causal_mask, create_sliding_window_causal_mask
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple
 
-class ParallelQwen2Model(Qwen2Model):
+class ParallelQwen3Model(Qwen3Model):
 	def __init__(self, config, n_cuda = 2, **kwargs):
 		super().__init__(config, **kwargs)
 		self.n_cuda = n_cuda
@@ -67,7 +67,6 @@ class ParallelQwen2Model(Qwen2Model):
 				past_seen_tokens + inputs_embeds.shape[1], 
 				device = inputs_embeds.device,
 			)
-
 		if position_ids is None:
 			position_ids = cache_position.unsqueeze(0)
 		# It may already have been prepared by e.g. `generate`
@@ -93,7 +92,7 @@ class ParallelQwen2Model(Qwen2Model):
 		position_embeddings = self.rotary_emb(hidden_states, position_ids)
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		for layer_id, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):
-            current_device_id = self.layer_to_device[layer_id]
+			current_device_id = self.layer_to_device[layer_id]
 			current_device = self.device_list[current_device_id]
 			hidden_states = decoder_layer(
 				hidden_states,
@@ -139,13 +138,13 @@ class ParallelQwen2Model(Qwen2Model):
 			past_key_values = past_key_values if use_cache else None,
 		)
 
-class ParallelQwen2ForCausalLM(Qwen2ForCausalLM):
-    _tied_weights_keys = ["lm_head.weight"]
-    _tp_plan = {"lm_head": "colwise_rep"}
-    _pp_plan = {"lm_head": (["hidden_states"], ["logits"])}
+class ParallelQwen3ForCausalLM(Qwen3ForCausalLM):
+	_tied_weights_keys = ["lm_head.weight"]
+	_tp_plan = {"lm_head": "colwise_rep"}
+	_pp_plan = {"lm_head": (["hidden_states"], ["logits"])}
 	def __init__(self, config, n_cuda = 2):
-		super(Qwen2ForCausalLM, self).__init__(config)
-		self.model = ParallelQwen2Model(config, n_cuda = n_cuda)
+		super(Qwen3ForCausalLM, self).__init__(config)
+		self.model = ParallelQwen3Model(config, n_cuda = n_cuda)
 		self.vocab_size = config.vocab_size
 		self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 		# Initialize weights and apply final processing

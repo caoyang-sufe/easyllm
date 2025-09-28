@@ -71,7 +71,7 @@ def register_backward_hook_decorator(module_names):
 
 # Standard greedy decode with hook
 # @param hooked_module_names: [List] e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
-# @param model: Huggingface model object
+# @param model: Huggingface AutoModelForCausalLM object
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompt: [Str]
 # @param max_length: [Int]the number of tokens to be generated (exclude `prompt`)

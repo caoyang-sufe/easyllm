@@ -12,7 +12,7 @@ from collections import Counter
 # Calculate perplexity of a single sample, loss on completion only
 # @param prompt: [List[<token_id>]]
 # @param completion: [List[<token_id>]]
-# @param model: Huggingface model object
+# @param model: Huggingface AutoModelForCausalLM object
 # @param device: [Str|torch.device]
 # @return: [Float]
 def calc_perplexity(prompt, completion, model, device="cuda"):

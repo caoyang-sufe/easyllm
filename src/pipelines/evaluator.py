@@ -20,7 +20,7 @@ from src.tools.metric import (
 )
 
 # Base pipeline for evalution
-# @param model: Huggingface model object
+# @param model: Huggingface AutoModelForCausalLM object
 # @param tokenizer: Huggingface tokenizer object
 # @param dataset: Huggingface dataset object, usually comes from a split of a whole dataset , e.g. dataset["test"]
 # @param model_name_or_path: [Str] Either `model` or `model_name_or_path` is not None

@@ -11,7 +11,7 @@ from transformers import AutoModelForCausalLM
 # @param Model: [Class] e.g. AutoModel, AutoModelForCausalLM
 # @param device_map: [Dict/Str] default "auto"
 # @param offload_folder: [Str] the folder path for unloading model
-# @return model: Huggingface model object
+# @return model: Huggingface AutoModelForCausalLM object
 def accelerate_load_model(model_path, 
 						  Model = AutoModelForCausalLM,
 						  device_map = "auto",
