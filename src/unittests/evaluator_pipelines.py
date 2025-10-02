@@ -17,6 +17,12 @@ from src.modules import (
 	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
 	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
 	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
+	SkipLayerDeepseekModel, SkipLayerDeepseekForCausalLM,
+	ParallelDeepseekModel, ParallelDeepseekForCausalLM,
+	SkipLayerDeepseekV2Model, SkipLayerDeepseekV2ForCausalLM,
+	ParallelDeepseekV2Model, ParallelDeepseekV2ForCausalLM,
+	SkipLayerDeepseekV3Model, SkipLayerDeepseekV3ForCausalLM,
+	ParallelDeepseekV3Model, ParallelDeepseekV3ForCausalLM,
 )
 
 def evaluate_math_500(model_id=10, parallel_model_class=None, n_cuda=2):
@@ -71,7 +77,7 @@ def evaluate_math_500(model_id=10, parallel_model_class=None, n_cuda=2):
 		json.dump(metric_summary, f, ensure_ascii=False)
 
 
-def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2):
+def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=False):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"Load model: {model_name_or_path} ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
@@ -97,7 +103,7 @@ def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2):
 		"device": device,
 		"input_column": "question",
 		"target_column": "answer",
-		"do_sample": False,
+		"do_sample": do_sample,
 		"do_sample_times": 10,
 		"do_sample_kwargs": {"top_k": 0, "top_p": 1., "temperature": 1., "num_beams": 1},
 		"use_cache": True,
@@ -112,13 +118,13 @@ def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2):
 			("calc_rouge_w", {"weight_function": lambda _x: _x ** 2, "weight_function_reverse": lambda _x: _x ** 0.5, "beta": 1}, "rouge_w"),
 		],
 	}
-	logging.info("Greedy Evaluation...")
-	metric_summary = base_pipeline(**kwargs)
-	with open(f"./temp/{model_name_or_path.split('/')[-1]}+{dataset_path.split('/')[-1]}+greedy.json", 'w', encoding="utf8") as f:
-		json.dump(metric_summary, f, ensure_ascii=False)
-	logging.info("Sampling Evaluation ...")
-	kwargs["do_sample"] = True
-	metric_summary = base_pipeline(**kwargs)
-	with open(f"./temp/{model_name_or_path.split('/')[-1]}+{dataset_path.split('/')[-1]}+dosample.json", 'w', encoding="utf8") as f:
-		json.dump(metric_summary, f, ensure_ascii=False)
-
+	if do_sample:
+		logging.info("Sampling Evaluation ...")
+		metric_summary = base_pipeline(**kwargs)
+		with open(f"./temp/{model_name_or_path.split('/')[-1]}+{dataset_path.split('/')[-1]}+dosample.json", 'w', encoding="utf8") as f:
+			json.dump(metric_summary, f, ensure_ascii=False)
+	else:
+		logging.info("Greedy Evaluation...")
+		metric_summary = base_pipeline(**kwargs)
+		with open(f"./temp/{model_name_or_path.split('/')[-1]}+{dataset_path.split('/')[-1]}+greedy.json", 'w', encoding="utf8") as f:
+			json.dump(metric_summary, f, ensure_ascii=False)

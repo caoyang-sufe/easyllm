@@ -17,6 +17,12 @@ from src.modules import (
 	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
 	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
 	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
+	SkipLayerDeepseekModel, SkipLayerDeepseekForCausalLM,
+	ParallelDeepseekModel, ParallelDeepseekForCausalLM,
+	SkipLayerDeepseekV2Model, SkipLayerDeepseekV2ForCausalLM,
+	ParallelDeepseekV2Model, ParallelDeepseekV2ForCausalLM,
+	SkipLayerDeepseekV3Model, SkipLayerDeepseekV3ForCausalLM,
+	ParallelDeepseekV3Model, ParallelDeepseekV3ForCausalLM,
 )
 
 # Do only one time forward to check model outputs

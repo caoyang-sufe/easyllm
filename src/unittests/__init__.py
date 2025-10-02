@@ -66,14 +66,8 @@ else:
 
 
 LONG_PROMPT = [
-"""
-Mitchell is making nachos for his family. He buys two bags of chips with 55 chips each. If his family has five members, how many chips does each person get if they all get the same number?
-There are 110 chips because 2 x 55 = <<2*55=110>>110
-They each get 22 chips because 110 / 5 = <<110/5=22>>22
-#### 22
-"""
 # ----
-"""# -*- coding: utf-8 -*-
+r"""# -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 # Evaluator for CAUSAL_LM
@@ -272,7 +266,7 @@ def base_pipeline(model = None,
 	return metric_summary
 """,
 # ----
-"""
+r"""
 # -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
@@ -638,7 +632,7 @@ def easy_edit_layer_generation(
 """,
 # ----
 
-"""
+r"""
 # -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
@@ -761,7 +755,7 @@ def generate_pipeline(model_name_or_path,
 	return display_pipeline(tokenizer, text, token_prob, logits, eos_token_id=eos_token_ids[0])
 """,
 
-"""
+r"""
 # -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
@@ -963,7 +957,7 @@ def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_
 	)
 """,
 
-"""下面介绍笔者对 **问题$4$** 结果（式$(7)$）的证明思路，这将涉及基础的概率论与微分方程的知识：
+r"""下面介绍笔者对 **问题$4$** 结果（式$(7)$）的证明思路，这将涉及基础的概率论与微分方程的知识：
 
 $\text{Proof}$：
 
@@ -1070,8 +1064,7 @@ $$
 
 $\text{Q.E.D.}\blacksquare$""",
 
-
-"""
+r"""
 <font color=red>**证明**</font>：**立体数学归纳法**（我觉得这个名称特别适合这个证明的形式）。
 
 这里还是先定义$a_i$（$i=1,2,...,k$）表示$U$中取值为$i$的元素数量（即每种花色对应的手牌数量），不妨设$a_1\ge a_2\ge...\ge a_k\ge1$
@@ -1150,8 +1143,7 @@ $$
 $\text{Q.E.D.}\blacksquare$
 """,
 
-
-"""
+r"""
 > <font color=red>**定义$1$（辅助分布列）**</font>：
 >
 > 已知**可重集**（即可以包含重复元素的集合）$U=\{x_1,x_2,...,x_n\}$中包含$n$个元素，其中$x_i\in\{1,2,...,k\},i=1,2,...,n$。从$U$中**不放回地**依次采样一个元素，并猜测本次采样得到的元素对应的数值，直到猜测错误为止。
@@ -1286,7 +1278,7 @@ $$
 $\text{Q.E.D.}\blacksquare$
 """,
 
-"""
+r"""
 # 高级运筹与优化理论 Homework 5
 
 ## Problem 5.1

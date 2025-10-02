@@ -62,7 +62,7 @@ def plot_tensor_mean_and_variance(tensors,
 		plt.savefig(save_path)
 	if is_show:
 		plt.show()
-		plt.close()
+	plt.close()
 	return means, variances
 
 # Visualize tensor value distribution by histogram
@@ -108,7 +108,7 @@ def plot_tensor_histogram(tensor, *,
 		plt.savefig(save_path)
 	if is_show:
 		plt.show()
-		plt.close()
+	plt.close()
 
 # Visualize tensor value distribution by heatmap
 # @param tensor: torch.Tensor or numpy.ndarray
@@ -156,13 +156,13 @@ def plot_tensor_heatmap(tensor, *,
 		plt.savefig(save_path)
 	if is_show:
 		plt.show()
-		plt.close()
+	plt.close()
 		
 # Plot dynamics of trainer_state of `transformers.Trainer`
 # @param trainer_state_path: [Str] File path of trainer_state.json
 # @param plot_index_names: [List[Str]] index to plot in `log_history`, e.g. `["loss", "mean_token_accuracy", "entropy"]`
 # @param x_index_name: [Str] index to plot in `log_history`, "epoch" or "step"
-# @param figsize: [Tuple[Int, Int]]
+# @param figure_size: [Int] Figure size of width or height (usually the same)
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
 def plot_trainer_state(trainer_state_path,
@@ -226,7 +226,7 @@ def plot_trainer_state(trainer_state_path,
 		plt.savefig(save_path)		
 	if is_show:
 		plt.show()
-		plt.close()
+	plt.close()
 
 # Plot dynamics of trainer state of `trl.PPOTrainer`
 # @param trainer_state_path: [Str] File path of trainer_state.json
@@ -287,7 +287,7 @@ def plot_ppo_dynamics(trainer_state_path,
 		plt.savefig(save_path)		
 	if is_show:
 		plt.show()
-		plt.close()
+	plt.close()
 
 	
 if __name__ == "__main__":

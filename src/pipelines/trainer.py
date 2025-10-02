@@ -7,7 +7,14 @@ import torch
 import logging
 from copy import deepcopy
 from datasets import load_dataset
-from transformers import AutoModelForCausalLM, AutoModelForSequenceClassification, AutoTokenizer, BitsAndBytesConfig, TrainingArguments, HfArgumentParser
+from transformers import (
+	AutoConfig,
+	AutoTokenizer,
+	AutoModelForCausalLM,
+	BitsAndBytesConfig,
+	TrainingArguments,
+	HfArgumentParser,
+)
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 from trl import (
 	ScriptArguments, ModelConfig, 
@@ -26,6 +33,12 @@ from src.modules import (
 	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
 	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
 	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
+	SkipLayerDeepseekModel, SkipLayerDeepseekForCausalLM,
+	ParallelDeepseekModel, ParallelDeepseekForCausalLM,
+	SkipLayerDeepseekV2Model, SkipLayerDeepseekV2ForCausalLM,
+	ParallelDeepseekV2Model, ParallelDeepseekV2ForCausalLM,
+	SkipLayerDeepseekV3Model, SkipLayerDeepseekV3ForCausalLM,
+	ParallelDeepseekV3Model, ParallelDeepseekV3ForCausalLM,
 )
 
 # Trainer Pipeline
@@ -76,6 +89,7 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 			n_cuda = n_cuda,
 			device_map = "cpu",
 		)
+		model.module_to_device()
 	if peft_config is not None:
 		logging.info("Prepare model for PEFT ...")
 		model.config.pretraining_tp = 1
@@ -86,7 +100,6 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 		# model = prepare_model_for_kbit_training(model)
 		model.enable_input_require_grads()
 		model = get_peft_model(model, peft_config)
-
 	if name == "PPO":
 		logging.info("PPO load reward value and reference models ...")
 		# PPO is special! It needs more components!
@@ -105,12 +118,10 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 		if reward_tokenizer.chat_template is None:
 			reward_tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
 		logging.info("  - Copy reference model ...")
-		
 		# Clone model: I prefer deepcopy
 		ref_model = deepcopy(model)
 		# ref_model = model.__class__(model.config)
 		# ref_model.load_state_dict(model.state_dict())
-		
 		trainer_kwargs["reward_model"] = reward_model
 		trainer_kwargs["value_model"] = value_model
 		trainer_kwargs["ref_model"] = ref_model
@@ -123,7 +134,6 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 				return {"input_ids": outputs["input_ids"]}
 	else:
 		trainer_kwargs["processing_class"] = tokenizer
-
 	# 2 Load dataset
 	logging.info("Load dataset ...")
 	logging.info(f"  - Dataset: {script_arguments.dataset_name}")
@@ -135,7 +145,7 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 	eval_dataset = eval_dataset.map(data_processor, remove_columns=eval_dataset.column_names)
 	logging.info(f"  - Train dataset: {len(train_dataset)}")
 	logging.info(f"  - Eval dataset: {len(eval_dataset)}")
-	# 4 Train model
+	# 3 Train model
 	logging.info("Trainer starts ...")
 	trainer = TRLTrainer(
 		model = model,
@@ -147,7 +157,7 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 	)
 	trainer.train()
 	logging.info("  - Trainer finishes!")
-	# 5 Save model
+	# 4 Save model
 	if trainer_config.push_to_hub:
 		logging.info(f"  - Push checkpoints to {trainer_config.organization}/{trainer_config.push_to_hub_model_id}")
 		trainer.push_to_hub()

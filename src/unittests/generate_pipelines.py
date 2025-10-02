@@ -3,6 +3,7 @@
 # @email: caoyang@stu.sufe.edu.cn
 
 import os
+import gc
 import torch
 import string
 import pandas
@@ -19,20 +20,22 @@ from src.modules import (
 	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
 	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
 	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
+	SkipLayerDeepseekModel, SkipLayerDeepseekForCausalLM,
+	ParallelDeepseekModel, ParallelDeepseekForCausalLM,
+	SkipLayerDeepseekV2Model, SkipLayerDeepseekV2ForCausalLM,
+	ParallelDeepseekV2Model, ParallelDeepseekV2ForCausalLM,
+	SkipLayerDeepseekV3Model, SkipLayerDeepseekV3ForCausalLM,
+	ParallelDeepseekV3Model, ParallelDeepseekV3ForCausalLM,
 )
 
 # Do one forward for long prompts
-def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2):
+def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2, s=0):
 	logging.info("One time forward unittest")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
-	model_config = AutoConfig.from_pretrained(model_name_or_path)
+	model_name = model_names[model_id].split('/')[-1].split('\\')[-1]
+	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
-	forward_hook_module_names = \
-		[f"model.embed_tokens", "lm_head"] + \
-		[f"model.layers[{i}].self_attn.q_proj" for i in range(num_hidden_layers)] + \
-		[f"model.layers[{i}].self_attn.k_proj" for i in range(num_hidden_layers)] + \
-		[f"model.layers[{i}].self_attn.v_proj" for i in range(num_hidden_layers)] + \
-		[f"model.layers[{i}].self_attn.o_proj" for i in range(num_hidden_layers)]
+	forward_hook_module_names = [f"layers[{i}]" for i in range(num_hidden_layers)]
 	prompts = LONG_PROMPT[:]
 	logging.info(f"Load model from: {model_name_or_path}")
 	if parallel_model_class is None:
@@ -40,24 +43,36 @@ def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_clas
 		model = AutoModel.from_pretrained(model_name_or_path).to(device)
 	else:
 		logging.info(f"  - Using {parallel_model_class} ...")
-		model = eval(parallel_model_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
-		# model.module_to_device()	
-	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-	for i in range(len(prompts)):
-		logging.info(f"Forward prompt {i}")
-		hook_data = one_time_forward_pipeline(
-			model = model,
-			tokenizer = tokenizer,
-			prompt = prompts[i],
-			device = "cuda:0",
-			forward_hook_module_names = forward_hook_module_names,
-			backward_hook_module_names = None,
+		model = eval(parallel_model_class).from_pretrained(
+			model_name_or_path,
+			n_cuda = n_cuda,
+			device_map = "cpu",
 		)
-		save_path = f"./temp/1f+fhook+{model_name}+{i}.pt"
-		logging.info(f"Export forward hook data to {save_path}")
-		torch.save(hook_data, save_path)
-
-
+		# model.module_to_device()
+	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+	for name, parameter in model.named_parameters():
+		logging.info(f"{name}: {parameter.device}")
+	for i in range(s, len(prompts)):
+		logging.info(f"Forward prompt {i}")
+		try:
+			hook_data = one_time_forward_pipeline(
+				model = model,
+				tokenizer = tokenizer,
+				prompt = prompts[i],
+				device = "cuda:0",
+				forward_hook_module_names = forward_hook_module_names,
+				backward_hook_module_names = None,
+			)
+			save_path = f"./temp/1f+fhook+{model_name}+{i}.pt"
+			logging.info(f"Export forward hook data to {save_path}")
+			torch.save(hook_data, save_path)
+			del hook_data
+			gc.collect()
+		except Exception as exception:
+			logging.warning(f"Error: {exception}")
+			gc.collect()
+			continue
+			
 # Test `src.pipelines.generate.decode_pipeline`
 def decode_pipeline_test(model_id=-1, device=None):
 	logging.info("Decode unittest ...")

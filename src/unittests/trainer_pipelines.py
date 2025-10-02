@@ -10,10 +10,9 @@ from transformers import AutoConfig, AutoTokenizer
 from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
 
-
 def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
-	model_config = AutoConfig.from_pretrained(model_name_or_path)
+	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
 	target_layer_ids_list = [
 		list(range(num_hidden_layers)),	# Full
@@ -64,7 +63,7 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 
 def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
-	model_config = AutoConfig.from_pretrained(model_name_or_path)
+	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
 	target_layer_ids_list = [
 		list(range(num_hidden_layers)),	# Full

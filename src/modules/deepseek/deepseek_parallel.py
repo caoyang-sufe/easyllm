@@ -7,12 +7,31 @@
 import torch
 import logging
 from torch import nn
-from transformers import DeepseekModel, DeepseekForCausalLM
+import torch.utils.checkpoint
+import torch.nn.functional as F
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from transformers.cache_utils import Cache, DynamicCache
-from transformers.masking_utils import create_causal_mask, create_sliding_window_causal_mask
-from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple
-from src.modules.deepseek import DeepseekModel, DeepseekForCausalLM
+from transformers.activations import ACT2FN
+from transformers.modeling_attn_mask_utils import (
+    AttentionMaskConverter,
+    _prepare_4d_attention_mask,
+    _prepare_4d_causal_attention_mask,
+    _prepare_4d_causal_attention_mask_for_sdpa,
+)
+from transformers.modeling_utils import PreTrainedModel
+from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
+from transformers.pytorch_utils import ALL_LAYERNORM_LAYERS, is_torch_greater_or_equal_than_1_13
+from transformers.utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    is_flash_attn_2_available,
+    is_flash_attn_greater_or_equal_2_10,
+    replace_return_docstrings,
+)
+from transformers.utils.import_utils import is_torch_fx_available
+from src.modules.deepseek.modeling_deepseek import DeepseekModel, DeepseekForCausalLM
+from src.modules.deepseek.configuration_deepseek import DeepseekConfig
 
 class ParallelDeepseekModel(DeepseekModel):
 	def __init__(self, config, n_cuda = 2, **kwargs):
@@ -30,11 +49,11 @@ class ParallelDeepseekModel(DeepseekModel):
 		n_layers = len(self.layers)
 		self.layer_to_device = dict()
 		for layer_id in range(n_layers):
-			device_id = layer_id * self.n_device // n_layers
+			device_id = layer_id * (self.n_device - 1) // n_layers + 1
 			self.layers[layer_id] = self.layers[layer_id].to(self.device_list[device_id])
 			self.layer_to_device[layer_id] = device_id
 			logging.info(f"Layer {layer_id} moved to {self.device_list[device_id]}")
-			
+		self.module_to_device_flag = True
 
 	def forward(self,
 				input_ids = None,
@@ -44,16 +63,15 @@ class ParallelDeepseekModel(DeepseekModel):
 				use_cache = None,
 				output_attentions = None,
 				output_hidden_states = None,
-				return_dict = None
+				return_dict = None,
 				inputs_embeds = None,
 				cache_position = None,
-				
 				**kwargs,
 				):
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		if not self.module_to_device_flag:
+			logging.info("Module to device in forward ...")
 			self.module_to_device()
-			self.module_to_device_flag = True
 		input_ids = input_ids.to(self.device_list[0])
 		if position_ids is not None:
 			position_ids = position_ids.to(self.device_list[0])
@@ -125,18 +143,18 @@ class ParallelDeepseekModel(DeepseekModel):
 			if self.gradient_checkpointing and self.training:
 				layer_outputs = self._gradient_checkpointing_func(
 					decoder_layer.__call__,
-					hidden_states,
+					hidden_states.to(current_device),
 					None if attention_mask is None else attention_mask.to(current_device),
-					position_ids,
+					position_ids.to(current_device),
 					past_key_values,
 					output_attentions,
 					use_cache,
 				)
 			else:
 				layer_outputs = decoder_layer(
-					hidden_states,
+					hidden_states.to(current_device),
 					attention_mask = None if attention_mask is None else attention_mask.to(current_device),
-					position_ids = position_ids,
+					position_ids = position_ids.to(current_device),
 					past_key_value = past_key_values,
 					output_attentions = output_attentions,
 					use_cache = use_cache,
@@ -182,6 +200,10 @@ class ParallelDeepseekModel(DeepseekModel):
 			hidden_states=all_hidden_states,
 			attentions=all_self_attns,
 		)
+	def __getattr__(self, name):
+		if name == "tp_size":
+			return 2
+		return super().__getattr__(name)
 
 class ParallelDeepseekForCausalLM(DeepseekForCausalLM):
 	_tied_weights_keys = ["lm_head.weight"]
@@ -200,6 +222,11 @@ class ParallelDeepseekForCausalLM(DeepseekForCausalLM):
 		self.lm_head = self.lm_head.to(self.model.device_list[0])
 		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to
 		# That is to say: `id(self.lm_head) == id(self.model.embed_tokens)`
+
+	def __getattr__(self, name):
+		if name == "tp_size":
+			return 2
+		return super().__getattr__(name)
 
 	def get_input_embeddings(self):
 		return self.model.embed_tokens

@@ -201,7 +201,6 @@ class ParallelLlamaForCausalLM(LlamaForCausalLM):
 			cache_position=cache_position,
 			**kwargs,
 		)
-
 		hidden_states = outputs.last_hidden_state.to(self.model.device_list[0])	# <<<<<<<< Because `lm_head` must be on CUDA:0 according to `embed_tokens` >>>>>>>>
 		# Only compute necessary logits, and do not upcast them to float if we are not computing the losse
 		slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
