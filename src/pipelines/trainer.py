@@ -15,7 +15,7 @@ from transformers import (
 	TrainingArguments,
 	HfArgumentParser,
 )
-from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
+from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model, PeftModel
 from trl import (
 	ScriptArguments, ModelConfig, 
 	# SFTConfig, SFTTrainer,
@@ -57,8 +57,17 @@ from src.modules import (
 #   - keyword arguments for `PPOTrainer`: e.g. "ref_model[required]", "reward_model[required]", "value_model[required]"
 #   - keyword arguments for `DPOTrainer`: e.g. "ref_model"
 #   - keyword arguments for `GRPOTrainer`: e.g. "reward_funcs[required]"
-#@param parallel_model_class: [Str] e.g. "ParallelQwen2ForCausalLM", "ParallelQwen2Model", default `None` refer to AutoModelForCausalLM
-def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
+# @param parallel_model_class: [Str] e.g. "ParallelQwen2ForCausalLM", "ParallelQwen2Model", default `None` refer to AutoModelForCausalLM
+# @param n_cuda: [Int] Number of CUDA device available
+# @param adapter_output_dir: [Str] `output_dir` of adapters (usually trained by LoRA)
+def base_pipeline(name, 
+				  data_processor, 
+				  config_kwargs, 
+				  trainer_kwargs, 
+				  parallel_model_class = None, 
+				  n_cuda = 2,
+				  adapter_output_dir = None,
+				  ):
 	# 1 Configuration
 	TRLConfig, TRLTrainer = getattr(trl, f"{name}Config"), getattr(trl, f"{name}Trainer")
 	parser = HfArgumentParser((ScriptArguments, TRLConfig, ModelConfig))
@@ -90,6 +99,11 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 			device_map = "cpu",
 		)
 		model.module_to_device()
+
+	if adapter_output_dir is not None:
+		model = PeftModel.from_pretrained(model, model_id = adapter_output_dir)
+		model = model.merge_and_unload()
+
 	if peft_config is not None:
 		logging.info("Prepare model for PEFT ...")
 		model.config.pretraining_tp = 1
@@ -165,7 +179,7 @@ def base_pipeline(name, data_processor, config_kwargs, trainer_kwargs, parallel_
 	trainer.save_model(trainer_config.output_dir)
 
 # SFT Pipeline
-def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
+def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dir = None):
 	base_pipeline(
 		name = "SFT",
 		data_processor = data_processor,
@@ -176,7 +190,7 @@ def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 	)
 
 # PPO Pipeline
-def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
+def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dir = None):
 	base_pipeline(
 		name = "PPO",
 		data_processor = data_processor,
@@ -187,7 +201,7 @@ def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 	)
 
 # DPO Pipeline
-def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
+def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dir = None):
 	base_pipeline(
 		name = "DPO",
 		data_processor = data_processor,
@@ -198,7 +212,7 @@ def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 	)
 
 # GRPO Pipeline
-def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2):
+def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dir = None):
 	base_pipeline(
 		name = "GRPO",
 		data_processor = data_processor,

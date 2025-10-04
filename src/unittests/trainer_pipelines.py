@@ -10,6 +10,7 @@ from transformers import AutoConfig, AutoTokenizer
 from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
 
+
 def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
@@ -19,6 +20,11 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 		[0, 1, 2, 7, 8, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
 		list(range(3, num_hidden_layers - 3)),	# Body only
 		[4, 5, 16, 18], # Random
+	]
+	target_layer_ids_list = [
+		[num_hidden_layers - 1],
+		[0],
+		[1],
 	]
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
@@ -60,7 +66,6 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 		with open(os.path.join(config_kwargs["output_dir"], "config_kwargs.json"), 'w', encoding="utf8") as f:
 			json.dump(config_kwargs, f, ensure_ascii=False)
 
-
 def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
@@ -70,6 +75,11 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 		[0, 1, 2, 7, 8, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
 		list(range(3, num_hidden_layers - 3)),	# Body only
 		[4, 5, 16, 18], # Random
+	]
+	target_layer_ids_list = [
+		[num_hidden_layers - 1],
+		[0],
+		[1],
 	]
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
@@ -110,7 +120,6 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 		sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = parallel_model_class, n_cuda = n_cuda)
 		with open(os.path.join(config_kwargs["output_dir"], "config_kwargs.json"), 'w', encoding="utf8") as f:
 			json.dump(config_kwargs, f, ensure_ascii=False)
-
 
 def sft_pipeline_test(model_id=0, parallel_model_class=None, n_cuda=2):
 	logging.info("SFT unittest ...")
