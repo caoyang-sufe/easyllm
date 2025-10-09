@@ -59,14 +59,14 @@ from src.modules import (
 #   - keyword arguments for `GRPOTrainer`: e.g. "reward_funcs[required]"
 # @param parallel_model_class: [Str] e.g. "ParallelQwen2ForCausalLM", "ParallelQwen2Model", default `None` refer to AutoModelForCausalLM
 # @param n_cuda: [Int] Number of CUDA device available
-# @param adapter_output_dir: [Str] `output_dir` of adapters (usually trained by LoRA)
+# @param adapter_output_dirs: [List[Str]] All `output_dir` of adapters (usually trained by LoRA)
 def base_pipeline(name, 
 				  data_processor, 
 				  config_kwargs, 
 				  trainer_kwargs, 
 				  parallel_model_class = None, 
 				  n_cuda = 2,
-				  adapter_output_dir = None,
+				  adapter_output_dirs = None,
 				  ):
 	# 1 Configuration
 	TRLConfig, TRLTrainer = getattr(trl, f"{name}Config"), getattr(trl, f"{name}Trainer")
@@ -100,9 +100,15 @@ def base_pipeline(name,
 		)
 		model.module_to_device()
 
-	if adapter_output_dir is not None:
-		model = PeftModel.from_pretrained(model, model_id = adapter_output_dir)
-		model = model.merge_and_unload()
+	if adapter_output_dirs is not None:
+		logging.info(f"  - Load adapters ...")
+		for i, adapter_output_dir in enumerate(adapter_output_dirs):
+			logging.info(f"    - Load adapter {i}: {adapter_output_dir}")
+			model = PeftModel.from_pretrained(model, model_id = adapter_output_dir)
+			model = model.merge_and_unload()
+	logging.info(f"Print parameter device ...")
+	for name, parameter in model.named_parameters():
+		logging.info(f"{name}: {parameter.device}")
 
 	if peft_config is not None:
 		logging.info("Prepare model for PEFT ...")
@@ -179,7 +185,7 @@ def base_pipeline(name,
 	trainer.save_model(trainer_config.output_dir)
 
 # SFT Pipeline
-def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dir = None):
+def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None):
 	base_pipeline(
 		name = "SFT",
 		data_processor = data_processor,
@@ -187,10 +193,11 @@ def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 		trainer_kwargs = trainer_kwargs,
 		parallel_model_class = parallel_model_class,
 		n_cuda = n_cuda,
+		adapter_output_dirs = adapter_output_dirs,
 	)
 
 # PPO Pipeline
-def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dir = None):
+def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None):
 	base_pipeline(
 		name = "PPO",
 		data_processor = data_processor,
@@ -198,10 +205,11 @@ def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 		trainer_kwargs = trainer_kwargs,
 		parallel_model_class = parallel_model_class,
 		n_cuda = n_cuda,
+		adapter_output_dirs = adapter_output_dirs,
 	)
 
 # DPO Pipeline
-def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dir = None):
+def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None):
 	base_pipeline(
 		name = "DPO",
 		data_processor = data_processor,
@@ -209,10 +217,11 @@ def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 		trainer_kwargs = trainer_kwargs,
 		parallel_model_class = parallel_model_class,
 		n_cuda = n_cuda,
+		adapter_output_dirs = adapter_output_dirs,
 	)
 
 # GRPO Pipeline
-def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dir = None):
+def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None):
 	base_pipeline(
 		name = "GRPO",
 		data_processor = data_processor,
@@ -220,4 +229,5 @@ def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_
 		trainer_kwargs = trainer_kwargs,
 		parallel_model_class = parallel_model_class,
 		n_cuda = n_cuda,
+		adapter_output_dirs = adapter_output_dirs,
 	)

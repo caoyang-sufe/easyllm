@@ -30,6 +30,7 @@ if platform.system() == "Linux":
 		"YeungNLP/firefly-train-1.1M", # 3 train["input", "target"]
 		"openai/gsm8k",	 # 4 
 		"HuggingFaceH4/MATH-500",	# 5
+		"newfacade/LeetCodeDataset",	# 6
 	]
 
 elif platform.system() == "Windows":
@@ -58,13 +59,12 @@ elif platform.system() == "Windows":
 		r"YeungNLP\firefly-train-1.1M", # 3 train["input", "target"]
 		r"openai\gsm8k",	 # 4 
 		r"HuggingFaceH4\MATH-500",	# 5
+		r"newfacade\LeetCodeDataset",	# 6
 	]
 	
 else:
 	raise Exception(f"Unknown system: {platform.system()}")
 	
-
-
 LONG_PROMPT = [
 # ----
 r"""# -*- coding: utf-8 -*-
@@ -631,7 +631,6 @@ def easy_edit_layer_generation(
 	NotImplemented
 """,
 # ----
-
 r"""
 # -*- coding: utf-8 -*-
 # @author: caoyang
@@ -754,7 +753,7 @@ def generate_pipeline(model_name_or_path,
 	logging.info(f"Generated text: {text}")
 	return display_pipeline(tokenizer, text, token_prob, logits, eos_token_id=eos_token_ids[0])
 """,
-
+# ----
 r"""
 # -*- coding: utf-8 -*-
 # @author: caoyang
@@ -956,7 +955,7 @@ def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_
 		n_cuda = n_cuda,
 	)
 """,
-
+# ----
 r"""下面介绍笔者对 **问题$4$** 结果（式$(7)$）的证明思路，这将涉及基础的概率论与微分方程的知识：
 
 $\text{Proof}$：
@@ -1063,7 +1062,7 @@ $$
 命题得证。
 
 $\text{Q.E.D.}\blacksquare$""",
-
+# ----
 r"""
 <font color=red>**证明**</font>：**立体数学归纳法**（我觉得这个名称特别适合这个证明的形式）。
 
@@ -1131,18 +1130,18 @@ $$
   - 首先说明$f(1,1,...,1)\ge 1/(k-1)$成立。（<font color=red>括号中有$k$个$1$，以$f(1,1)=1$为基，利用式$(15)$直接数学归纳易证</font>）
 
   - 接下来类似式$(18)$，推出在$a_1=a_2=...=a_k$的情况下，式$(21)$成立，即有：
-    $$
-    f(a_k,a_k,...,a_k-1)\ge\frac{1}{k-1}\tag{22}
-    $$
-    注意为什么式$(18)$能够一路推下来，是因为每次推导括号外的乘数必然大于$1/2$，这里类似地乘数必然大于$1/k$，因此可以递推归纳。
+	$$
+	f(a_k,a_k,...,a_k-1)\ge\frac{1}{k-1}\tag{22}
+	$$
+	注意为什么式$(18)$能够一路推下来，是因为每次推导括号外的乘数必然大于$1/2$，这里类似地乘数必然大于$1/k$，因此可以递推归纳。
 
   - 最后做类似式$(19)$的归纳证明，得到任意的$a_1\ge a_2\ge ...\ge a_k$都使得式$(21)$的结论成立：
 
-    <font color=red>这个归纳太长，限于篇幅我就不写了，简单地说需要先固定$a_2,...,a_k$来归纳$a_1$，然后固定$a_3,...,a_k$归纳$a_2$，以此类推直到归纳完$a_k$，这也就是为什么称这个证明叫**立体数学归纳法**。</font>
+	<font color=red>这个归纳太长，限于篇幅我就不写了，简单地说需要先固定$a_2,...,a_k$来归纳$a_1$，然后固定$a_3,...,a_k$归纳$a_2$，以此类推直到归纳完$a_k$，这也就是为什么称这个证明叫**立体数学归纳法**。</font>
 
 $\text{Q.E.D.}\blacksquare$
 """,
-
+# ----
 r"""
 > <font color=red>**定义$1$（辅助分布列）**</font>：
 >
@@ -1277,7 +1276,7 @@ $$
 
 $\text{Q.E.D.}\blacksquare$
 """,
-
+# ----
 r"""
 # 高级运筹与优化理论 Homework 5
 
@@ -1364,24 +1363,24 @@ r"""
   其中$\hat c^\top A^\top w=0$；针对式$(2.2)$中的分解形式做如下讨论：
 
   1. 若$\lambda>0$，令$x=-tA^\top w$，则有：
-     $$
-     c^\top x=-tc^\top A^\top w=-t\left(\lambda w^\top A+\hat c^\top\right)A^\top w=-t\lambda w^\top AA^\top w=-t\lambda\overset{t\rightarrow+\infty}{\longrightarrow}-\infty\tag{2.3}
-     $$
-     且当$t\rightarrow+\infty$时约束总是成立：
-     $$
-     w^\top Ax-w^\top b=-tw^\top AA^\top w-w^\top b=-t-w^\top b\le0\tag{2.4}
-     $$
-     因此式$(2.3)$中的线性规划是无界的，即$\inf_{x\in H_w}c^\top x=-\infty$；
+	 $$
+	 c^\top x=-tc^\top A^\top w=-t\left(\lambda w^\top A+\hat c^\top\right)A^\top w=-t\lambda w^\top AA^\top w=-t\lambda\overset{t\rightarrow+\infty}{\longrightarrow}-\infty\tag{2.3}
+	 $$
+	 且当$t\rightarrow+\infty$时约束总是成立：
+	 $$
+	 w^\top Ax-w^\top b=-tw^\top AA^\top w-w^\top b=-t-w^\top b\le0\tag{2.4}
+	 $$
+	 因此式$(2.3)$中的线性规划是无界的，即$\inf_{x\in H_w}c^\top x=-\infty$；
 
   2. 若$\hat c\neq0$，令$x=w^\top bA^\top w-t\hat c$，则有：
-     $$
-     c^\top x=\left(\lambda w^\top A+\hat c^\top\right)\cdot\left(w^\top bA^\top w-t\hat c\right)=\lambda w^\top b\cdot w^\top AA^\top w-t\hat c^\top\hat c=\lambda w^\top b-t\hat c^\top\hat c\overset{t\rightarrow+\infty}{\longrightarrow}-\infty\tag{2.5}
-     $$
-     且当$t\rightarrow+\infty$时约束总是成立：
-     $$
-     w^\top Ax-w^\top b=w^\top A\left(w^\top bA^\top w-t\hat c\right)-w^\top b=w^\top b\cdot w^\top AA^\top w-w^\top b=0\tag{2.6}
-     $$
-     因此式$(2.3)$中的线性规划是无界的，即$\inf_{x\in H_w}c^\top x=-\infty$；
+	 $$
+	 c^\top x=\left(\lambda w^\top A+\hat c^\top\right)\cdot\left(w^\top bA^\top w-t\hat c\right)=\lambda w^\top b\cdot w^\top AA^\top w-t\hat c^\top\hat c=\lambda w^\top b-t\hat c^\top\hat c\overset{t\rightarrow+\infty}{\longrightarrow}-\infty\tag{2.5}
+	 $$
+	 且当$t\rightarrow+\infty$时约束总是成立：
+	 $$
+	 w^\top Ax-w^\top b=w^\top A\left(w^\top bA^\top w-t\hat c\right)-w^\top b=w^\top b\cdot w^\top AA^\top w-w^\top b=0\tag{2.6}
+	 $$
+	 因此式$(2.3)$中的线性规划是无界的，即$\inf_{x\in H_w}c^\top x=-\infty$；
 
   3. 若$\hat c=0$（即$c=\lambda A^\top w$）且$\lambda\le 0$，根据$w^\top Ax\le w^\top b$，可知最优值显然为$\lambda w^\top b$；
 
@@ -1538,8 +1537,7 @@ $$
 
    容易发现$x_1^*=1.5,x_2^*=2.25,\mu_1^*=0.5,\mu_2^*=0$满足式$(5.2)$中所有约束，因此$x^{(3)}$是最优解；
 """,
-
-
+# ----
 """“大成报，拒了。”　　
 
 “大河报，又拒了。”　　
@@ -1678,8 +1676,7 @@ $$
 “妈妈，我相信阿正。”　　
 
 心里满是甜蜜的周蕙慜，眼里的幸福都快溢出来了。""",
-
-
+# ----
 """
 “嗯，那就好。”
 
@@ -1837,11 +1834,8 @@ $$
 
 若是连生存都保障不了，谈什么面子和节操。
 """,
-
-
+# ----
 """
-
-
 “嗯。”
 
 第二天的清晨，看着熟睡的老公，周蕙慜悄悄起身，去楼下买好了早餐，给妈妈留了份，再回到男朋友的屋里。
@@ -1978,7 +1972,7 @@ $$
 
 想必，对方不会喜欢‘老板’这个词，更中意‘主编’这个文化属性浓厚一点的情怀。
 """,
-
+# ----
 """
 “赵作家，您好您好，请坐。老吴，来份套餐。”
 
@@ -2138,5 +2132,38 @@ $$
 
 就在赵正准备签约的时候，一个声音在门口响起。
 """,
-
 ]
+
+
+def easy_unittest():
+	import torch
+	import logging
+	from peft import PeftModel
+	from transformers import AutoModelForCausalLM
+
+	device = "cpu"
+	base_model_path = "/nfsshare/home/caoyang/resource/model/Qwen/Qwen3-8B-Instruct"
+	output_dir_1 = "/nfsshare/home/caoyang/caoyang/easyllm/temp/sft-7b/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"
+	output_dir_2 = "/nfsshare/home/caoyang/caoyang/easyllm/temp/sft+Qwen3-8B-Instruct+gsm8k+20251007220921"
+	model_1 = AutoModelForCausalLM.from_pretrained(base_model_path).to(device)
+	model_1 = PeftModel.from_pretrained(model_1, output_dir_1)
+	model_1 = model_1.merge_and_unload()
+	model_1 = PeftModel.from_pretrained(model_1, output_dir_2) 
+	model_1 = model_1.merge_and_unload()
+
+	model_2 = AutoModelForCausalLM.from_pretrained(base_model_path).to(device)
+	model_2 = PeftModel.from_pretrained(model_2, output_dir_2)
+	model_2 = model_2.merge_and_unload()
+	model_2 = PeftModel.from_pretrained(model_2, output_dir_1)
+	model_2 = model_2.merge_and_unload()
+	
+	for (name_1, parameter_1), (name_2, parameter_2) in zip(model_1.named_parameters(), model_2.named_parameters()):
+		assert name_1 == name_2, f"Different paramter_name: {name_1} & {name_2}\n{parameter_1}\n----\n{parameter_2}"
+		if torch.allclose(parameter_1, parameter_2, rtol=1e-5):
+			print(f"Parameter {name_1} is all close")
+			logging.info(f"Parameter {name_1} is all close")
+		else:
+			print(f"Parameter {name_1} is not all close")
+			logging.info(f"Parameter {name_1} is not all close")
+
+		

@@ -186,11 +186,11 @@ def base_pipeline(model = None,
 				if metric_function_name in ["calc_token_accuracy", "calc_bleu", "calc_perplexity"]:
 					# Single value
 					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["history"])
-					metric_summary[metric_name]["population_std"] = numpy.mean(metric_summary[metric_name]["history"])
+					metric_summary[metric_name]["population_std"] = numpy.std(metric_summary[metric_name]["history"])
 				elif metric_function_name in ["calc_rouge_n", "calc_rouge_w"]:
 					# Multiple values
 					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["history"], axis=0).tolist()
-					metric_summary[metric_name]["population_std"] = numpy.mean(metric_summary[metric_name]["history"], axis=0).tolist()
+					metric_summary[metric_name]["population_std"] = numpy.std(metric_summary[metric_name]["history"], axis=0).tolist()
 				else:
 					logging.warning(f"Unknown metric function name: {metric_function_name}")
 					continue

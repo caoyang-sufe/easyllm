@@ -27,7 +27,7 @@ from src.modules import (
 	ParallelDeepseekV3Model, ParallelDeepseekV3ForCausalLM,
 )
 
-def evaluate_math_500(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=False, adapter_output_dir=None):
+def evaluate_math_500(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=False, adapter_output_dirs=None):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"Load model: {model_name_or_path} ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
@@ -40,10 +40,12 @@ def evaluate_math_500(model_id=10, parallel_model_class=None, n_cuda=2, do_sampl
 		device = "cuda:0"
 		model = eval(parallel_model_class).from_pretrained(model_name_or_path, n_cuda = n_cuda)
 		model.module_to_device()
-	if adapter_output_dir is not None:
-		logging.info(f"  - Load adapters from {adapter_output_dir} ...")
-		model = PeftModel.from_pretrained(model, model_id = adapter_output_dir)
-		model = model.merge_and_unload()
+	if adapter_output_dirs is not None:
+		logging.info(f"  - Load adapters ...")
+		for i, adapter_output_dir in enumerate(adapter_output_dirs):
+			logging.info(f"    - Load adapter {i}: {adapter_output_dir}")
+			model = PeftModel.from_pretrained(model, model_id = adapter_output_dir)
+			model = model.merge_and_unload()
 
 	dataset_path = os.path.join(dataset_home, dataset_names[5])
 	logging.info(f"Use dataset: {dataset_path} ...")
@@ -73,27 +75,21 @@ def evaluate_math_500(model_id=10, parallel_model_class=None, n_cuda=2, do_sampl
 			("calc_rouge_w", {"weight_function": lambda _x: _x ** 2, "weight_function_reverse": lambda _x: _x ** 0.5, "beta": 1}, "rouge_w"),
 		],
 	}
+	time_string = time.strftime("%Y%m%d%H%M%S")
 	if do_sample:
 		logging.info("Sampling Evaluation ...")
 		metric_summary = base_pipeline(**kwargs)
-		if adapter_output_dir is None:
-			model_name = model_name_or_path.split('/')[-1]
-		else:
-			model_name = adapter_output_dir.split('/')[-1]
-		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+dosample.json", 'w', encoding="utf8") as f:
+		model_name = model_name_or_path.split('/')[-1]
+		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+dosample+{time_string}.json", 'w', encoding="utf8") as f:
 			json.dump(metric_summary, f, ensure_ascii=False)
 	else:
 		logging.info("Greedy Evaluation...")
 		metric_summary = base_pipeline(**kwargs)
-		if adapter_output_dir is None:
-			model_name = model_name_or_path.split('/')[-1]
-		else:
-			model_name = adapter_output_dir.split('/')[-1]
-		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+greedy.json", 'w', encoding="utf8") as f:
-			json.dump(metric_summary, f, ensure_ascii=False)
+		model_name = model_name_or_path.split('/')[-1]
+		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+greedy+{time_string}.json", 'w', encoding="utf8") as f:
+			json.dump({**{"adapter_output_dirs": adapter_output_dirs}, **metric_summary}, f, ensure_ascii=False)
 
-
-def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=False, adapter_output_dir=None):
+def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=False, adapter_output_dirs=None):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"Load model: {model_name_or_path} ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
@@ -106,10 +102,12 @@ def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=F
 		device = "cuda:0"
 		model = eval(parallel_model_class).from_pretrained(model_name_or_path, n_cuda = n_cuda)
 		model.module_to_device()
-	if adapter_output_dir is not None:
-		logging.info(f"  - Load adapters from {adapter_output_dir} ...")
-		model = PeftModel.from_pretrained(model, model_id = adapter_output_dir)
-		model = model.merge_and_unload()
+	if adapter_output_dirs is not None:
+		logging.info(f"  - Load adapters ...")
+		for i, adapter_output_dir in enumerate(adapter_output_dirs):
+			logging.info(f"    - Load adapter {i}: {adapter_output_dir}")
+			model = PeftModel.from_pretrained(model, model_id = adapter_output_dir)
+			model = model.merge_and_unload()
 	dataset_path = os.path.join(dataset_home, dataset_names[4])
 	logging.info(f"Use dataset: {dataset_path} ...")
 	kwargs = {
@@ -138,21 +136,16 @@ def evaluate_gsm8k(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=F
 			("calc_rouge_w", {"weight_function": lambda _x: _x ** 2, "weight_function_reverse": lambda _x: _x ** 0.5, "beta": 1}, "rouge_w"),
 		],
 	}
+	time_string = time.strftime("%Y%m%d%H%M%S")
 	if do_sample:
 		logging.info("Sampling Evaluation ...")
 		metric_summary = base_pipeline(**kwargs)
-		if adapter_output_dir is None:
-			model_name = model_name_or_path.split('/')[-1]
-		else:
-			model_name = adapter_output_dir.split('/')[-1]
-		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+dosample.json", 'w', encoding="utf8") as f:
-			json.dump(metric_summary, f, ensure_ascii=False)
+		model_name = model_name_or_path.split('/')[-1]
+		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+dosample+{time_string}.json", 'w', encoding="utf8") as f:
+			json.dump({**{"adapter_output_dirs": adapter_output_dirs}, **metric_summary}, f, ensure_ascii=False)
 	else:
 		logging.info("Greedy Evaluation...")
 		metric_summary = base_pipeline(**kwargs)
-		if adapter_output_dir is None:
-			model_name = model_name_or_path.split('/')[-1]
-		else:
-			model_name = adapter_output_dir.split('/')[-1]
-		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+greedy.json", 'w', encoding="utf8") as f:
-			json.dump(metric_summary, f, ensure_ascii=False)
+		model_name = model_name_or_path.split('/')[-1]
+		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+greedy+{time_string}.json", 'w', encoding="utf8") as f:
+			json.dump({**{"adapter_output_dirs": adapter_output_dirs}, **metric_summary}, f, ensure_ascii=False)

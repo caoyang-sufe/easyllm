@@ -24,6 +24,7 @@ class ParallelQwen2Model(Qwen2Model):
 		self.module_to_device_flag = False
 
 	def module_to_device(self):
+		logging.info()
 		self.embed_tokens = self.embed_tokens.to(self.device_list[0])
 		self.norm = self.norm.to(self.device_list[-1])
 		n_layers = len(self.layers)
