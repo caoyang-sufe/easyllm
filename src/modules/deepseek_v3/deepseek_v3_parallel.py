@@ -46,6 +46,7 @@ class ParallelDeepseekV3Model(DeepseekV3Model):
 				):
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		if not self.module_to_device_flag:
+			logging.info("First forward: move to device ...")
 			self.module_to_device()
 			self.module_to_device_flag = True
 		input_ids = input_ids.to(self.device_list[0])

@@ -6,6 +6,7 @@ import json
 import torch
 import numpy
 import seaborn as sns
+from safetensors import safe_open
 from matplotlib import pyplot as plt
 
 # Plot mean and variance of a sequence of tensors
@@ -158,21 +159,25 @@ def plot_tensor_heatmap(tensor, *,
 		plt.show()
 	plt.close()
 		
-# Plot dynamics of trainer_state of `transformers.Trainer`
+# Plot dynamics of trainer_state of `transformers.Trainer`, e.g. train/eval loss, train/eval mean token accuracy, train/eval entropy
 # @param trainer_state_paths: [List[Str]] File paths of several `trainer_state.json` to be compared
+# @param trainer_state_names: [List[Str]] Default None refers to [0, 1, 2, ...]
 # @param plot_index_names: [List[Str]] index to plot in `log_history`, e.g. `["loss", "mean_token_accuracy", "entropy"]`
 # @param x_index_name: [Str] index to plot in `log_history`, "epoch" or "step"
 # @param figure_size: [Int] Figure size of width or height (usually the same)
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
 def plot_trainer_state(trainer_state_paths,
+					   trainer_state_names = None,
 					   plot_index_names = ["loss", "mean_token_accuracy", "entropy"],
 					   x_index_name = "epoch",
 					   figure_size = 5,
 					   save_path = None,
 					   is_show = True,
 					   ):
-	for i, trainer_state_path in enumerate(trainer_state_paths):
+	if trainer_state_names is None:
+		trainer_state_names = list(map(lambda x: x.split('/')[-1], trainer_state_paths[:]))
+	for i, (trainer_state_name, trainer_state_path) in enumerate(zip(trainer_state_names, trainer_state_paths)):
 		with open(trainer_state_path, 'r', encoding="utf8") as f:
 			data = json.load(f)
 		log_history = data["log_history"]	# List[Dict]
@@ -209,9 +214,10 @@ def plot_trainer_state(trainer_state_paths,
 				target_ax = axes[j]
 			else:
 				target_ax = axes[0][j]
-			target_ax.plot(x_data_train, y_data_train[y_index_name], label=y_index_name)
+			target_ax.plot(x_data_train, y_data_train[y_index_name], label=trainer_state_name)
 			target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{y_index_name} by {x_index_name}")
 			target_ax.legend()
+			target_ax.grid(True, alpha=.3)
 		if nrows == 2:
 			# Eval plot
 			for i in range(ncols):
@@ -220,77 +226,99 @@ def plot_trainer_state(trainer_state_paths,
 					target_ax = axes[1]
 				else:
 					target_ax = axes[1][i]
-				target_ax.plot(x_data_eval, y_data_eval[y_index_name], label=y_index_name)
+				target_ax.plot(x_data_eval, y_data_eval[y_index_name], label=trainer_state_name)
 				target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{y_index_name} by {x_index_name}")
-				target_ax.legend()
+				target_ax.legend(), target_ax.grid(True, alpha=.3)
 	if save_path is not None:
 		plt.savefig(save_path)		
 	if is_show:
 		plt.show()
 	plt.close()
 
-# Plot dynamics of trainer state of `trl.PPOTrainer`
-# @param trainer_state_path: [Str] File path of trainer_state.json
-# @param figsize: [Tuple[Int, Int]]
+
+# Plot statistics of SVD of LoRA adapter, e.g. LoRA rank, nuclear_norm
+# @param adapter_path: [Str] The `output_dir` of `transformers.trainer`
+# @param thresholds: [List[Float]] Different thresholds used to control approximate rank
+# @param plot_index_names: [List[Str]] index to plot, e.g. `["nuclear_norm", "rank"]`
+# @param device: [Str] "cpu" or "cuda"
+# @param figure_size: [Int] Figure size of width or height (usually the same)
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
-def plot_ppo_dynamics(trainer_state_path,
-					  figsize = (8, 8),
-					  save_path = None,
-					  is_show = True,
-					  ):
-	with open(trainer_state_path, 'r', encoding="utf8") as f:
-		data = json.load(f)
-	log_history = data["log_history"]
-	steps = [entry["step"] for entry in log_history]
-	episodes = [entry["episode"] for entry in log_history]
-	epochs = [entry["epoch"] for entry in log_history]
-	policy_loss = [entry["loss/policy_avg"] for entry in log_history]
-	value_loss = [entry["loss/value_avg"] for entry in log_history]
-	lrs = [entry["lr"] for entry in log_history]
-	entropys = [entry["objective/entropy"] for entry in log_history]
-	kls = [entry["objective/kl"] for entry in log_history]
-	non_score_rewards = [entry["objective/non_score_reward"] for entry in log_history]
-	rlhf_rewards = [entry["objective/rlhf_reward"] for entry in log_history]
-	scores = [entry["objective/scores"] for entry in log_history]
-	
-	plt.figure(figsize=figsize)
-	ax_1 = plt.subplot(2, 2, 1)
-	ax_2 = plt.subplot(4, 2, 2)
-	ax_3 = plt.subplot(4, 2, 4)
-	ax_4 = plt.subplot(2, 2, 3)
-	ax_5 = plt.subplot(2, 2, 4)
-	# ----
-	ax_1.plot(steps, policy_loss, label="Policy Loss")
-	ax_1.plot(steps, value_loss, label="Value Loss", linestyle="--")
-	ax_1.set_xlabel("Step"), ax_1.set_ylabel("Loss"), ax_1.legend()
-	ax_1.set_title("Policy and Value Loss")
-	# ----
-	ax_2.plot(steps, kls, label="objective/kl")
-	ax_2.set_xlabel("Step"), ax_2.set_ylabel("KL"), ax_2.legend()
-	ax_2.set_title("KL Curve")
-	# ----
-	ax_3.plot(steps, entropys, label="objective/entropy")
-	ax_3.set_xlabel("Step"), ax_3.set_ylabel("Entropy"), ax_3.legend()
-	ax_3.set_title("Entropy Curve")
-	# ----
-	ax_4.plot(steps, lrs, label="Learning Rate")
-	ax_4.set_xlabel("Step"), ax_4.set_ylabel("Learning Rate"), ax_4.legend()
-	ax_4.set_title("Learning Rate Curve")
-	# ----
-	ax_5.plot(steps, non_score_rewards, label="objective/non_score_reward", linestyle="--")
-	ax_5.plot(steps, rlhf_rewards, label="objective/rlhf_reward", linestyle="--")
-	ax_5.plot(steps, scores, label="objective/scores")
-	ax_5.set_xlabel("Step"), ax_5.set_ylabel("Score/Reward"), ax_5.legend()
-	ax_5.set_title("Reward and Score")
-	# ----
+def plot_lora_adapter_statistics(adapter_path,
+								 thresholds = [.1, .05, .01],
+								 target_modules = ["q_proj", "k_proj", "v_proj"],
+								 plot_index_names = ["nuclear_norm", "rank"],
+								 device = "cpu",
+								 figure_size = 5,
+								 save_path = None,
+								 is_show = True,
+								 ):
+	with safe_open(adapter_path, framework="pt", device=device) as f:
+		summary = dict()
+		keys = sorted(f.keys(), key = lambda _x: (int(_x.split('.')[4]), _x.split('.')[6], _x.split('.')[7]), reverse=False)
+		for key_A, key_B in zip(keys[:-1][::2], keys[1:][::2]):
+			module_A_prefix = '.'.join(key_A.split('.')[:-2])
+			module_B_prefix = '.'.join(key_B.split('.')[:-2])
+			assert module_A_prefix == module_B_prefix, f"{key_A} v.s. {key_B}"
+			lora_A, lora_B = f.get_tensor(key_A), f.get_tensor(key_B)
+			assert lora_A.size(0) == lora_B.size(1), f"{lora_A.size()} v.s. {lora_B.size()}"
+			BA = lora_B @ lora_A
+			U, S, V = torch.svd(BA)
+			nuclear_norm = torch.sum(S)
+			ranks = []
+			for threshold in thresholds:
+				total_singular_values = 0
+				for i, s in enumerate(S):
+					total_singular_values += s
+					if total_singular_values / nuclear_norm >= 1 - threshold:
+						ranks.append(i + 1)
+						break
+			assert not module_A_prefix in summary
+			summary[module_A_prefix] = (nuclear_norm, ranks)
+	plot_data = {
+		target_module: {
+			"nuclear_norm": list(), 
+			"rank": {threshold: list() for threshold in thresholds},
+		}
+		for target_module in target_modules
+	}
+	for module_name, (nuclear_norm, ranks) in summary.items():
+		for target_module in target_modules:
+			if target_module in module_name:
+				plot_data[target_module]["nuclear_norm"].append(nuclear_norm)
+				for i, threshold in enumerate(thresholds):
+					plot_data[target_module]["rank"][threshold].append(ranks[i])
+
+	nrows, ncols = len(target_modules), len(plot_index_names)
+	fig, axes = plt.subplots(
+		nrows = nrows, 
+		ncols = ncols,
+		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+	)
+	for i, target_module in enumerate(target_modules):
+		for j, plot_index_name in enumerate(plot_index_names):
+			if nrows == 1 and ncols == 1:
+				target_ax = axes
+			elif nrows == 1:
+				target_ax = axes[j]
+			elif ncols == 1:
+				target_ax = axes[i]
+			else:
+				target_ax = axes[i, j]
+			if plot_index_name in ["rank"]:
+				# rank has several series of data
+				for threshold in thresholds:
+					target_ax.plot(plot_data[target_module][plot_index_name][threshold], label=f"threshold: {threshold}", marker='o')
+				target_ax.set_xlabel("Layer #"), target_ax.set_ylabel("Value"), target_ax.set_title(f"{plot_index_name} of {target_module}")
+			elif plot_index_name in ["nuclear_norm"]:
+				target_ax.plot(plot_data[target_module][plot_index_name], label=f"threshold: {threshold}", marker='o')
+				target_ax.set_xlabel("Layer #"), target_ax.set_ylabel("Value"), target_ax.set_title(f"{plot_index_name} of {target_module}")
+			else:
+				raise Exception(f"Unknown index: {plot_index_name}")
+			target_ax.legend(), target_ax.grid(True, alpha=.3)
 	if save_path is not None:
 		plt.savefig(save_path)		
 	if is_show:
 		plt.show()
 	plt.close()
-
-	
-if __name__ == "__main__":
-	pass
-	
+	return summary

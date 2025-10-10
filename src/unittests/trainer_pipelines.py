@@ -16,17 +16,20 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
-	target_layer_ids_list = [
-		list(range(num_hidden_layers)),	# Full
-		[0, 1, 2, 7, 8, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
-		list(range(3, num_hidden_layers - 3)),	# Body only
-		[4, 5, 16, 18], # Random
-	]
-	target_layer_ids_list = [
-		[num_hidden_layers - 1],
-		[0],
-		[1],
-	]
+	if adapter_output_dirs is None:
+		target_layer_ids_list = [
+			list(range(num_hidden_layers)),	# Full
+			[0, 1, 2, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
+			list(range(3, num_hidden_layers - 3)),	# Body only
+			list(range(num_hidden_layers // 2)), # Half 1
+			list(range(num_hidden_layers // 2, num_hidden_layers)), # Half 2 
+		]
+	else:
+		target_layer_ids_list = [
+			[num_hidden_layers - 1],
+			[0],
+			[1],
+		]
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
 		dataset_name = os.path.join(dataset_home, dataset_names[4])
@@ -79,17 +82,20 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
-	target_layer_ids_list = [
-		list(range(num_hidden_layers)),	# Full
-		[0, 1, 2, 7, 8, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
-		list(range(3, num_hidden_layers - 3)),	# Body only
-		[4, 5, 16, 18], # Random
-	]
-	target_layer_ids_list = [
-		[num_hidden_layers - 1],
-		[0],
-		[1],
-	]
+	if adapter_output_dirs is None:
+		target_layer_ids_list = [
+			list(range(num_hidden_layers)),	# Full
+			[0, 1, 2, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
+			list(range(3, num_hidden_layers - 3)),	# Body only
+			list(range(num_hidden_layers // 2)), # Half 1
+			list(range(num_hidden_layers // 2, num_hidden_layers)), # Half 2 
+		]
+	else:
+		target_layer_ids_list = [
+			[num_hidden_layers - 1],
+			[0],
+			[1],
+		]
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
 		dataset_name = os.path.join(dataset_home, dataset_names[5])
@@ -120,8 +126,8 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 			"eval_strategy": "epoch",
 			"save_strategy": "epoch",
 			# Train
-			"per_device_train_batch_size": 16,
-			"per_device_eval_batch_size": 16,
+			"per_device_train_batch_size": 8,
+			"per_device_eval_batch_size": 8,
 			"num_train_epochs": 32,
 		}
 		trainer_kwargs = {
@@ -142,17 +148,20 @@ def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaFo
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
-	target_layer_ids_list = [
-		list(range(num_hidden_layers)),	# Full
-		[0, 1, 2, 7, 8, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
-		list(range(3, num_hidden_layers - 3)),	# Body only
-		[4, 5, 16, 18], # Random
-	]
-	# target_layer_ids_list = [
-		# [num_hidden_layers - 1],
-		# [0],
-		# [1],
-	# ]
+	if adapter_output_dirs is None:
+		target_layer_ids_list = [
+			list(range(num_hidden_layers)),	# Full
+			[0, 1, 2, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
+			list(range(3, num_hidden_layers - 3)),	# Body only
+			list(range(num_hidden_layers // 2)), # Half 1
+			list(range(num_hidden_layers // 2, num_hidden_layers)), # Half 2 
+		]
+	else:
+		target_layer_ids_list = [
+			[num_hidden_layers - 1],
+			[0],
+			[1],
+		]
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
 		dataset_name = os.path.join(dataset_home, dataset_names[6])
@@ -199,7 +208,6 @@ def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaFo
 			adapter_output_dirs = adapter_output_dirs,
 		)
 		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
-			
 			json.dump(kwargs, f, ensure_ascii=False)
 
 # ----------------------------------------------------------------------

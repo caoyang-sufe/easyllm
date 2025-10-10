@@ -70,7 +70,7 @@ class ParallelDeepseekModel(DeepseekModel):
 				):
 		# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		if not self.module_to_device_flag:
-			logging.info("Module to device in forward ...")
+			logging.info("First forward: move to device ...")
 			self.module_to_device()
 		input_ids = input_ids.to(self.device_list[0])
 		if position_ids is not None:
