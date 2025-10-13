@@ -730,7 +730,7 @@ def generate_pipeline(model_name_or_path,
 					  max_length,
 					  device = None,
 					  generate_kwargs = None,
-					  model_parallel_class = None,
+					  parallel_model_class = None,
 					  n_cuda = 2,
 					  ):
 	logging.info("Load model and tokenizer ...")
@@ -738,10 +738,10 @@ def generate_pipeline(model_name_or_path,
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device}")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-	if model_parallel_class is None:
+	if parallel_model_class is None:
 		model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
 	else:
-		model = eval(model_parallel_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
+		model = eval(parallel_model_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
 		model.module_to_device()
 	eos_token_ids = get_generation_eos_token_ids(model)
 	logging.info(f"  - EOS Tokens: {eos_token_ids}")

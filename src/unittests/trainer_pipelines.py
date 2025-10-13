@@ -74,6 +74,7 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 			parallel_model_class = parallel_model_class, 
 			n_cuda = n_cuda,
 			adapter_output_dirs = adapter_output_dirs,
+			parse_arguments = False,
 		)
 		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
 			json.dump(kwargs, f, ensure_ascii=False)
@@ -140,6 +141,7 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 			parallel_model_class = parallel_model_class, 
 			n_cuda = n_cuda,
 			adapter_output_dirs = adapter_output_dirs,
+			parse_arguments = False,
 		)
 		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
 			json.dump(kwargs, f, ensure_ascii=False)
@@ -206,6 +208,7 @@ def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaFo
 			parallel_model_class = parallel_model_class, 
 			n_cuda = n_cuda,
 			adapter_output_dirs = adapter_output_dirs,
+			parse_arguments = False,
 		)
 		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
 			json.dump(kwargs, f, ensure_ascii=False)

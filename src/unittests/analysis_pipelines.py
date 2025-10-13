@@ -98,7 +98,7 @@ def vertical_comparison_of_forward_hook_test():
 	)
 
 # Skip 1 layer only
-def skip_layer_generation_test_1(model_id=-1, language="zh", device=None):
+def skip_layer_generation_test_1(model_id=-1, device=None):
 	logging.info("skip layer unittest 1 ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)

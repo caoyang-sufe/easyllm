@@ -96,13 +96,15 @@ def display_pipeline(tokenizer,
 # @param max_length: [Int]
 # @param device: [Str|torch.device] e.g. "cuda", "cpu", torch.device("cpu")
 # @param generate_kwargs: [Dict] keyword arguments for `model.generate`
+# @param parallel_model_class: [Str] e.g. "ParallelQwen2ForCausalLM", "ParallelQwen2Model", default `None` refer to AutoModelForCausalLM
+# @param n_cuda: [Int] Number of CUDA device available
 # @return df_display: the returned of `display_pipeline`
 def generate_pipeline(model_name_or_path,
 					  prompt,
 					  max_length,
 					  device = None,
 					  generate_kwargs = None,
-					  model_parallel_class = None,
+					  parallel_model_class = None,
 					  n_cuda = 2,
 					  ):
 	logging.info("Load model and tokenizer ...")
@@ -110,10 +112,10 @@ def generate_pipeline(model_name_or_path,
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device}")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-	if model_parallel_class is None:
+	if parallel_model_class is None:
 		model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
 	else:
-		model = eval(model_parallel_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
+		model = eval(parallel_model_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
 		model.module_to_device()
 	eos_token_ids = get_generation_eos_token_ids(model)
 	logging.info(f"  - EOS Tokens: {eos_token_ids}")
@@ -133,6 +135,8 @@ def generate_pipeline(model_name_or_path,
 # @param use_kv_cache: [Boolean]
 # @param forward_hook_module_names: List[Str]
 # @param backward_hook_module_names: List[Str]
+# @param parallel_model_class: [Str] e.g. "ParallelQwen2ForCausalLM", "ParallelQwen2Model", default `None` refer to AutoModelForCausalLM
+# @param n_cuda: [Int] Number of CUDA device available
 # @return: Dict["df_display", "forward_hook_data", "backward_hook_data"]
 def decode_pipeline(model_name_or_path,
 					prompt,
@@ -141,13 +145,19 @@ def decode_pipeline(model_name_or_path,
 					use_kv_cache = True,
 					forward_hook_module_names = None,
 					backward_hook_module_names = None,
+					parallel_model_class = parallel_model_class,
+					n_cuda = n_cuda,
 					):
 	logging.info("Load model and tokenizer ...")
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
 	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
+	if parallel_model_class is None:
+		model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(device)
+	else:
+		model = eval(parallel_model_class).from_pretrained(model_name_or_path, n_cuda=n_cuda)
+		model.module_to_device()
 	eos_token_ids = get_generation_eos_token_ids(model)
 	logging.info(f"  - EOS Tokens: {eos_token_ids}")
 	logging.info("Greedy decode ...")

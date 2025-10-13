@@ -21,7 +21,7 @@ from trl import (
 	# SFTConfig, SFTTrainer,
 	# PPOConfig, PPOTrainer,
 	# DPOConfig, DPOTrainer,
-	# GRPOConfig, GRPOTrainer,
+	# GRPOConfig, GRPOTrainer,	# Use getattr instead
 	get_peft_config, get_quantization_config,
 )
 from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
@@ -67,11 +67,17 @@ def base_pipeline(name,
 				  parallel_model_class = None, 
 				  n_cuda = 2,
 				  adapter_output_dirs = None,
+				  parse_arguments = False,
 				  ):
 	# 1 Configuration
 	TRLConfig, TRLTrainer = getattr(trl, f"{name}Config"), getattr(trl, f"{name}Trainer")
-	parser = HfArgumentParser((ScriptArguments, TRLConfig, ModelConfig))
-	script_arguments, trainer_config, model_config = parser.parse_args_into_dataclasses()
+	if parse_arguments:
+		parser = HfArgumentParser((ScriptArguments, TRLConfig, ModelConfig))
+		script_arguments, trainer_config, model_config = parser.parse_args_into_dataclasses()
+	else:
+		script_arguments = ScriptArguments()
+		trainer_config = TRLConfig()
+		model_config = ModelConfig()
 	script_arguments = update_trl_config(script_arguments, **config_kwargs)
 	trainer_config = update_trl_config(trainer_config, **config_kwargs)
 	model_config = update_trl_config(model_config, **config_kwargs)
@@ -185,7 +191,7 @@ def base_pipeline(name,
 	trainer.save_model(trainer_config.output_dir)
 
 # SFT Pipeline
-def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None):
+def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
 	base_pipeline(
 		name = "SFT",
 		data_processor = data_processor,
@@ -194,10 +200,11 @@ def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 		parallel_model_class = parallel_model_class,
 		n_cuda = n_cuda,
 		adapter_output_dirs = adapter_output_dirs,
+		parse_arguments = parse_arguments,
 	)
 
 # PPO Pipeline
-def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None):
+def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
 	base_pipeline(
 		name = "PPO",
 		data_processor = data_processor,
@@ -206,10 +213,11 @@ def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 		parallel_model_class = parallel_model_class,
 		n_cuda = n_cuda,
 		adapter_output_dirs = adapter_output_dirs,
+		parse_arguments = parse_arguments,
 	)
 
 # DPO Pipeline
-def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None):
+def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
 	base_pipeline(
 		name = "DPO",
 		data_processor = data_processor,
@@ -218,10 +226,11 @@ def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_c
 		parallel_model_class = parallel_model_class,
 		n_cuda = n_cuda,
 		adapter_output_dirs = adapter_output_dirs,
+		parse_arguments = parse_arguments,
 	)
 
 # GRPO Pipeline
-def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None):
+def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
 	base_pipeline(
 		name = "GRPO",
 		data_processor = data_processor,
@@ -230,4 +239,5 @@ def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_
 		parallel_model_class = parallel_model_class,
 		n_cuda = n_cuda,
 		adapter_output_dirs = adapter_output_dirs,
+		parse_arguments = parse_arguments,
 	)

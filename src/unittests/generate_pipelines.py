@@ -29,7 +29,7 @@ from src.modules import (
 )
 
 # Do one forward for long prompts
-def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2, s=0):
+def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2):
 	logging.info("One time forward unittest")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_name = model_names[model_id].split('/')[-1].split('\\')[-1]
@@ -52,7 +52,7 @@ def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_clas
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 	for name, parameter in model.named_parameters():
 		logging.info(f"{name}: {parameter.device}")
-	for i in range(s, len(prompts)):
+	for i in range(len(prompts)):
 		logging.info(f"Forward prompt {i}")
 		try:
 			hook_data = one_time_forward_pipeline(
@@ -74,7 +74,7 @@ def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_clas
 			continue
 			
 # Test `src.pipelines.generate.decode_pipeline`
-def decode_pipeline_test(model_id=-1, device=None):
+def decode_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2):
 	logging.info("Decode unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
@@ -146,6 +146,8 @@ Ode to Eighty Years"""
 			use_kv_cache = use_kv_cache,
 			forward_hook_module_names = forward_hook_module_names,
 			backward_hook_module_names = None,
+			parallel_model_class = parallel_model_class,
+			n_cuda = n_cuda,
 		)
 		df_display = returned_dict["df_display"]
 		forward_hook_data = returned_dict["forward_hook_data"]
@@ -166,7 +168,7 @@ Ode to Eighty Years"""
 		logging.info("  - OK!")
 
 # Test `src.pipelines.generate.generate_pipeline`
-def generate_pipeline_test(model_id=-1, device=None):
+def generate_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2):
 	logging.info("Generate unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
@@ -178,6 +180,8 @@ def generate_pipeline_test(model_id=-1, device=None):
 		max_length,
 		device = device,
 		generate_kwargs = None,
+		parallel_model_class = parallel_model_class,
+		n_cuda = n_cuda,
 	)
 	save_path = f"./generate+{model_names[model_id].split('/')[-1]}.csv"
 	logging.info(f"Export to {save_path}")
