@@ -252,11 +252,11 @@ def beam_search_decode(model,
 		if not candidates:
 			# No candidates then break
 			break
-		candidates.sort(key=lambda x: x[1] / (len(x[0]) ** length_penalty), reverse=True)
+		candidates.sort(key=lambda _x: _x[1] / (len(_x[0]) ** length_penalty), reverse=True)
 		top_k_sequences, top_k_scores, top_k_kv_caches = map(list, zip(*candidates[: num_beams]))	# Prune to top-k candidates
 	completed_sequences.extend(top_k_sequences)
 	completed_scores.extend(top_k_scores)
-	sorted_pairs = sorted(zip(completed_sequences, completed_scores), key=lambda x: x[1] / (len(x[0]) ** length_penalty), reverse=True)
+	sorted_pairs = sorted(zip(completed_sequences, completed_scores), key=lambda _x: _x[1] / (len(_x[0]) ** length_penalty), reverse=True)
 	sorted_sequences, sorted_scores = zip(*sorted_pairs)
 	generated_texts = tokenizer.batch_decode(sorted_sequences, skip_special_tokens=True, clean_up_tokenization_spaces=False)
 	return generated_texts

@@ -2134,7 +2134,6 @@ $$
 """,
 ]
 
-
 def easy_unittest():
 	import torch
 	import logging
@@ -2165,5 +2164,3 @@ def easy_unittest():
 		else:
 			print(f"Parameter {name_1} is not all close")
 			logging.info(f"Parameter {name_1} is not all close")
-
-		

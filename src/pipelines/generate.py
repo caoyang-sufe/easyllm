@@ -66,7 +66,7 @@ def display_pipeline(tokenizer,
 					 ):
 	df_token_probs = pandas.DataFrame(token_probs, columns=["id", "token", "prob"])
 	def _display_tensor(_tensor, _round):
-		return list(map(lambda x: round(x, _round), _tensor.tolist()))
+		return list(map(lambda _x: round(_x, _round), _tensor.tolist()))
 	df_display = {
 		"max_id": [],
 		"cand_tokens": [],

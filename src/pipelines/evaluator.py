@@ -117,7 +117,7 @@ def base_pipeline(model = None,
 						returned_value = eval(metric_function_name)(predict=predict_token_ids, target=target_token_ids, **metric_kwargs)
 						sample_history[metric_name].append(returned_value)
 					elif metric_function_name in ["calc_rouge_n", "calc_rouge_w"]:
-						# Return Dict: Precision Revall F1-score
+						# Return Dict: Precision Recall F1-score
 						returned_value = eval(metric_function_name)(predict=predict_token_ids, target=target_token_ids, **metric_kwargs)
 						precision, recall, f1_score = returned_value["precision"], returned_value["recall"], returned_value["f1_score"]
 						sample_history[metric_name].append((precision, recall, f1_score))
@@ -164,7 +164,7 @@ def base_pipeline(model = None,
 					returned_value = eval(metric_function_name)(predict=predict_token_ids, target=target_token_ids, **metric_kwargs)
 					metric_summary[metric_name]["history"].append(returned_value)
 				elif metric_function_name in ["calc_rouge_n", "calc_rouge_w"]:
-					# Return Dict: Precision Revall F1-score
+					# Return Dict: Precision Recall F1-score
 					returned_value = eval(metric_function_name)(predict=predict_token_ids, target=target_token_ids, **metric_kwargs)
 					precision, recall, f1_score = returned_value["precision"], returned_value["recall"], returned_value["f1_score"]
 					metric_summary[metric_name]["history"].append((precision, recall, f1_score))

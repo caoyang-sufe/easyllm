@@ -104,7 +104,7 @@ def plot_tensor_histogram(tensor, *,
 	ax.grid(axis='y', alpha=.5)		
 	# `scilimits = (m, n)` refers to use Scientific Notation for value
 	ax.ticklabel_format(axis='y', style="sci", scilimits=(-2, 2))
-	ax.legend()
+	ax.legend(), ax.grid(True, alpha=.3)
 	if save_path is not None:
 		plt.savefig(save_path)
 	if is_show:
@@ -176,7 +176,7 @@ def plot_trainer_state(trainer_state_paths,
 					   is_show = True,
 					   ):
 	if trainer_state_names is None:
-		trainer_state_names = list(map(lambda x: x.split('/')[-1], trainer_state_paths[:]))
+		trainer_state_names = list(map(lambda _x: _x.replace('\\', '/').split('/')[-1], trainer_state_paths[:]))
 	for i, (trainer_state_name, trainer_state_path) in enumerate(zip(trainer_state_names, trainer_state_paths)):
 		with open(trainer_state_path, 'r', encoding="utf8") as f:
 			data = json.load(f)
@@ -216,8 +216,7 @@ def plot_trainer_state(trainer_state_paths,
 				target_ax = axes[0][j]
 			target_ax.plot(x_data_train, y_data_train[y_index_name], label=trainer_state_name)
 			target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{y_index_name} by {x_index_name}")
-			target_ax.legend()
-			target_ax.grid(True, alpha=.3)
+			target_ax.legend(), target_ax.grid(True, alpha=.3)
 		if nrows == 2:
 			# Eval plot
 			for i in range(ncols):
@@ -244,6 +243,7 @@ def plot_trainer_state(trainer_state_paths,
 # @param figure_size: [Int] Figure size of width or height (usually the same)
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
+# @return summary: [Dict] key is Str[module_name_prefix], value is the Tuple containing the several statistics of the given adapter
 def plot_lora_adapter_statistics(adapter_path,
 								 thresholds = [.1, .05, .01],
 								 target_modules = ["q_proj", "k_proj", "v_proj"],
@@ -322,3 +322,86 @@ def plot_lora_adapter_statistics(adapter_path,
 		plt.show()
 	plt.close()
 	return summary
+
+
+# Bar plot the results of evaluation, i.e. the dumped JSON of evaluator pipelines
+# @param result_paths: [List[Str]] JSON paths of evaluation results
+# @param result_names: [List[Str]|NoneType] Give name to each result file, default use the JSON filename
+# @param metric_names: [List[Str]] Metrics to plot, e.g. ["token_accuracy", "perplexity", "bleu_3", "rouge_3", "rouge_l", "rouge_w"]
+# @param plot_index_names: [List[Str]] Index to plot, e.g. ["mean", "std"]
+# @param figure_size: [Int] Figure size of width or height (usually the same)
+# @param width: [Float] Width of each bar
+# @param save_path: [Str] Figure save path
+# @param is_show: [Boolean] Whether to show figure
+def plot_evaluation_results(result_paths,
+							result_names = None,
+							metric_names = ["token_accuracy", "perplexity", "bleu_3", "rouge_3", "rouge_l", "rouge_w"],
+							plot_index_names = ["mean", "std"],
+							figure_size = 5,
+							width = .25,
+							save_path = None,
+							is_show = True,
+							):
+	summary = dict()
+	metric_names_map = dict()
+	if result_names is None:
+		result_names = list(map(lambda _x: _x.replace('\\', '/').split('/')[-1], result_paths[:]))
+	for result_path in result_paths:
+		with open(result_path, 'r', encoding="utf8") as f:
+			data = json.load(f)
+		for metric_name in metric_names:
+			metric_data = data[metric_name]
+			if metric_name in ["token_accuracy", "perplexity", "bleu_3"]:
+				# Single value
+				if metric_name not in summary:
+					summary[metric_name] = {"mean": list(), "std": list()}
+				summary[metric_name]["mean"].append(metric_data["population_mean"])
+				summary[metric_name]["std"].append(metric_data["population_std"])
+				metric_names_map[metric_name] = [metric_name]
+			elif metric_name in ["rouge_3", "rouge_l", "rouge_w"]:
+				# Multiple values: Precision Recall F1-score
+				if f"{metric_name}_p" not in summary:
+					summary[f"{metric_name}_p"] = {"mean": list(), "std": list()}
+				if f"{metric_name}_r" not in summary:
+					summary[f"{metric_name}_r"] = {"mean": list(), "std": list()}
+				if f"{metric_name}_f1" not in summary:
+					summary[f"{metric_name}_f1"] = {"mean": list(), "std": list()}
+				summary[f"{metric_name}_p"]["mean"].append(metric_data["population_mean"][0])
+				summary[f"{metric_name}_p"]["std"].append(metric_data["population_std"][0])
+				summary[f"{metric_name}_r"]["mean"].append(metric_data["population_mean"][1])
+				summary[f"{metric_name}_r"]["std"].append(metric_data["population_std"][1])
+				summary[f"{metric_name}_f1"]["mean"].append(metric_data["population_mean"][2])
+				summary[f"{metric_name}_f1"]["std"].append(metric_data["population_std"][2])
+				metric_names_map[metric_name] = [f"{metric_name}_p", f"{metric_name}_r", f"{metric_name}_f1"]
+			else:
+				raise NotImplementedError(metric_name)
+	nrows, ncols = len(metric_names_map), len(plot_index_names)
+	fig, axes = plt.subplots(
+		nrows = nrows, 
+		ncols = ncols,
+		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+	)	
+	n_series = len(result_names)
+	for i, (metric_name, mapped_metric_names) in enumerate(metric_names_map.items()):
+		for j, plot_index_name in enumerate(plot_index_names):
+			if nrows == 1 and ncols == 1:
+				target_ax = axes
+			elif nrows == 1:
+				target_ax = axes[j]
+			elif ncols == 1:
+				target_ax = axes[i]
+			else:
+				target_ax = axes[i, j]
+			n_groups = len(mapped_metric_names)
+			x = numpy.arange(n_groups)
+			for k, result_name in enumerate(result_names):
+				data = [summary[mapped_metric_name][plot_index_name][k] for mapped_metric_name in mapped_metric_names]
+				offset = width * (k - (n_series - 1) / 2)
+				target_ax.bar(x + offset, data, width, label=result_name, alpha=.5)
+			target_ax.set_xticks(x, mapped_metric_names), target_ax.set_ylabel("Value"), target_ax.set_title(f"{plot_index_name} of {metric_name}")
+			target_ax.legend(), target_ax.grid(True, alpha=.3)
+	if save_path is not None:
+		plt.savefig(save_path)		
+	if is_show:
+		plt.show()
+	plt.close()
