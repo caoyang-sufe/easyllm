@@ -60,8 +60,7 @@ def calc_bleu(predict, target, min_grams = 1, max_grams = 3):
 				for gram in predict_n_grams_counter)
 			precision = correct / total
 			precisions_by_n_grams.append(precision)
-		
-	if any(p == 0 for p in precisions_by_n_grams):
+	if (not precisions_by_n_grams) or any(p == 0 for p in precisions_by_n_grams):
 		return 0
 	log_precisions = [math.log(p) for p in precisions_by_n_grams]
 	return brevity_penalty * math.exp(sum(log_precisions) / len(log_precisions))

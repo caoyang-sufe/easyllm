@@ -32,5 +32,3 @@ def accelerate_load_model(model_path,
 		**kwargs,
 	)
 	return model
-
-

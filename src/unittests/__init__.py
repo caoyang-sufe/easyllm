@@ -28,9 +28,10 @@ if platform.system() == "Linux":
 		"trl-lib/ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
 		"trl-internal-testing/descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
 		"YeungNLP/firefly-train-1.1M", # 3 train["input", "target"]
-		"openai/gsm8k",	 # 4 
-		"HuggingFaceH4/MATH-500",	# 5
-		"newfacade/LeetCodeDataset",	# 6
+		"openai/gsm8k",	# 4 train["question", "answer"] + test["question", "answer"]
+		"HuggingFaceH4/MATH-500",	# 5 test["problem", "answer"]
+		"newfacade/LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
+		"larryvrh/Chinese-Poems", # 7 train["content"], you need to manually split
 	]
 
 elif platform.system() == "Windows":
@@ -57,9 +58,10 @@ elif platform.system() == "Windows":
 		r"trl-lib\ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
 		r"trl-internal-testing\descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
 		r"YeungNLP\firefly-train-1.1M", # 3 train["input", "target"]
-		r"openai\gsm8k",	 # 4 
-		r"HuggingFaceH4\MATH-500",	# 5
-		r"newfacade\LeetCodeDataset",	# 6
+		r"openai\gsm8k",	 # 4 train["question", "answer"] + test["question", "answer"]
+		r"HuggingFaceH4\MATH-500",	# 5 test["problem", "answer"]
+		r"newfacade\LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
+		r"larryvrh\Chinese-Poems", # 7 train["content"], you need to manually split
 	]
 	
 else:
@@ -203,16 +205,16 @@ def base_pipeline(model = None,
 			for metric_name in metric_summary:
 				if metric_function_name in ["calc_token_accuracy", "calc_bleu", "calc_perplexity"]:
 					# Single value
-					metric_summary[metric_name]["sample_mean"] = [numpy.mean(history) for history in metric_summary[metric_name]["history"]]
-					metric_summary[metric_name]["sample_std"] = [numpy.std(history) for history in metric_summary[metric_name]["history"]]
-					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["sample_mean"])
-					metric_summary[metric_name]["population_std"] = numpy.std(metric_summary[metric_name]["population_std"])
+					metric_summary[metric_name]["sample_mean"] = [numpy.nanmean(history) for history in metric_summary[metric_name]["history"]]
+					metric_summary[metric_name]["sample_std"] = [numpy.nanstd(history) for history in metric_summary[metric_name]["history"]]
+					metric_summary[metric_name]["population_mean"] = numpy.nanmean(metric_summary[metric_name]["sample_mean"])
+					metric_summary[metric_name]["population_std"] = numpy.nanstd(metric_summary[metric_name]["population_std"])
 				elif metric_function_name in ["calc_rouge_n", "calc_rouge_w"]:
 					# Multiple values
-					metric_summary[metric_name]["sample_mean"] = [[numpy.mean(history[i]) for i in range(len(history))] for history in metric_summary[metric_name]["history"]]
-					metric_summary[metric_name]["sample_std"] = [[numpy.std(history[i]) for i in range(len(history))] for history in metric_summary[metric_name]["history"]]
-					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["sample_mean"], axis=0).tolist()
-					metric_summary[metric_name]["population_std"] = numpy.std(metric_summary[metric_name]["sample_std"], axis=0).tolist()
+					metric_summary[metric_name]["sample_mean"] = [[numpy.nanmean(history[i]) for i in range(len(history))] for history in metric_summary[metric_name]["history"]]
+					metric_summary[metric_name]["sample_std"] = [[numpy.nanstd(history[i]) for i in range(len(history))] for history in metric_summary[metric_name]["history"]]
+					metric_summary[metric_name]["population_mean"] = numpy.nanmean(metric_summary[metric_name]["sample_mean"], axis=0).tolist()
+					metric_summary[metric_name]["population_std"] = numpy.nanstd(metric_summary[metric_name]["sample_std"], axis=0).tolist()
 				else:
 					logging.warning(f"Unknown metric function name: {metric_function_name}")
 					continue
@@ -254,12 +256,12 @@ def base_pipeline(model = None,
 			for metric_name in metric_summary:
 				if metric_function_name in ["calc_token_accuracy", "calc_bleu", "calc_perplexity"]:
 					# Single value
-					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["history"])
-					metric_summary[metric_name]["population_std"] = numpy.mean(metric_summary[metric_name]["history"])
+					metric_summary[metric_name]["population_mean"] = numpy.nanmean(metric_summary[metric_name]["history"])
+					metric_summary[metric_name]["population_std"] = numpy.nanmean(metric_summary[metric_name]["history"])
 				elif metric_function_name in ["calc_rouge_n", "calc_rouge_w"]:
 					# Multiple values
-					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["history"], axis=0).tolist()
-					metric_summary[metric_name]["population_std"] = numpy.mean(metric_summary[metric_name]["history"], axis=0).tolist()
+					metric_summary[metric_name]["population_mean"] = numpy.nanmean(metric_summary[metric_name]["history"], axis=0).tolist()
+					metric_summary[metric_name]["population_std"] = numpy.nanmean(metric_summary[metric_name]["history"], axis=0).tolist()
 				else:
 					logging.warning(f"Unknown metric function name: {metric_function_name}")
 					continue

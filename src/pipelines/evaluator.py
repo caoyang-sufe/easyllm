@@ -134,16 +134,16 @@ def base_pipeline(model = None,
 			for metric_name in metric_summary:
 				if metric_function_name in ["calc_token_accuracy", "calc_bleu", "calc_perplexity"]:
 					# Single value
-					metric_summary[metric_name]["sample_mean"] = [numpy.mean(history) for history in metric_summary[metric_name]["history"]]
-					metric_summary[metric_name]["sample_std"] = [numpy.std(history) for history in metric_summary[metric_name]["history"]]
-					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["sample_mean"])
-					metric_summary[metric_name]["population_std"] = numpy.std(metric_summary[metric_name]["population_std"])
+					metric_summary[metric_name]["sample_mean"] = [numpy.nanmean(history) for history in metric_summary[metric_name]["history"]]
+					metric_summary[metric_name]["sample_std"] = [numpy.nanstd(history) for history in metric_summary[metric_name]["history"]]
+					metric_summary[metric_name]["population_mean"] = numpy.nanmean(metric_summary[metric_name]["sample_mean"])
+					metric_summary[metric_name]["population_std"] = numpy.nanstd(metric_summary[metric_name]["population_std"])
 				elif metric_function_name in ["calc_rouge_n", "calc_rouge_w"]:
 					# Multiple values
-					metric_summary[metric_name]["sample_mean"] = [[numpy.mean(history[i]) for i in range(len(history))] for history in metric_summary[metric_name]["history"]]
-					metric_summary[metric_name]["sample_std"] = [[numpy.std(history[i]) for i in range(len(history))] for history in metric_summary[metric_name]["history"]]
-					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["sample_mean"], axis=0).tolist()
-					metric_summary[metric_name]["population_std"] = numpy.std(metric_summary[metric_name]["sample_std"], axis=0).tolist()
+					metric_summary[metric_name]["sample_mean"] = [[numpy.nanmean(history[i]) for i in range(len(history))] for history in metric_summary[metric_name]["history"]]
+					metric_summary[metric_name]["sample_std"] = [[numpy.nanstd(history[i]) for i in range(len(history))] for history in metric_summary[metric_name]["history"]]
+					metric_summary[metric_name]["population_mean"] = numpy.nanmean(metric_summary[metric_name]["sample_mean"], axis=0).tolist()
+					metric_summary[metric_name]["population_std"] = numpy.nanstd(metric_summary[metric_name]["sample_std"], axis=0).tolist()
 				else:
 					logging.warning(f"Unknown metric function name: {metric_function_name}")
 					continue
@@ -185,12 +185,12 @@ def base_pipeline(model = None,
 			for metric_name in metric_summary:
 				if metric_function_name in ["calc_token_accuracy", "calc_bleu", "calc_perplexity"]:
 					# Single value
-					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["history"])
-					metric_summary[metric_name]["population_std"] = numpy.std(metric_summary[metric_name]["history"])
+					metric_summary[metric_name]["population_mean"] = numpy.nanmean(metric_summary[metric_name]["history"])
+					metric_summary[metric_name]["population_std"] = numpy.nanstd(metric_summary[metric_name]["history"])
 				elif metric_function_name in ["calc_rouge_n", "calc_rouge_w"]:
 					# Multiple values
-					metric_summary[metric_name]["population_mean"] = numpy.mean(metric_summary[metric_name]["history"], axis=0).tolist()
-					metric_summary[metric_name]["population_std"] = numpy.std(metric_summary[metric_name]["history"], axis=0).tolist()
+					metric_summary[metric_name]["population_mean"] = numpy.nanmean(metric_summary[metric_name]["history"], axis=0).tolist()
+					metric_summary[metric_name]["population_std"] = numpy.nanstd(metric_summary[metric_name]["history"], axis=0).tolist()
 				else:
 					logging.warning(f"Unknown metric function name: {metric_function_name}")
 					continue

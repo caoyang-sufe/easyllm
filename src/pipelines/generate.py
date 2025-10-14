@@ -145,8 +145,8 @@ def decode_pipeline(model_name_or_path,
 					use_kv_cache = True,
 					forward_hook_module_names = None,
 					backward_hook_module_names = None,
-					parallel_model_class = parallel_model_class,
-					n_cuda = n_cuda,
+					parallel_model_class = None,
+					n_cuda = 2,
 					):
 	logging.info("Load model and tokenizer ...")
 	if device is None:

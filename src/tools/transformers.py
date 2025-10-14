@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
+# LLM generation and tokenization
 
 import torch
 import logging
 from copy import deepcopy
 from functools import wraps
 from torch.nn import functional as F
-
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
 
+# Get `model.generation_config.eos_token_id`
+# @param model: Huggingface AutoModelForCausalLM object
+# @return bos_token_ids: List[Int]
 def get_generation_eos_token_ids(model):
 	eos_token_id = model.generation_config.eos_token_id
 	if isinstance(eos_token_id, int):
@@ -22,6 +25,9 @@ def get_generation_eos_token_ids(model):
 		eos_token_ids = [151643, 151645]	# Default EOS token for Qwen model
 	return eos_token_ids
 
+# Get `model.generation_config.bos_token_id`
+# @param model: Huggingface AutoModelForCausalLM object
+# @return bos_token_ids: List[Int]
 def get_generation_bos_token_ids(model):
 	bos_token_id = model.generation_config.bos_token_id
 	if isinstance(bos_token_id, int):
@@ -303,32 +309,3 @@ def generate_token_prob(model,
 		token_prob = generated_probs[i][0, token_id].item()	# Float
 		generated_token_probs.append((token_id, token, token_prob))
 	return generated_text, generated_token_probs, generated_logits
-
-# Calculate cosine similarity by filtering outlier
-# @param x: [torch.Tensor]
-# @param y: [torch.Tensor]
-# @param filter_outlier: [Float] range from [0, 1)
-def robust_cosine_similarity(x, y, outlier_ratio = .1):
-	x, y = x.flatten(), y.flatten()
-	assert x.size(0) == y.size(0)
-	abs_diff = torch.abs(x - y)
-	k = int(len(abs_diff) * (1 - outlier_ratio))
-	_, indices = torch.topk(abs_diff, k=k, largest=False)
-	x_filtered, y_filtered = x[indices], y[indices]
-	similarity = F.cosine_similarity(x_filtered, y_filtered, dim=0).item()
-	return similarity
-	
-
-# Calculate correlation coefficient by filtering outlier
-# @param x: [torch.Tensor]
-# @param y: [torch.Tensor]
-# @param outlier_ratio: [Float] range from [0, 1)
-def robust_corrcoef(x, y, outlier_ratio = .1):
-	x, y = x.flatten(), y.flatten()
-	assert x.size(0) == y.size(0)
-	abs_diff = torch.abs(x - y)
-	k = int(len(abs_diff) * (1 - outlier_ratio))
-	_, indices = torch.topk(abs_diff, k=k, largest=False)
-	x_filtered, y_filtered = x[indices], y[indices]
-	corrcoef = torch.corrcoef(torch.stack([x_filtered, y_filtered]))[0, 1].item()
-	return corrcoef

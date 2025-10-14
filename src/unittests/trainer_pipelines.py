@@ -26,9 +26,10 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 		]
 	else:
 		target_layer_ids_list = [
-			[num_hidden_layers - 1],
-			[0],
-			[1],
+			[num_hidden_layers - 1],	# Tail 0
+			[0],	# Head 0
+			[num_hidden_layers - 2],	# Tail 1
+			[1],	# Head 1
 		]
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
@@ -66,7 +67,10 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 		}
 		trainer_kwargs = {
 		}
-		kwargs = {**config_kwargs, **trainer_kwargs, **{"adapter_output_dirs": adapter_output_dirs}}
+		kwargs = {**{"adapter_output_dirs": adapter_output_dirs}, **config_kwargs, **trainer_kwargs}
+		os.makedirs(config_kwargs["output_dir"], exist_ok=True)
+		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
+			json.dump(kwargs, f, ensure_ascii=False)
 		sft_pipeline(
 			data_processor, 
 			config_kwargs, 
@@ -76,8 +80,6 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 			adapter_output_dirs = adapter_output_dirs,
 			parse_arguments = False,
 		)
-		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
-			json.dump(kwargs, f, ensure_ascii=False)
 
 def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
@@ -93,9 +95,10 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 		]
 	else:
 		target_layer_ids_list = [
-			[num_hidden_layers - 1],
-			[0],
-			[1],
+			[num_hidden_layers - 1],	# Tail 0
+			[0],	# Head 0
+			[num_hidden_layers - 2],	# Tail 1
+			[1],	# Head 1
 		]
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
@@ -133,7 +136,10 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 		}
 		trainer_kwargs = {
 		}
-		kwargs = {**config_kwargs, **trainer_kwargs, **{"adapter_output_dirs": adapter_output_dirs}}
+		kwargs = {**{"adapter_output_dirs": adapter_output_dirs}, **config_kwargs, **trainer_kwargs}
+		os.makedirs(config_kwargs["output_dir"], exist_ok=True)
+		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
+			json.dump(kwargs, f, ensure_ascii=False)
 		sft_pipeline(
 			data_processor, 
 			config_kwargs, 
@@ -143,8 +149,6 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 			adapter_output_dirs = adapter_output_dirs,
 			parse_arguments = False,
 		)
-		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
-			json.dump(kwargs, f, ensure_ascii=False)
 
 def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
@@ -160,9 +164,10 @@ def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaFo
 		]
 	else:
 		target_layer_ids_list = [
-			[num_hidden_layers - 1],
-			[0],
-			[1],
+			# [num_hidden_layers - 1],	# Tail 0
+			[0],	# Head 0
+			# [num_hidden_layers - 2],	# Tail 1
+			[1],	# Head 1
 		]
 	for target_layer_ids in target_layer_ids_list:
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
@@ -200,7 +205,10 @@ def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaFo
 		}
 		trainer_kwargs = {
 		}
-		kwargs = {**config_kwargs, **trainer_kwargs, **{"adapter_output_dirs": adapter_output_dirs}}
+		kwargs = {**{"adapter_output_dirs": adapter_output_dirs}, **config_kwargs, **trainer_kwargs}
+		os.makedirs(config_kwargs["output_dir"], exist_ok=True)
+		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
+			json.dump(kwargs, f, ensure_ascii=False)
 		sft_pipeline(
 			data_processor, 
 			config_kwargs, 
@@ -210,9 +218,75 @@ def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaFo
 			adapter_output_dirs = adapter_output_dirs,
 			parse_arguments = False,
 		)
+
+def sft_train_chinese_poems(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+	num_hidden_layers = model_config.num_hidden_layers
+	if adapter_output_dirs is None:
+		target_layer_ids_list = [
+			list(range(num_hidden_layers)),	# Full
+			[0, 1, 2, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
+			list(range(3, num_hidden_layers - 3)),	# Body only
+			list(range(num_hidden_layers // 2)), # Half 1
+			list(range(num_hidden_layers // 2, num_hidden_layers)), # Half 2 
+		]
+	else:
+		target_layer_ids_list = [
+			[num_hidden_layers - 1],	# Tail 0
+			[0],	# Head 0
+			[num_hidden_layers - 2],	# Tail 1
+			[1],	# Head 1
+		]
+	for target_layer_ids in target_layer_ids_list:
+		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
+		dataset_name = os.path.join(dataset_home, dataset_names[7])
+		logging.info(f"  - Model: {model_name_or_path}")
+		logging.info(f"  - Dataset: {dataset_name}")
+		data_processor = lambda _data: {"prompt": _data["content"][: -10], "completion": _data["response"][-10: ]}
+		time_string = time.strftime("%Y%m%d%H%M%S")
+		config_kwargs = {
+			"output_dir": f"./temp/sft+{model_name_or_path.split('/')[-1]}+{dataset_name.split('/')[-1]}+{time_string}",
+			"model_name_or_path": model_name_or_path,
+			"dataset_name": dataset_name,
+			"trust_remote_code": True,
+			"dataset_train_split": "train[:1000]",
+			"dataset_test_split": "train[1000:1100]",
+			"use_peft": True,
+			"report_to": "none",
+			# LoRA
+			"lora_target_modules": [f"model.layers.{i}.self_attn.q_proj" for i in target_layer_ids] + \
+				[f"model.layers.{i}.self_attn.k_proj" for i in target_layer_ids] + \
+				[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids],
+			"lora_r": 16,
+			"lora_alpha": 16,
+			"lora_dropout": .05,
+			"lora_task_type": "CAUSAL_LM",
+			# Logging
+			"logging_strategy": "steps",
+			"logging_steps": 1,
+			"eval_strategy": "epoch",
+			"save_strategy": "epoch",
+			# Train
+			"per_device_train_batch_size": 8,
+			"per_device_eval_batch_size": 8,
+			"num_train_epochs": 32,
+		}
+		trainer_kwargs = {
+		}
+		kwargs = {**{"adapter_output_dirs": adapter_output_dirs}, **config_kwargs, **trainer_kwargs}
+		os.makedirs(config_kwargs["output_dir"], exist_ok=True)
 		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
 			json.dump(kwargs, f, ensure_ascii=False)
-
+		sft_pipeline(
+			data_processor, 
+			config_kwargs, 
+			trainer_kwargs, 
+			parallel_model_class = parallel_model_class, 
+			n_cuda = n_cuda,
+			adapter_output_dirs = adapter_output_dirs,
+			parse_arguments = False,
+		)
 # ----------------------------------------------------------------------
 # Base pipeline test
 def sft_pipeline_test(model_id=0, parallel_model_class=None, n_cuda=2):

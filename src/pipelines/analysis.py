@@ -11,7 +11,8 @@ from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.plot import plot_tensor_heatmap
 from src.tools.hook import register_forward_hook_decorator
-from src.tools.transformers import greedy_decode, robust_cosine_similarity, robust_corrcoef
+from src.tools.transformers import greedy_decode
+from src.tools.torch import robust_cosine_similarity, robust_corrcoef
 from src.pipelines.generate import display_pipeline
 from src.modules import (
 	ParallelQwen2Model, SkipLayerQwen2ForCausalLM,
