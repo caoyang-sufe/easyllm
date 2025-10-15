@@ -18,10 +18,10 @@ from transformers import (
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model, PeftModel
 from trl import (
 	ScriptArguments, ModelConfig, 
-	# SFTConfig, SFTTrainer,
-	# PPOConfig, PPOTrainer,
-	# DPOConfig, DPOTrainer,
-	# GRPOConfig, GRPOTrainer,	# Use getattr instead
+	SFTConfig, SFTTrainer,
+	PPOConfig, PPOTrainer,
+	DPOConfig, DPOTrainer,
+	GRPOConfig, GRPOTrainer,	# Use getattr instead
 	get_peft_config, get_quantization_config,
 )
 from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
@@ -43,16 +43,14 @@ from src.modules import (
 
 # Trainer Pipeline
 # @param name: [Str] e.g. "SFT", "PPO", "DPO", "GRPO"
-# @param data_processor: Function object prepared for `dataset.map(data_processor)`
-# @param trainer_config: [Dict, peft.XXXConfig] including keyword arguments, e.g. 
-# @param model_config: [Dict, peft.ModelConfig] including keyword arguments, e.g. 
-# @param script_arguments: [Dict, peft.ScriptArguments] including keyword arguments, e.g. "dataset_name", "dataset_train_split", "dataset_test_split"
+# @param train_data_processor: [Function] prepared for `train_dataset.map(data_processor)`, train_dataset is only one
+# @param test_data_processors: List[Function] prepared for `test_dataset.map(data_processor)`, test_dataset may be more than one
 # @param config_kwargs: [Dict] keyword arguments for updating TRL-Config, `ScriptArguments`, `ModelConfig`
 #   - keyword arguments for `TRLConfig`: e.g. "output_dir", "adam_xxx", "learning_rate", "kl_coef", "push_to_hub"
 #   - keyword arguments for `ScriptArguments`: e.g. "output_dir", "adam_xxx", "learning_rate", "kl_coef", "push_to_hub"
 #   - keyword arguments for `ModelConfig`: e.g. "model_name_or_path", "torch_dtype", "trust_remote_code", "use_peft", "lora_xxx", "load_in_4bit", "bnb_4bit_compute_dtype", "bnb_4bit_quant_type"
 # @param trainer_kwargs: [Dict] keyword arguments for updating TRL-Trainer
-#   - keyword arguments for all Trainers: e.g. "data_collator", "callbacks"
+#   - keyword arguments for all Trainers: e.g. "data_collator", "callbacks", "train_dataset", "eval_dataset"
 #   - keyword arguments for `SFTTrainer`: e.g. "compute_loss_func", "compute_metrics"
 #   - keyword arguments for `PPOTrainer`: e.g. "ref_model[required]", "reward_model[required]", "value_model[required]"
 #   - keyword arguments for `DPOTrainer`: e.g. "ref_model"
@@ -61,7 +59,8 @@ from src.modules import (
 # @param n_cuda: [Int] Number of CUDA device available
 # @param adapter_output_dirs: [List[Str]] All `output_dir` of adapters (usually trained by LoRA)
 def base_pipeline(name, 
-				  data_processor, 
+				  train_data_processor, 
+				  test_data_processors,
 				  config_kwargs, 
 				  trainer_kwargs, 
 				  parallel_model_class = None, 
@@ -69,8 +68,9 @@ def base_pipeline(name,
 				  adapter_output_dirs = None,
 				  parse_arguments = False,
 				  ):
+	# ------------------------------------------------------------------
 	# 1 Configuration
-	TRLConfig, TRLTrainer = getattr(trl, f"{name}Config"), getattr(trl, f"{name}Trainer")
+	TRLConfig, TRLTrainer = eval(f"{name}Config"), eval(f"{name}Trainer")
 	if parse_arguments:
 		parser = HfArgumentParser((ScriptArguments, TRLConfig, ModelConfig))
 		script_arguments, trainer_config, model_config = parser.parse_args_into_dataclasses()
@@ -83,6 +83,7 @@ def base_pipeline(name,
 	model_config = update_trl_config(model_config, **config_kwargs)
 	peft_config = get_peft_config(model_config)
 	quantization_config = get_quantization_config(model_config)
+	# ------------------------------------------------------------------
 	# 2 Load models and tokenizer
 	logging.info("Load models and tokenizer ...")
 	logging.info(f"  - Model: {model_config.model_name_or_path}")
@@ -90,6 +91,7 @@ def base_pipeline(name,
 	if tokenizer.chat_template is None:
 		tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
 	if parallel_model_class is None:
+		# 2.1 Model parallel settings
 		logging.info("Using AutoModelForCausalLM ...")
 		model = AutoModelForCausalLM.from_pretrained(
 			model_config.model_name_or_path,
@@ -105,8 +107,8 @@ def base_pipeline(name,
 			device_map = "cpu",
 		)
 		model.module_to_device()
-
 	if adapter_output_dirs is not None:
+		# 2.2 Load adapters
 		logging.info(f"  - Load adapters ...")
 		for i, adapter_output_dir in enumerate(adapter_output_dirs):
 			logging.info(f"    - Load adapter {i}: {adapter_output_dir}")
@@ -115,8 +117,8 @@ def base_pipeline(name,
 	logging.info(f"Print parameter device ...")
 	for name, parameter in model.named_parameters():
 		logging.info(f"{name}: {parameter.device}")
-
 	if peft_config is not None:
+		# 2.3 Model PEFT settings
 		logging.info("Prepare model for PEFT ...")
 		model.config.pretraining_tp = 1
 		model.config.use_cache = False
@@ -127,8 +129,8 @@ def base_pipeline(name,
 		model.enable_input_require_grads()
 		model = get_peft_model(model, peft_config)
 	if name == "PPO":
+		# 2.4 PPO is special! It needs more components!
 		logging.info("PPO load reward value and reference models ...")
-		# PPO is special! It needs more components!
 		logging.info(f"  - Reward model: {trainer_config.reward_model_path}")
 		reward_model = AutoModelForSequenceClassification.from_pretrained(
 			trainer_config.reward_model_path,
@@ -153,91 +155,136 @@ def base_pipeline(name,
 		trainer_kwargs["ref_model"] = ref_model
 		trainer_kwargs["processing_class"] = reward_tokenizer
 		logging.info("  - Done!")
-		if data_processor is None:
+		if train_data_processor is None:
 			# The data processor of PPO is also different to others
-			def data_processor(_data):
+			def train_data_processor(_data):
 				outputs = tokenizer(_data["prompt"] + _data["completion"], padding = False)
 				return {"input_ids": outputs["input_ids"]}
 	else:
 		trainer_kwargs["processing_class"] = tokenizer
-	# 2 Load dataset
+	# ------------------------------------------------------------------
+	# 3 Load dataset
 	logging.info("Load dataset ...")
 	logging.info(f"  - Dataset: {script_arguments.dataset_name}")
-	if data_processor is None:
-		data_processor = generate_simple_data_processor(name)
-	train_dataset = load_dataset(script_arguments.dataset_name, split=script_arguments.dataset_train_split)
-	eval_dataset = load_dataset(script_arguments.dataset_name, split=script_arguments.dataset_test_split)
-	train_dataset = train_dataset.map(data_processor, remove_columns=train_dataset.column_names)
-	eval_dataset = eval_dataset.map(data_processor, remove_columns=eval_dataset.column_names)
-	logging.info(f"  - Train dataset: {len(train_dataset)}")
-	logging.info(f"  - Eval dataset: {len(eval_dataset)}")
-	# 3 Train model
+	if train_data_processor is None:
+		train_data_processor = generate_simple_data_processor(name)	# Default data processor
+	if not "train_dataset" in trainer_kwargs:
+		# 3.1 Train dataset
+		if isinstance(script_arguments.dataset_name, str):
+			# Train and test splits are from the same dataset
+			train_dataset_path = script_arguments.dataset_name
+		elif isinstance(script_arguments.dataset_name, dict):
+			# Recommend: more robust usage: {"train": <dataset_name>}
+			train_dataset_path = script_arguments.dataset_name["train"]			
+		else:
+			raise Exception(f"Unexpected script argument `dataset_name`: {script_arguments.dataset_name}")	
+		train_dataset = load_dataset(train_dataset_path, split=script_arguments.dataset_train_split)
+		train_dataset = train_dataset.map(train_data_processor, remove_columns=train_dataset.column_names)
+		logging.info(f"  - Train dataset: {len(train_dataset)}")
+		trainer_kwargs["train_dataset"] = train_dataset
+	if not "eval_dataset" in trainer_kwargs:
+		# 3.2 Evaluation dataset(s)
+		if isinstance(script_arguments.dataset_test_split, str):
+			test_splits = [script_arguments.dataset_test_split]
+		if isinstance(script_arguments.dataset_test_split, list):
+			test_splits = script_arguments.dataset_test_split[:]
+		else:
+			raise Exception(f"Unexpected script argument `dataset_test_split`: {script_arguments.dataset_test_split}")
+		if test_data_processors is None:
+			test_data_processors = [train_data_processor] * len(test_splits)
+		assert len(test_splits) == len(test_data_processors), f"Mismatch: {test_splits} and {test_data_processors}"
+		n_test_datasets = len(test_splits)
+		if isinstance(script_arguments.dataset_name, str):
+			test_dataset_paths = [script_arguments.dataset_name] * n_test_datasets
+		elif isinstance(script_arguments.dataset_name, dict):
+			# Recommend: more robust usage: {"test": List[<dataset_name>]}
+			if isinstance(script_arguments.dataset_name["test"], str):
+				test_dataset_paths = [script_arguments.dataset_name["test"]] * n_test_datasets
+			elif isinstance(script_arguments.dataset_name["test"], list):
+				test_dataset_paths = script_arguments.dataset_name["test"][:]
+			else:
+				raise Exception(f"Unexpected script argument `dataset_name`: {script_arguments.dataset_name}")
+		else:
+			raise Exception(f"Unexpected script argument `dataset_name`: {script_arguments.dataset_name}")
+		eval_dataset = dict()
+		for i in range(n_test_datasets):
+			eval_dataset[f"eval_{i}"] = load_dataset(test_dataset_paths[i], split=test_splits[i])
+			eval_dataset[f"eval_{i}"] = eval_dataset[f"eval_{i}"].map(test_data_processors[i], remove_columns=eval_dataset[f"eval_{i}"].column_names)
+		logging.info(f"  - {n_test_datasets} Eval dataset: {[len(dataset) for dataset in eval_dataset]}")			
+		trainer_kwargs["eval_dataset"] = eval_dataset
+	# ------------------------------------------------------------------
+	# 4 Train model
 	logging.info("Trainer starts ...")
 	trainer = TRLTrainer(
 		model = model,
 		args = trainer_config,
-		train_dataset = train_dataset,
-		eval_dataset = eval_dataset,
 		peft_config = peft_config,
-		**trainer_kwargs
+		**trainer_kwargs	# train_dataset, eval_dataset, processing_class
 	)
 	trainer.train()
 	logging.info("  - Trainer finishes!")
-	# 4 Save model
+	# ------------------------------------------------------------------
+	# 5 Save model
 	if trainer_config.push_to_hub:
+		# 5.1 Push to HuggingFace Hub
 		logging.info(f"  - Push checkpoints to {trainer_config.organization}/{trainer_config.push_to_hub_model_id}")
 		trainer.push_to_hub()
+		NotImplemented
 	logging.info(f"Save model to {trainer_config.output_dir}")
 	trainer.save_model(trainer_config.output_dir)
 
 # SFT Pipeline
-def sft_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
+def sft_pipeline(train_data_processor, test_data_processors, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
 	base_pipeline(
-		name = "SFT",
-		data_processor = data_processor,
-		config_kwargs = config_kwargs,
-		trainer_kwargs = trainer_kwargs,
-		parallel_model_class = parallel_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		parse_arguments = parse_arguments,
+		"SFT", 
+		train_data_processor, 
+		test_data_processors,
+		config_kwargs, 
+		trainer_kwargs, 
+		parallel_model_class, 
+		n_cuda,
+		adapter_output_dirs,
+		parse_arguments,
 	)
 
 # PPO Pipeline
-def ppo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
+def ppo_pipeline(train_data_processor, test_data_processors, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
 	base_pipeline(
-		name = "PPO",
-		data_processor = data_processor,
-		config_kwargs = config_kwargs,
-		trainer_kwargs = trainer_kwargs,
-		parallel_model_class = parallel_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		parse_arguments = parse_arguments,
+		"PPO", 
+		train_data_processor, 
+		test_data_processors,
+		config_kwargs, 
+		trainer_kwargs, 
+		parallel_model_class, 
+		n_cuda,
+		adapter_output_dirs,
+		parse_arguments,
 	)
 
 # DPO Pipeline
-def dpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
+def dpo_pipeline(train_data_processor, test_data_processors, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
 	base_pipeline(
-		name = "DPO",
-		data_processor = data_processor,
-		config_kwargs = config_kwargs,
-		trainer_kwargs = trainer_kwargs,
-		parallel_model_class = parallel_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		parse_arguments = parse_arguments,
+		"DPO", 
+		train_data_processor, 
+		test_data_processors,
+		config_kwargs, 
+		trainer_kwargs, 
+		parallel_model_class, 
+		n_cuda,
+		adapter_output_dirs,
+		parse_arguments,
 	)
 
 # GRPO Pipeline
-def grpo_pipeline(data_processor, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
+def grpo_pipeline(train_data_processor, test_data_processors, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
 	base_pipeline(
-		name = "GRPO",
-		data_processor = data_processor,
-		config_kwargs = config_kwargs,
-		trainer_kwargs = trainer_kwargs,
-		parallel_model_class = parallel_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		parse_arguments = parse_arguments,
+		"GRPO", 
+		train_data_processor, 
+		test_data_processors,
+		config_kwargs, 
+		trainer_kwargs, 
+		parallel_model_class, 
+		n_cuda,
+		adapter_output_dirs,
+		parse_arguments,
 	)

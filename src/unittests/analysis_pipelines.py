@@ -10,13 +10,11 @@ import string
 import logging
 from torch import nn
 from torch.nn import functional as F
-
 from datasets import load_dataset
-
-from src.tools.transformers import get_generation_eos_token_ids
-from src.tools.torch import register_forward_hook_decorator, register_backward_hook_decorator
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
+from src.tools.transformers import get_generation_eos_token_ids
+from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
 from src.unittests import model_home, dataset_home, model_names, dataset_names
 from src.pipelines.analysis import horizontal_comparison_of_forward_hook, vertical_comparison_of_forward_hook, easy_skip_layer_generation, skip_layer_generation
 from src.pipelines.generate import display_pipeline

@@ -212,7 +212,7 @@ def evaluate_leetcodedataset(model_id=10, parallel_model_class=None, n_cuda=2, d
 		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+greedy+{time_string}.json", 'w', encoding="utf8") as f:
 			json.dump({**{"adapter_output_dirs": adapter_output_dirs}, **metric_summary}, f, ensure_ascii=False)
 
-def evaluate_chinesepoems(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=False, adapter_output_dirs=None):
+def evaluate_chinese_poems(model_id=10, parallel_model_class=None, n_cuda=2, do_sample=False, adapter_output_dirs=None):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"Load model: {model_name_or_path} ...")
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
@@ -233,7 +233,7 @@ def evaluate_chinesepoems(model_id=10, parallel_model_class=None, n_cuda=2, do_s
 			model = model.merge_and_unload()
 	dataset_path = os.path.join(dataset_home, dataset_names[7])
 	dataset = load_dataset(dataset_path, split="train[1000:1100]")
-	data_processor = lambda _data: {"prompt": _data["content"][: -10], "completion": _data["response"][-10: ]}
+	data_processor = lambda _data: {"prompt": _data["content"][:-10], "completion": _data["response"][-10:]}
 	dataset = dataset.map(data_processor)
 	logging.info(f"Use dataset: {dataset_path} ...")
 	kwargs = {
@@ -275,4 +275,3 @@ def evaluate_chinesepoems(model_id=10, parallel_model_class=None, n_cuda=2, do_s
 		model_name = model_name_or_path.split('/')[-1]
 		with open(f"./temp/{model_name}+{dataset_path.split('/')[-1]}+greedy+{time_string}.json", 'w', encoding="utf8") as f:
 			json.dump({**{"adapter_output_dirs": adapter_output_dirs}, **metric_summary}, f, ensure_ascii=False)
-
