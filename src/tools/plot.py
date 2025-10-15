@@ -164,8 +164,8 @@ def plot_tensor_heatmap(tensor, *,
 # @param trainer_state_names: [List[Str]] Default None refers to [0, 1, 2, ...]
 # @param plot_index_names: [List[Str]] index to plot in `log_history`, e.g. `["loss", "mean_token_accuracy", "entropy"]`
 # @param eval_keys: List[Str]
-# - When keyword argument `eval_dataset` of `SFTTrainer` is only one dataset, then refers to ["eval"]
-# - When keyword argument `eval_dataset` of `SFTTrainer` is a [Dict] of several datasets, then refers to the keys of `eval_dataset`, usually "eval_0", "eval_1", ...
+# - When keyword argument `eval_dataset` of `SFTTrainer` is only one dataset, then refers to [str()]
+# - When keyword argument `eval_dataset` of `SFTTrainer` is a [Dict] of several datasets, then refers to the keys of `eval_dataset`, usually ["eval_0", "eval_1", ...]
 # @param x_index_name: [Str] index to plot in `log_history`, "epoch" or "step"
 # @param figure_size: [Int] Figure size of width or height (usually the same)
 # @param save_path: [Str] Figure save path
@@ -173,7 +173,7 @@ def plot_tensor_heatmap(tensor, *,
 def plot_trainer_state(trainer_state_paths,
 					   trainer_state_names = None,
 					   plot_index_names = ["loss", "mean_token_accuracy", "entropy"],
-					   eval_keys = ["eval"],
+					   eval_keys = [str()],
 					   x_index_name = "epoch",
 					   figure_size = 5,
 					   save_path = None,
@@ -185,21 +185,44 @@ def plot_trainer_state(trainer_state_paths,
 		with open(trainer_state_path, 'r', encoding="utf8") as f:
 			data = json.load(f)
 		log_history = data["log_history"]	# List[Dict]
-		x_data_train, x_data_eval = list(), list()
+		x_data_train = list()
 		y_data_train = {index_name: list() for index_name in plot_index_names}
+		x_data_eval_dict = dict()
 		y_data_eval_dict = dict()
 		for eval_key in eval_keys:
+			x_data_eval_dict[eval_key] = list()
 			y_data_eval_dict[eval_key] = {index_name: list() for index_name in plot_index_names}
 		for entry in log_history:
 			if "loss" in entry:
+				# This is a train log entry
 				x_data_train.append(entry[x_index_name])	# Epoch 0, 1, 2, ...
 				for index_name in plot_index_names:
 					y_data_train[index_name].append(entry[index_name])
-			if f"{eval_keys[0]}_loss" in entry:
-				x_data_eval.append(entry[x_index_name])
+			if f"eval_entropy" in entry:
+				# This is an eval log entry
+				eval_key_flag = False
 				for eval_key in eval_keys:
-					for index_name in plot_index_names:
-						y_data_eval_dict[eval_key][index_name].append(entry[f"{eval_key}_{index_name}"])
+					if eval_key:
+						# `eval_key` is not an empty string
+						if f"eval_{eval_key}_loss" in entry:
+							eval_key_flag = True
+							x_data_eval_dict[eval_key].append(entry[x_index_name])
+							for index_name in plot_index_names:
+								if index_name in ["entropy", "mean_token_accuracy", "num_tokens"]:
+									y_data_eval_dict[eval_key][index_name].append(entry[f"eval_{index_name}"])
+								else:
+									y_data_eval_dict[eval_key][index_name].append(entry[f"eval_{eval_key}_{index_name}"])
+							break
+					else:
+						# `eval_key` is an empty string, i.e. keyword argument `eval_dataset` of `SFTTrainer` is only one dataset
+						if f"eval_loss" in entry:
+							eval_key_flag = True
+							x_data_eval_dict[eval_key].append(entry[x_index_name])
+							for index_name in plot_index_names:
+								y_data_eval_dict[str()][index_name].append(entry[f"eval_{index_name}"])
+							break							
+				if not eval_key_flag:
+					raise Exception("Cannot find")
 		if i == 0:
 			# Initialize canvas at the first trainer_states.json
 			if y_data_eval_dict[eval_keys[0]][plot_index_names[0]]:
@@ -228,7 +251,7 @@ def plot_trainer_state(trainer_state_paths,
 			if nrows > 1:
 				for k, eval_key in enumerate(eval_keys):
 					target_ax = axes[k + 1] if ncols == 1 else axes[k + 1][j]
-					target_ax.plot(x_data_eval, y_data_eval_dict[eval_key][y_index_name], label=trainer_state_name)
+					target_ax.plot(x_data_eval_dict[eval_key], y_data_eval_dict[eval_key][y_index_name], label=trainer_state_name)
 					target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{eval_key}_{y_index_name} by {x_index_name}")
 					target_ax.legend(), target_ax.grid(True, alpha=.3)
 	if save_path is not None:
