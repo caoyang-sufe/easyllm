@@ -89,6 +89,25 @@ def sft_train_chinese_poems(model_id=10, overwritten_model_class=None, n_cuda=2,
 		num_train_epochs = 32,
 	)
 
+def sft_train_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+	sft_pipeline_test(
+		model_id = model_id,
+		train_dataset_id = 8,
+		dataset_train_split = "train",
+		test_dataset_ids_and_splits = [(8, "test"), (5, "test")],
+		train_data_processor = lambda _data: {"prompt": _data["problem"], "completion": _data["solution"]},
+		test_data_processors = [
+			lambda _data: {"prompt": _data["problem"], "completion": _data["solution"]},
+			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
+		],
+		overwritten_model_class = overwritten_model_class,
+		n_cuda = n_cuda,
+		adapter_output_dirs = adapter_output_dirs,
+		per_device_train_batch_size = 8,
+		per_device_eval_batch_size = 8,
+		num_train_epochs = 32,
+	)
+
 # ----------------------------------------------------------------------
 # Base pipeline test
 def sft_pipeline_test(

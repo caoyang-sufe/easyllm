@@ -18,6 +18,7 @@ from src.unittests.trainer_pipelines import (
 	sft_train_gsm8k,
 	sft_train_leetcodedataset,
 	sft_train_chinese_poems,
+	sft_train_math,
 )
 from src.unittests.generate_pipelines import (
 	decode_pipeline_test,
@@ -53,7 +54,8 @@ with open("check.txt", 'w', encoding="utf8") as f:
 # function_name = "sft_train_math_500"
 # function_name = "sft_train_gsm8k"
 # function_name = "sft_train_leetcodedataset"
-function_name = "sft_train_chinese_poems"
+# function_name = "sft_train_chinese_poems"
+function_name = "sft_train_math"
 # function_name = "dpo_pipeline_test"
 # function_name = "grpo_pipeline_test"
 # function_name = "ppo_pipeline_test"
@@ -86,12 +88,6 @@ logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%
 # ----------------------------------------------------------------------
 # 1. TRAINER
 # ----------------------------------------------------------------------
-# eval(function_name)(
-	# model_id = 10,
-	# overwritten_model_class = "ParallelLlamaForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
-# )
 
 eval(function_name)(
 	model_id = 12,
@@ -99,6 +95,28 @@ eval(function_name)(
 	n_cuda = 2,
 	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
 )
+
+eval(function_name)(
+	model_id = 10,
+	overwritten_model_class = "ParallelLlamaForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
+)
+
+
+# sft_train_leetcodedataset(
+	# model_id = 12,
+	# overwritten_model_class = "ParallelQwen3ForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
+# )
+
+# sft_train_gsm8k(
+	# model_id = 12,
+	# overwritten_model_class = "ParallelQwen3ForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
+# )
 
 # ----------------------------------------------------------------------
 # 2. EVALUATOR

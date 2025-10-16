@@ -62,6 +62,7 @@ elif platform.system() == "Windows":
 		r"HuggingFaceH4\MATH-500",	# 5 test["problem", "answer"]
 		r"newfacade\LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
 		r"larryvrh\Chinese-Poems", # 7 train["content"], you need to manually split
+		r"HuggingFaceH4\MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
 	]
 
 else:
