@@ -69,10 +69,10 @@ def base_pipeline(model = None,
 				  ):
 	if model is None:
 		logging.info(f"Load model from {model_name_or_path}")
-		model = AutoModelForCausalLM.from_pretrained(model_name_or_path).to(device)
+		model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True, device_map="auto")
 	if tokenizer is None:
 		logging.info(f"Load tokenizer from {model_name_or_path}")
-		tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+		tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
 	if dataset is None:
 		logging.info(f"Load dataset from {dataset_name_or_path} with split {test_data_split}")
 		dataset = load_dataset(dataset_name_or_path, split=test_data_split)
@@ -171,10 +171,10 @@ def base_pipeline(model = None,
 				elif metric_function_name in ["calc_perplexity"]:
 					# Special metric calculation: positional arguments are not `predict` and `target`
 					returned_value = eval(metric_function_name)(
-						prompt = input_token_ids, 
-						completion = target_token_ids, 
-						model = model, 
-						device = device, 
+						prompt = input_token_ids,
+						completion = target_token_ids,
+						model = model,
+						device = device,
 						**metric_kwargs,
 					)
 					metric_summary[metric_name]["history"].append(returned_value)

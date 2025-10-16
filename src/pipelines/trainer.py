@@ -2,6 +2,7 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
+import gc
 import trl
 import torch
 import logging
@@ -17,7 +18,7 @@ from transformers import (
 )
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model, PeftModel
 from trl import (
-	ScriptArguments, ModelConfig, 
+	ScriptArguments, ModelConfig,
 	SFTConfig, SFTTrainer,
 	PPOConfig, PPOTrainer,
 	DPOConfig, DPOTrainer,
@@ -27,12 +28,12 @@ from trl import (
 from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
 from src.tools.trl import update_trl_config, generate_simple_data_processor
 from src.modules import (
-	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
-	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
-	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 
-	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
-	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
-	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
+	ParallelQwen2Model, SkipLayerQwen2ForCausalLM,
+	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM,
+	ParallelQwen3Model, SkipLayerQwen3ForCausalLM,
+	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM,
+	ParallelLlamaModel, SkipLayerLlamaForCausalLM,
+	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM,
 	SkipLayerDeepseekModel, SkipLayerDeepseekForCausalLM,
 	ParallelDeepseekModel, ParallelDeepseekForCausalLM,
 	SkipLayerDeepseekV2Model, SkipLayerDeepseekV2ForCausalLM,
@@ -55,16 +56,16 @@ from src.modules import (
 #   - keyword arguments for `PPOTrainer`: e.g. "ref_model[required]", "reward_model[required]", "value_model[required]"
 #   - keyword arguments for `DPOTrainer`: e.g. "ref_model"
 #   - keyword arguments for `GRPOTrainer`: e.g. "reward_funcs[required]"
-# @param parallel_model_class: [Str] e.g. "ParallelQwen2ForCausalLM", "ParallelQwen2Model", default `None` refer to AutoModelForCausalLM
+# @param overwritten_model_class: [Str] e.g. "ParallelQwen2ForCausalLM", "ParallelQwen2Model", default `None` refer to AutoModelForCausalLM
 # @param n_cuda: [Int] Number of CUDA device available
 # @param adapter_output_dirs: [List[Str]] All `output_dir` of adapters (usually trained by LoRA)
-def base_pipeline(name, 
-				  train_data_processor, 
+def base_pipeline(name,
+				  train_data_processor,
 				  test_data_processors,
-				  config_kwargs, 
-				  trainer_kwargs, 
-				  parallel_model_class = None, 
-				  n_cuda = 2,
+				  config_kwargs,
+				  trainer_kwargs,
+				  overwritten_model_class = None,
+				  overwritten_model_class_init_kwargs = {"n_cuda": 2, "device_map": "cpu"},
 				  adapter_output_dirs = None,
 				  parse_arguments = False,
 				  ):
@@ -87,24 +88,26 @@ def base_pipeline(name,
 	# 2 Load models and tokenizer
 	logging.info("Load models and tokenizer ...")
 	logging.info(f"  - Model: {model_config.model_name_or_path}")
+	logging.info(f"  - torch.cuda.is_available(): {torch.cuda.is_available()}")
+	logging.info(f"  - torch.backends.mps.is_available(): {torch.backends.mps.is_available()}")
+	logging.info(f"  - torch.cuda.device_count(): {torch.cuda.device_count()}")
 	tokenizer = AutoTokenizer.from_pretrained(model_config.model_name_or_path)
 	if tokenizer.chat_template is None:
 		tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
-	if parallel_model_class is None:
+	if overwritten_model_class is None:
 		# 2.1 Model parallel settings
 		logging.info("Using AutoModelForCausalLM ...")
 		model = AutoModelForCausalLM.from_pretrained(
 			model_config.model_name_or_path,
-			device_map = "auto",
+			device_map = "balanced",
 			trust_remote_code = model_config.trust_remote_code,
 			quantization_config = quantization_config,
 		)
 	else:
-		logging.info(f"Using {parallel_model_class} ...")
-		model = eval(parallel_model_class).from_pretrained(
+		logging.info(f"Using {overwritten_model_class} ...")
+		model = eval(overwritten_model_class).from_pretrained(
 			model_config.model_name_or_path,
-			n_cuda = n_cuda,
-			device_map = "cpu",
+			**overwritten_model_class_init_kwargs,
 		)
 		model.module_to_device()
 	if adapter_output_dirs is not None:
@@ -136,11 +139,13 @@ def base_pipeline(name,
 			trainer_config.reward_model_path,
 			trust_remote_code = model_config.trust_remote_code,
 			num_labels = 1,
+			device_map = "auto",
 		)
 		value_model = AutoModelForSequenceClassification.from_pretrained(
 			trainer_config.reward_model_path,
 			trust_remote_code = model_config.trust_remote_code,
 			num_labels = 1,
+			device_map = "auto",
 		)
 		reward_tokenizer = AutoTokenizer.from_pretrained(trainer_config.reward_model_path)
 		if reward_tokenizer.chat_template is None:
@@ -175,9 +180,9 @@ def base_pipeline(name,
 			train_dataset_path = script_arguments.dataset_name
 		elif isinstance(script_arguments.dataset_name, dict):
 			# Recommend: more robust usage: {"train": <dataset_name>}
-			train_dataset_path = script_arguments.dataset_name["train"]			
+			train_dataset_path = script_arguments.dataset_name["train"]
 		else:
-			raise Exception(f"Unexpected script argument `dataset_name`: {script_arguments.dataset_name}")	
+			raise Exception(f"Unexpected script argument `dataset_name`: {script_arguments.dataset_name}")
 		train_dataset = load_dataset(train_dataset_path, split=script_arguments.dataset_train_split)
 		train_dataset = train_dataset.map(train_data_processor, remove_columns=train_dataset.column_names)
 		logging.info(f"  - Train dataset: {len(train_dataset)}")
@@ -210,7 +215,9 @@ def base_pipeline(name,
 		for i in range(n_test_datasets):
 			eval_dataset[f"eval_{i}"] = load_dataset(test_dataset_paths[i], split=test_splits[i])
 			eval_dataset[f"eval_{i}"] = eval_dataset[f"eval_{i}"].map(test_data_processors[i], remove_columns=eval_dataset[f"eval_{i}"].column_names)
-		logging.info(f"  - {n_test_datasets} Eval dataset: {[len(dataset) for dataset in eval_dataset]}")			
+		logging.info(f"  - {n_test_datasets} Eval dataset:")
+		for (key, value), test_dataset_path in zip(eval_dataset.items(), test_dataset_paths):
+			logging.info(f"    + Name: {key} | Total: {len(value)} | Path: {test_dataset_path}")
 		trainer_kwargs["eval_dataset"] = eval_dataset
 	# ------------------------------------------------------------------
 	# 4 Train model
@@ -232,59 +239,97 @@ def base_pipeline(name,
 		NotImplemented
 	logging.info(f"Save model to {trainer_config.output_dir}")
 	trainer.save_model(trainer_config.output_dir)
+	# 6 Clean up space
+	gc.collect()
+	torch.cuda.empty_cache()
+	for i in range(torch.cuda.device_count()):
+		torch.cuda.set_device(i)
+		torch.cuda.empty_cache()
 
 # SFT Pipeline
-def sft_pipeline(train_data_processor, test_data_processors, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
+def sft_pipeline(train_data_processor,
+				 test_data_processors,
+				 config_kwargs,
+				 trainer_kwargs,
+				 overwritten_model_class = None,
+				 overwritten_model_class_init_kwargs = {"n_cuda": 2, "device_map": "cpu"},
+				 adapter_output_dirs = None,
+				 parse_arguments = False,
+				 ):
 	base_pipeline(
-		"SFT", 
-		train_data_processor, 
+		"SFT",
+		train_data_processor,
 		test_data_processors,
-		config_kwargs, 
-		trainer_kwargs, 
-		parallel_model_class, 
-		n_cuda,
+		config_kwargs,
+		trainer_kwargs,
+		overwritten_model_class,
+		overwritten_model_class_init_kwargs,
 		adapter_output_dirs,
 		parse_arguments,
 	)
 
 # PPO Pipeline
-def ppo_pipeline(train_data_processor, test_data_processors, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
+def ppo_pipeline(train_data_processor,
+				 test_data_processors,
+				 config_kwargs,
+				 trainer_kwargs,
+				 overwritten_model_class = None,
+				 overwritten_model_class_init_kwargs = {"n_cuda": 2, "device_map": "cpu"},
+				 adapter_output_dirs = None,
+				 parse_arguments = False,
+				 ):
 	base_pipeline(
-		"PPO", 
-		train_data_processor, 
+		"PPO",
+		train_data_processor,
 		test_data_processors,
-		config_kwargs, 
-		trainer_kwargs, 
-		parallel_model_class, 
-		n_cuda,
+		config_kwargs,
+		trainer_kwargs,
+		overwritten_model_class,
+		overwritten_model_class_init_kwargs,
 		adapter_output_dirs,
 		parse_arguments,
 	)
 
 # DPO Pipeline
-def dpo_pipeline(train_data_processor, test_data_processors, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
+def dpo_pipeline(train_data_processor,
+				 test_data_processors,
+				 config_kwargs,
+				 trainer_kwargs,
+				 overwritten_model_class = None,
+				 overwritten_model_class_init_kwargs = {"n_cuda": 2, "device_map": "cpu"},
+				 adapter_output_dirs = None,
+				 parse_arguments = False,
+				 ):
 	base_pipeline(
-		"DPO", 
-		train_data_processor, 
+		"DPO",
+		train_data_processor,
 		test_data_processors,
-		config_kwargs, 
-		trainer_kwargs, 
-		parallel_model_class, 
-		n_cuda,
+		config_kwargs,
+		trainer_kwargs,
+		overwritten_model_class,
+		overwritten_model_class_init_kwargs,
 		adapter_output_dirs,
 		parse_arguments,
 	)
 
 # GRPO Pipeline
-def grpo_pipeline(train_data_processor, test_data_processors, config_kwargs, trainer_kwargs, parallel_model_class = None, n_cuda = 2, adapter_output_dirs = None, parse_arguments = False):
+def grpo_pipeline(train_data_processor,
+				  test_data_processors,
+				  config_kwargs,
+				  trainer_kwargs,
+				  overwritten_model_class = None,
+				  overwritten_model_class_init_kwargs = {"n_cuda": 2, "device_map": "cpu"},
+				  adapter_output_dirs = None,
+				  parse_arguments = False,
+				  ):
 	base_pipeline(
-		"GRPO", 
-		train_data_processor, 
+		"GRPO",
+		train_data_processor,
 		test_data_processors,
-		config_kwargs, 
-		trainer_kwargs, 
-		parallel_model_class, 
-		n_cuda,
+		config_kwargs,
+		trainer_kwargs,
+		overwritten_model_class,
+		overwritten_model_class_init_kwargs,
 		adapter_output_dirs,
 		parse_arguments,
 	)

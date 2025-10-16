@@ -3,7 +3,6 @@
 # @email: caoyang@stu.sufe.edu.cn
 
 import os
-import gc
 import json
 import time
 import logging
@@ -15,7 +14,7 @@ from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo
 
 # ----------------------------------------------------------------------
 # Concrete dataset and model test
-def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):	
+def sft_train_math_500(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 5,
@@ -25,15 +24,15 @@ def sft_train_math_500(model_id=10, parallel_model_class="ParallelLlamaForCausal
 		test_data_processors = [
 			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
 		],
-		parallel_model_class = parallel_model_class, 
+		overwritten_model_class = overwritten_model_class,
 		n_cuda = n_cuda,
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
 		per_device_eval_batch_size = 8,
 		num_train_epochs = 32,
-	)		
-		
-def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+	)
+
+def sft_train_gsm8k(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 4,
@@ -44,7 +43,7 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 			lambda _data: {"prompt": _data["question"], "completion": _data["answer"]},
 			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
 		],
-		parallel_model_class = parallel_model_class, 
+		overwritten_model_class = overwritten_model_class,
 		n_cuda = n_cuda,
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
@@ -52,7 +51,7 @@ def sft_train_gsm8k(model_id=10, parallel_model_class="ParallelLlamaForCausalLM"
 		num_train_epochs = 32,
 	)
 
-def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+def sft_train_leetcodedataset(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 6,
@@ -63,7 +62,7 @@ def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaFo
 			lambda _data: {"prompt": _data["query"], "completion": _data["response"]},
 			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
 		],
-		parallel_model_class = parallel_model_class, 
+		overwritten_model_class = overwritten_model_class,
 		n_cuda = n_cuda,
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
@@ -71,7 +70,7 @@ def sft_train_leetcodedataset(model_id=10, parallel_model_class="ParallelLlamaFo
 		num_train_epochs = 32,
 	)
 
-def sft_train_chinese_poems(model_id=10, parallel_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+def sft_train_chinese_poems(model_id=10, overwritten_model_class=None, n_cuda=2, adapter_output_dirs=None):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 7,
@@ -82,7 +81,7 @@ def sft_train_chinese_poems(model_id=10, parallel_model_class="ParallelLlamaForC
 			lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
 			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
 		],
-		parallel_model_class = parallel_model_class, 
+		overwritten_model_class = overwritten_model_class,
 		n_cuda = n_cuda,
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
@@ -93,7 +92,7 @@ def sft_train_chinese_poems(model_id=10, parallel_model_class="ParallelLlamaForC
 # ----------------------------------------------------------------------
 # Base pipeline test
 def sft_pipeline_test(
-	model_id = 10, 
+	model_id = 10,
 	train_dataset_id = 7,
 	dataset_train_split = "train[:1000]",
 	test_dataset_ids_and_splits = [(7, "train[1000:1100]"), (5, "test")],
@@ -102,13 +101,13 @@ def sft_pipeline_test(
 		lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
 		lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
 	],
-	parallel_model_class = "ParallelLlamaForCausalLM",
+	overwritten_model_class = "ParallelLlamaForCausalLM",
 	n_cuda = 2,
 	adapter_output_dirs = None,
 	per_device_train_batch_size = 8,
 	per_device_eval_batch_size = 8,
 	num_train_epochs = 32,
-):	
+):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
@@ -124,7 +123,7 @@ def sft_pipeline_test(
 	else:
 		# 2-stage-sft
 		target_layer_ids_list = [
-			[num_hidden_layers - 1],	# Tail 0
+			# [num_hidden_layers - 1],	# Tail 0
 			[0],	# Head 0
 			[num_hidden_layers - 1, num_hidden_layers - 2],	# Tail 1
 			[0, 1],	# Head 1
@@ -172,16 +171,15 @@ def sft_pipeline_test(
 		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
 			json.dump(kwargs, f, ensure_ascii=False)
 		sft_pipeline(
-			train_data_processor, 
+			train_data_processor,
 			test_data_processors,
-			config_kwargs, 
-			trainer_kwargs, 
-			parallel_model_class = parallel_model_class, 
-			n_cuda = n_cuda,
+			config_kwargs,
+			trainer_kwargs,
+			overwritten_model_class = overwritten_model_class,
+			overwritten_model_class_init_kwargs = {"n_cuda": n_cuda, "device_map": "cpu"},
 			adapter_output_dirs = adapter_output_dirs,
 			parse_arguments = False,
 		)
-		gc.collect()
 
 def ppo_pipeline_test():
 	logging.info("PPO unittest ...")

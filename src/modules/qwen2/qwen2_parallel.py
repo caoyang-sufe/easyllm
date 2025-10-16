@@ -20,7 +20,7 @@ class ParallelQwen2Model(Qwen2Model):
 		self.device_list = ["cpu", "cuda"] if self.n_cuda == 1 else [f"cuda:{i}" for i in range(n_cuda)]
 		self.n_device = len(self.device_list)
 		self.is_parallelizable = True
-		self.model_parallel = True		
+		self.model_parallel = True
 		self.module_to_device_flag = False
 
 	def module_to_device(self):
@@ -64,11 +64,10 @@ class ParallelQwen2Model(Qwen2Model):
 		if cache_position is None:
 			past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
 			cache_position = torch.arange(
-				past_seen_tokens, 
-				past_seen_tokens + inputs_embeds.shape[1], 
+				past_seen_tokens,
+				past_seen_tokens + inputs_embeds.shape[1],
 				device = inputs_embeds.device,
 			)
-
 		if position_ids is None:
 			position_ids = cache_position.unsqueeze(0)
 		# It may already have been prepared by e.g. `generate`
@@ -153,11 +152,11 @@ class ParallelQwen2ForCausalLM(Qwen2ForCausalLM):
 		self.post_init()
 		self.is_parallelizable = True
 		self.model_parallel = True
-		
+
 	def module_to_device(self):
 		self.model.module_to_device()
 		self.lm_head = self.lm_head.to(self.model.device_list[0])
-		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to 
+		# LM_HEAD need not be allocated to CUDA:1 because self.lm_head is equal to
 		# That is to say: `id(self.lm_head) == id(self.model.embed_tokens)`
 
 	@can_return_tuple
@@ -185,7 +184,6 @@ class ParallelQwen2ForCausalLM(Qwen2ForCausalLM):
 			cache_position=cache_position,
 			**kwargs,
 		)
-		
 		hidden_states = outputs.last_hidden_state.to(self.model.device_list[0])	# <<<<<<<< Because `lm_head` must be on CUDA:0 according to `embed_tokens` >>>>>>>>
 		# Only compute necessary logits, and do not upcast them to float if we are not computing the losse
 		slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep

@@ -3,15 +3,15 @@
 # @email: caoyang@stu.sufe.edu.cn
 
 import json
-import torch
+# import torch
 import numpy
-import seaborn as sns
-from safetensors import safe_open
+# import seaborn as sns
+# from safetensors import safe_open
 from matplotlib import pyplot as plt
 
 # Plot mean and variance of a sequence of tensors
 # @param tensors: List[torch.Tensor]
-# @param ax: Matplotlib subplot object 
+# @param ax: Matplotlib subplot object
 # @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
@@ -51,7 +51,7 @@ def plot_tensor_mean_and_variance(tensors,
 	ax_variance.plot(x, variances, label="variance", color=color_variance)
 	ax_variance.set_ylabel("Variance", color=color_variance)
 	ax_variance.tick_params(axis='y', labelcolor=color_variance)
-	ax_variance.ticklabel_format(axis='y', style="sci", scilimits=(-3, 3))	
+	ax_variance.ticklabel_format(axis='y', style="sci", scilimits=(-3, 3))
 	# Plot handlers
 	lines_mean, labels_mean = ax_mean.get_legend_handles_labels()
 	lines_variance, labels_variance = ax_variance.get_legend_handles_labels()
@@ -68,7 +68,7 @@ def plot_tensor_mean_and_variance(tensors,
 
 # Visualize tensor value distribution by histogram
 # @param tensor: torch.Tensor or numpy.ndarray
-# @param ax: Matplotlib subplot object 
+# @param ax: Matplotlib subplot object
 # @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
 # @param bins: [Int] The number of bins of histogram
 # @param save_path: [Str] Figure save path
@@ -101,7 +101,7 @@ def plot_tensor_histogram(tensor, *,
 	ax.set_title(title)
 	ax.set_xlabel(x_label)
 	ax.set_ylabel(y_label)
-	ax.grid(axis='y', alpha=.5)		
+	ax.grid(axis='y', alpha=.5)
 	# `scilimits = (m, n)` refers to use Scientific Notation for value
 	ax.ticklabel_format(axis='y', style="sci", scilimits=(-2, 2))
 	ax.legend(), ax.grid(True, alpha=.3)
@@ -113,7 +113,7 @@ def plot_tensor_histogram(tensor, *,
 
 # Visualize tensor value distribution by heatmap
 # @param tensor: torch.Tensor or numpy.ndarray
-# @param ax: Matplotlib subplot object 
+# @param ax: Matplotlib subplot object
 # @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
 # @param title: [Str]
 # @param save_path: [Str] Figure save path
@@ -135,9 +135,9 @@ def plot_tensor_heatmap(tensor, *,
 						y_label = "Row",
 						title = "Tensor Value Heatmap",
 						heatmap_kwargs = {
-							"cmap": "binary", 
-							"annot": False, 
-							"fmt": ".2f", 
+							"cmap": "binary",
+							"annot": False,
+							"fmt": ".2f",
 							"cbar": True,
 						},
 						):
@@ -158,7 +158,7 @@ def plot_tensor_heatmap(tensor, *,
 	if is_show:
 		plt.show()
 	plt.close()
-		
+
 # Plot dynamics of trainer_state of `transformers.Trainer`, e.g. train/eval loss, train/eval mean token accuracy, train/eval entropy
 # @param trainer_state_paths: [List[Str]] File paths of several `trainer_state.json` to be compared
 # @param trainer_state_names: [List[Str]] Default None refers to [0, 1, 2, ...]
@@ -220,9 +220,9 @@ def plot_trainer_state(trainer_state_paths,
 							x_data_eval_dict[eval_key].append(entry[x_index_name])
 							for index_name in plot_index_names:
 								y_data_eval_dict[str()][index_name].append(entry[f"eval_{index_name}"])
-							break							
+							break
 				if not eval_key_flag:
-					raise Exception("Cannot find")
+					raise Exception(f"Cannot find any eval enties according to {eval_keys}")
 		if i == 0:
 			# Initialize canvas at the first trainer_states.json
 			if y_data_eval_dict[eval_keys[0]][plot_index_names[0]]:
@@ -230,7 +230,7 @@ def plot_trainer_state(trainer_state_paths,
 			else:
 				nrows, ncols = 1, len(plot_index_names)	# nrows = 1 ==> train only
 			fig, axes = plt.subplots(
-				nrows = nrows, 
+				nrows = nrows,
 				ncols = ncols,
 				figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
 			)
@@ -255,7 +255,7 @@ def plot_trainer_state(trainer_state_paths,
 					target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{eval_key}_{y_index_name} by {x_index_name}")
 					target_ax.legend(), target_ax.grid(True, alpha=.3)
 	if save_path is not None:
-		plt.savefig(save_path)		
+		plt.savefig(save_path)
 	if is_show:
 		plt.show()
 	plt.close()
@@ -303,7 +303,7 @@ def plot_lora_adapter_statistics(adapter_path,
 			summary[module_A_prefix] = (nuclear_norm, ranks)
 	plot_data = {
 		target_module: {
-			"nuclear_norm": list(), 
+			"nuclear_norm": list(),
 			"rank": {threshold: list() for threshold in thresholds},
 		}
 		for target_module in target_modules
@@ -317,7 +317,7 @@ def plot_lora_adapter_statistics(adapter_path,
 
 	nrows, ncols = len(target_modules), len(plot_index_names)
 	fig, axes = plt.subplots(
-		nrows = nrows, 
+		nrows = nrows,
 		ncols = ncols,
 		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
 	)
@@ -343,7 +343,7 @@ def plot_lora_adapter_statistics(adapter_path,
 				raise Exception(f"Unknown index: {plot_index_name}")
 			target_ax.legend(), target_ax.grid(True, alpha=.3)
 	if save_path is not None:
-		plt.savefig(save_path)		
+		plt.savefig(save_path)
 	if is_show:
 		plt.show()
 	plt.close()
@@ -403,10 +403,10 @@ def plot_evaluation_results(result_paths,
 				raise NotImplementedError(metric_name)
 	nrows, ncols = len(metric_names_map), len(plot_index_names)
 	fig, axes = plt.subplots(
-		nrows = nrows, 
+		nrows = nrows,
 		ncols = ncols,
 		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
-	)	
+	)
 	n_series = len(result_names)
 	for i, (metric_name, mapped_metric_names) in enumerate(metric_names_map.items()):
 		for j, plot_index_name in enumerate(plot_index_names):
@@ -427,7 +427,7 @@ def plot_evaluation_results(result_paths,
 			target_ax.set_xticks(x, mapped_metric_names), target_ax.set_ylabel("Value"), target_ax.set_title(f"{plot_index_name} of {metric_name}")
 			target_ax.legend(), target_ax.grid(True, alpha=.3)
 	if save_path is not None:
-		plt.savefig(save_path)		
+		plt.savefig(save_path)
 	if is_show:
 		plt.show()
 	plt.close()

@@ -100,10 +100,10 @@ def skip_layer_generation_test_1(model_id=-1, device=None):
 	logging.info("skip layer unittest 1 ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
-	num_hidden_layers = model_config.num_hidden_layers	
+	num_hidden_layers = model_config.num_hidden_layers
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
-	
+
 	if "meta-llama" in model_name_or_path:
 		logging.info("Use English prompts ...")
 		prompts = [
@@ -129,19 +129,19 @@ Ode to Eighty Years"""
 			f"""请写一首七言律诗作为中华人民共和国成立八十周年的祝词，注意用词的平仄押韵：
 	《八十周年庆》"""
 		]
-	
-	
+
+
 	max_length = 64
 	use_kv_cache = True
 	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
 	# Load tokenizer and model
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-	model = AutoModelForCausalLM.from_pretrained(model_name_or_path).to(device)
+	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map="auto")
 	eos_token_ids = get_generation_eos_token_ids(model)
 
 	forward_hook_module_names = [f"model.layers[{j}]" for j in range(num_hidden_layers - 1)]
 	for i in range(len(prompts)):
-		for skip_layer_id in range(num_hidden_layers):	
+		for skip_layer_id in range(num_hidden_layers):
 			skip_layer_ids = [skip_layer_id]
 			results = easy_skip_layer_generation(
 				model = model,
@@ -152,7 +152,7 @@ Ode to Eighty Years"""
 				skip_layer_ids = skip_layer_ids,
 				use_kv_cache = use_kv_cache,
 				forward_hook_module_names = forward_hook_module_names,
-				backward_hook_module_names = None,				
+				backward_hook_module_names = None,
 			)
 			text, token_probs, logits = results["text"], results["token_probs"], results["logits"]
 			forward_hook_data, backward_hook_data = results["forward_hook_data"], results["backward_hook_data"]
@@ -179,10 +179,10 @@ def skip_layer_generation_test_2(model_id=-1, device=None):
 	logging.info("skip layer unittest 2 ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
-	num_hidden_layers = model_config.num_hidden_layers	
+	num_hidden_layers = model_config.num_hidden_layers
 	if device is None:
 		device = "cuda" if torch.cuda.is_available() else "cpu"
-	
+
 	if "meta-llama" in model_name_or_path:
 		logging.info("Use English prompts ...")
 		prompts = [
@@ -208,13 +208,13 @@ Ode to Eighty Years"""
 			f"""请写一首七言律诗作为中华人民共和国成立八十周年的祝词，注意用词的平仄押韵：
 	《八十周年庆》"""
 		]
-	
+
 	max_length = 64
 	use_kv_cache = True
 	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")
 	# Load tokenizer and model
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-	model = AutoModelForCausalLM.from_pretrained(model_name_or_path).to(device)
+	model = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map="auto")
 	eos_token_ids = get_generation_eos_token_ids(model)
 	forward_hook_module_names = None
 	for i in range(len(prompts)):
@@ -229,7 +229,7 @@ Ode to Eighty Years"""
 				skip_layer_ids = skip_layer_ids,
 				use_kv_cache = use_kv_cache,
 				forward_hook_module_names = forward_hook_module_names,
-				backward_hook_module_names = None,				
+				backward_hook_module_names = None,
 			)
 			text, token_probs, logits = results["text"], results["token_probs"], results["logits"]
 			forward_hook_data, backward_hook_data = results["forward_hook_data"], results["backward_hook_data"]

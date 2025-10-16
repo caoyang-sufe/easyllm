@@ -14,12 +14,12 @@ from transformers import AutoConfig, AutoTokenizer, AutoModel, AutoModelForCausa
 from src.unittests import model_home, dataset_home, model_names, dataset_names, LONG_PROMPT
 from src.pipelines.generate import one_time_forward_pipeline, decode_pipeline, generate_pipeline
 from src.modules import (
-	ParallelQwen2Model, SkipLayerQwen2ForCausalLM, 
-	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM, 
-	ParallelQwen3Model, SkipLayerQwen3ForCausalLM, 
-	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM, 
-	ParallelLlamaModel, SkipLayerLlamaForCausalLM, 
-	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM, 
+	ParallelQwen2Model, SkipLayerQwen2ForCausalLM,
+	ParallelQwen2ForCausalLM, SkipLayerQwen2ForCausalLM,
+	ParallelQwen3Model, SkipLayerQwen3ForCausalLM,
+	ParallelQwen3ForCausalLM, SkipLayerQwen3ForCausalLM,
+	ParallelLlamaModel, SkipLayerLlamaForCausalLM,
+	ParallelLlamaForCausalLM, SkipLayerLlamaForCausalLM,
 	SkipLayerDeepseekModel, SkipLayerDeepseekForCausalLM,
 	ParallelDeepseekModel, ParallelDeepseekForCausalLM,
 	SkipLayerDeepseekV2Model, SkipLayerDeepseekV2ForCausalLM,
@@ -29,7 +29,7 @@ from src.modules import (
 )
 
 # Do one forward for long prompts
-def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2):
+def one_time_forward_pipeline_test(model_id=-1, device=None, overwritten_model_class=None, n_cuda=2):
 	logging.info("One time forward unittest")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_name = model_names[model_id].split('/')[-1].split('\\')[-1]
@@ -38,12 +38,12 @@ def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_clas
 	forward_hook_module_names = [f"layers[{i}]" for i in range(num_hidden_layers)]
 	prompts = LONG_PROMPT[:]
 	logging.info(f"Load model from: {model_name_or_path}")
-	if parallel_model_class is None:
+	if overwritten_model_class is None:
 		logging.info("  - Using AutoModel ...")
-		model = AutoModel.from_pretrained(model_name_or_path).to(device)
+		model = AutoModel.from_pretrained(model_name_or_path, device_map="auto")
 	else:
-		logging.info(f"  - Using {parallel_model_class} ...")
-		model = eval(parallel_model_class).from_pretrained(
+		logging.info(f"  - Using {overwritten_model_class} ...")
+		model = eval(overwritten_model_class).from_pretrained(
 			model_name_or_path,
 			n_cuda = n_cuda,
 			device_map = "cpu",
@@ -72,9 +72,9 @@ def one_time_forward_pipeline_test(model_id=-1, device=None, parallel_model_clas
 			logging.warning(f"Error: {exception}")
 			gc.collect()
 			continue
-			
+
 # Test `src.pipelines.generate.decode_pipeline`
-def decode_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2):
+def decode_pipeline_test(model_id=-1, device=None, overwritten_model_class=None, n_cuda=2):
 	logging.info("Decode unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
@@ -101,7 +101,7 @@ def decode_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_
 		# f"""素因子分解：512<think>""",
 		# f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。<think>""",
 	# ]
-	
+
 	if "meta-llama" in model_name_or_path:
 		logging.info("Use English prompts ...")
 		prompts = [
@@ -146,7 +146,7 @@ Ode to Eighty Years"""
 			use_kv_cache = use_kv_cache,
 			forward_hook_module_names = forward_hook_module_names,
 			backward_hook_module_names = None,
-			parallel_model_class = parallel_model_class,
+			overwritten_model_class = overwritten_model_class,
 			n_cuda = n_cuda,
 		)
 		df_display = returned_dict["df_display"]
@@ -168,7 +168,7 @@ Ode to Eighty Years"""
 		logging.info("  - OK!")
 
 # Test `src.pipelines.generate.generate_pipeline`
-def generate_pipeline_test(model_id=-1, device=None, parallel_model_class=None, n_cuda=2):
+def generate_pipeline_test(model_id=-1, device=None, overwritten_model_class=None, n_cuda=2):
 	logging.info("Generate unittest ...")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
@@ -180,7 +180,7 @@ def generate_pipeline_test(model_id=-1, device=None, parallel_model_class=None, 
 		max_length,
 		device = device,
 		generate_kwargs = None,
-		parallel_model_class = parallel_model_class,
+		overwritten_model_class = overwritten_model_class,
 		n_cuda = n_cuda,
 	)
 	save_path = f"./generate+{model_names[model_id].split('/')[-1]}.csv"
