@@ -3,6 +3,7 @@
 # @email: caoyang@stu.sufe.edu.cn
 
 import os
+import gc
 import json
 import time
 import logging
@@ -175,11 +176,12 @@ def sft_pipeline_test(
 			test_data_processors,
 			config_kwargs, 
 			trainer_kwargs, 
-			parallel_model_class = None, 
-			n_cuda = 2,
-			adapter_output_dirs = None,
+			parallel_model_class = parallel_model_class, 
+			n_cuda = n_cuda,
+			adapter_output_dirs = adapter_output_dirs,
 			parse_arguments = False,
 		)
+		gc.collect()
 
 def ppo_pipeline_test():
 	logging.info("PPO unittest ...")
