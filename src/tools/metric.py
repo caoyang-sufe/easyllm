@@ -4,10 +4,16 @@
 # Token-in-token-out Metrics
 # Prefer each function with two keyword arguments: (predict: List[Int], target: List[Int])
 
+import os
 import math
+import types
 import torch
+import numpy
+import logging
+import evaluate
 from torch.nn import functional as F
 from collections import Counter
+
 
 # Calculate perplexity of a single sample, loss on completion only
 # @param prompt: [List[<token_id>]]
@@ -139,3 +145,83 @@ def calc_rouge_w(predict,
 		recall = 0
 		f1_score = 0
 	return {"precision": precision, "recall": recall, "f1_score": f1_score}
+
+
+# ----------------------------------------------------------------------
+# Generate keyword arguments `compute_metrics` for `transformers.Trainer.__init__`
+# @param metrics: [List[Str] | List[Tuple(Str, Dict, Str)]] 
+#   - e.g. ["bleu", "rouge"] or [evaluate.load("rouge"), evaluate.load("bleu")] when `strategy = "evaluate"`
+#   - e.g. [("calc_token_accuracy", {}, "token_accuracy"), ("calc_rouge_n", {'n': 3, "beta": 1}, "rouge_3")] when `strategy = 'diy'`
+# @param strategy: [Str] e.g. "evaluate" or "diy", which accept different formats of keyword arguments
+# @param evaluate_home: [Str] e.g. default import from src.unittests, which is the github repository of "https://github.com/huggingface/evaluate"
+# @param tokenizer: Huggingface tokenizer object
+# @return _compute_metrics: [Function]
+def generate_compute_metrics_function(metrics = ["bleu", "rouge"], 
+									  strategy = "evaluate", 
+									  evaluate_home = None,
+									  tokenizer = None,
+									  ):
+	assert isinstance(metrics, list), f"Expect List but got {metrics}"
+	if strategy == "evaluate":
+		# May encounter network error
+		assert tokenizer is not None, f"Need tokenizer in {strategy} mode"
+		if hasattr(metrics[0], "__module__") and metrics[0].__module__.startswith("evaluate_modules.metrics"):
+			logging.info("Metrics from callable functions!")
+			metric_name_to_function = {metric.name: metric for metric in metrics}
+		elif isinstance(metrics[0], str):
+			from datasets import DownloadConfig
+			logging.info("Load metrics ...")
+			if evaluate_home is None:
+				from src.unittests import evaluate_home
+			metric_name_to_function = dict()	
+			for metric_name in metrics:
+				metric_path = os.path.join(evaluate_home, "metrics", metric_name, f"{metric_name}.py")
+				logging.info(f"  - Load {metric_name} from {metric_path}")
+				metric_function = evaluate.load(metric_path)
+				logging.info(f"    + ok!")
+				metric_name_to_function[metric_name] = metric_function
+		else:
+			raise Exception(f"Unknown metric type (expect Str or Function): {type(metrics[0])}")	
+		# Get global `metric_name_to_function` like {"bleu": evaluate.load("bleu"), ...}
+		# @param _eval_prediction: [transformers.trainer_utils.EvalPrediction]
+		def _compute_metrics(_eval_prediction, **_kwargs):
+			_predictions, _label_ids = _eval_prediction.predictions, _eval_prediction.label_ids	# Float(batch_size, seq_length, n_vocab), Long(batch_size, seq_length)
+			_prediction_ids = _predictions.argmax(-1)	# Float(batch_size, seq_length, n_vocab) => Long(batch_size, seq_length)
+			_prediction_ids_to_list, _label_ids_to_list = list(), list()
+			_prediction_ids = [_array_1[_array_2 != -100].tolist() for (_array_1, _array_2) in zip(_prediction_ids, _label_ids)] 	# Filter -100
+			_label_ids = [_array[_array != -100].tolist() for _array in _label_ids] 	# Filter -100
+			_decoded_predictions = tokenizer.batch_decode(_prediction_ids, skip_special_tokens=True)
+			_decoded_label_ids = tokenizer.batch_decode(_label_ids, skip_special_tokens=True)
+			_metric_summary = dict()
+			for _metric_name, _metric_function in metric_name_to_function.items():
+				_metric_summary.update(_metric_function.compute(predictions=_decoded_predictions, references=_decoded_label_ids))
+			return _metric_summary
+	elif strategy == "diy":
+		# Token-in-token-out
+		def _compute_metrics(_eval_prediction, **_kwargs):
+			_batch_predictions, _batch_label_ids = _eval_prediction.predictions, _eval_prediction.label_ids	# Float(batch_size, seq_length, n_vocab), Long(batch_size, seq_length)
+			_batch_prediction_ids = _batch_predictions.argmax(-1)	# Float(batch_size, seq_length, n_vocab) => Long(batch_size, seq_length)
+			_metric_summary = dict()
+			for _batch_prediction_id, _batch_label_id in zip(_batch_prediction_ids, _batch_label_ids):
+				_batch_prediction_id = _batch_prediction_id[_batch_label_id != -100] 	# Filter -100
+				_batch_label_id = _batch_label_id[_batch_label_id != -100] 	# Filter -100
+				assert len(_batch_prediction_id) == len(_batch_label_id), f"{len(_batch_prediction_id)} v.s. {len(_batch_label_id)}"
+				for _metric_function_name, _metric_function_kwargs, _metric_name in metrics:
+					_metric_value = eval(_metric_function_name)(predict=_batch_prediction_id, target=_batch_label_id, **_metric_function_kwargs)
+					if _metric_function_name in ["calc_token_accuracy", "calc_bleu"]:
+						# Return single value
+						if not _metric_name in _metric_summary:
+							_metric_summary[_metric_name] = list()
+						_metric_summary[_metric_name].append(_metric_value)
+					elif _metric_function_name in ["calc_rouge_n", "calc_rouge_w"]:
+						# Return multiple values: P R F1
+						if not _metric_name in _metric_summary:
+							_metric_summary[_metric_name] = list()
+						_precision, _recall, _f1_score = _metric_value["precision"], _metric_value["recall"], _metric_value["f1_score"]
+						_metric_summary[_metric_name].append(_f1_score)	# len(predict) == len(target) => P == R == F1
+			for _metric_name in _metric_summary:
+				_metric_summary[_metric_name] = numpy.nanmean(_metric_summary[_metric_name])
+			return _metric_summary
+	else:
+		raise Exception(f"Unexpected keyword argument: {strategy}")
+	return _compute_metrics

@@ -5,6 +5,7 @@
 import platform
 
 if platform.system() == "Linux":
+	evaluate_home = "/nfsshare/home/caoyang/resource/evaluate"
 	model_home = "/nfsshare/home/caoyang/resource/model"
 	dataset_home = "/nfsshare/home/caoyang/resource/dataset"
 	model_names = [
@@ -35,6 +36,7 @@ if platform.system() == "Linux":
 	]
 
 elif platform.system() == "Windows":
+	evaluate_home = r"D:\resource\evaluate"
 	model_home = r"D:\resource\model\huggingface"
 	dataset_home = r"D:\resource\data\huggingface"
 	model_names = [
@@ -72,21 +74,22 @@ LONG_PROMPT = [
 ]
 
 def easy_unittest():
+	# Test if the order to load different adapters influences the model parameters value
 	import torch
 	import logging
 	from peft import PeftModel
 	from transformers import AutoModelForCausalLM
-
 	device = "cpu"
 	base_model_path = "/nfsshare/home/caoyang/resource/model/Qwen/Qwen3-8B-Instruct"
+	# Model 1
 	output_dir_1 = "/nfsshare/home/caoyang/caoyang/easyllm/temp/sft-7b/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"
-	output_dir_2 = "/nfsshare/home/caoyang/caoyang/easyllm/temp/sft+Qwen3-8B-Instruct+gsm8k+20251007220921"
 	model_1 = AutoModelForCausalLM.from_pretrained(base_model_path, device_map="auto")
 	model_1 = PeftModel.from_pretrained(model_1, output_dir_1)
 	model_1 = model_1.merge_and_unload()
 	model_1 = PeftModel.from_pretrained(model_1, output_dir_2)
 	model_1 = model_1.merge_and_unload()
-
+	# Model 2
+	output_dir_2 = "/nfsshare/home/caoyang/caoyang/easyllm/temp/sft+Qwen3-8B-Instruct+gsm8k+20251007220921"
 	model_2 = AutoModelForCausalLM.from_pretrained(base_model_path, device_map="auto")
 	model_2 = PeftModel.from_pretrained(model_2, output_dir_2)
 	model_2 = model_2.merge_and_unload()

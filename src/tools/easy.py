@@ -4,6 +4,7 @@
 
 import re
 import time
+import json
 import logging
 from functools import wraps
 
@@ -44,13 +45,15 @@ def load_args(Config):
 
 def save_args(args, save_path):
 	class _MyEncoder(json.JSONEncoder):
-
 		def default(self, obj):
-			if isinstance(obj, type) or isinstance(obj, types.FunctionType):
+			try:
+				return json.JSONEncoder.default(self, obj)
+			except:
 				return str(obj)
-			return json.JSONEncoder.default(self, obj)
 	with open(save_path, 'w', encoding="utf8") as f:
-		f.write(json.dumps(vars(args), cls=_MyEncoder))
+		if not isinstance(args, dict):
+			args = vars(args)
+		f.write(json.dumps(args, cls=_MyEncoder, ensure_ascii=False, indent=4))
 
 def update_args(args, **kwargs):
 	for key, value in kwargs.items():

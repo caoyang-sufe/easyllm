@@ -260,7 +260,6 @@ def plot_trainer_state(trainer_state_paths,
 		plt.show()
 	plt.close()
 
-
 # Plot statistics of SVD of LoRA adapter, e.g. LoRA rank, nuclear_norm
 # @param adapter_path: [Str] The `output_dir` of `transformers.trainer`
 # @param thresholds: [List[Float]] Different thresholds used to control approximate rank

@@ -77,7 +77,7 @@ def base_pipeline(name,
 		script_arguments, trainer_config, model_config = parser.parse_args_into_dataclasses()
 	else:
 		script_arguments = ScriptArguments()
-		trainer_config = TRLConfig()
+		trainer_config = TRLConfig(use_cpu = not torch.cuda.is_available())
 		model_config = ModelConfig()
 	script_arguments = update_trl_config(script_arguments, **config_kwargs)
 	trainer_config = update_trl_config(trainer_config, **config_kwargs)

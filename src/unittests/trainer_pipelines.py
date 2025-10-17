@@ -8,18 +8,20 @@ import time
 import logging
 from transformers import AutoConfig, AutoTokenizer
 
+from src.tools.easy import save_args
 from src.tools.datasets import add_dataset_split
-from src.unittests import model_home, dataset_home, model_names, dataset_names
+from src.tools.metric import generate_compute_metrics_function
+from src.unittests import model_home, dataset_home, model_names, dataset_names, evaluate_home
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
 
 # ----------------------------------------------------------------------
 # Concrete dataset and model test
-def sft_train_math_500(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+def sft_train_math_500(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 5,
-		dataset_train_split = "test[:400]",
-		test_dataset_ids_and_splits = [(5, "test[400:]")],
+		dataset_train_split = "test[:16]" if debug else "test[:400]",
+		test_dataset_ids_and_splits = [(5, "test[400:416]")] if debug else [(5, "test[400:]")],
 		train_data_processor = lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
 		test_data_processors = [
 			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
@@ -29,15 +31,15 @@ def sft_train_math_500(model_id=10, overwritten_model_class="ParallelLlamaForCau
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
 		per_device_eval_batch_size = 8,
-		num_train_epochs = 32,
+		num_train_epochs = 2 if debug else 32,
 	)
 
-def sft_train_gsm8k(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+def sft_train_gsm8k(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 4,
-		dataset_train_split = "train",
-		test_dataset_ids_and_splits = [(4, "test"), (5, "test")],
+		dataset_train_split = "train[:16]" if debug else "train",
+		test_dataset_ids_and_splits = [(4, "test[:16]"), (5, "test[:16]")] if debug else [(4, "test"), (5, "test")],
 		train_data_processor = lambda _data: {"prompt": _data["question"], "completion": _data["answer"]},
 		test_data_processors = [
 			lambda _data: {"prompt": _data["question"], "completion": _data["answer"]},
@@ -48,15 +50,15 @@ def sft_train_gsm8k(model_id=10, overwritten_model_class="ParallelLlamaForCausal
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
 		per_device_eval_batch_size = 8,
-		num_train_epochs = 32,
+		num_train_epochs = 2 if debug else 32,
 	)
 
-def sft_train_leetcodedataset(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+def sft_train_leetcodedataset(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 6,
-		dataset_train_split = "train",
-		test_dataset_ids_and_splits = [(6, "test"), (5, "test")],
+		dataset_train_split = "train[:16]" if debug else "train",
+		test_dataset_ids_and_splits = [(6, "test[:16]"), (5, "test[:16]")] if debug else [(6, "test"), (5, "test")],
 		train_data_processor = lambda _data: {"prompt": _data["query"], "completion": _data["response"]},
 		test_data_processors = [
 			lambda _data: {"prompt": _data["query"], "completion": _data["response"]},
@@ -67,15 +69,15 @@ def sft_train_leetcodedataset(model_id=10, overwritten_model_class="ParallelLlam
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
 		per_device_eval_batch_size = 8,
-		num_train_epochs = 32,
+		num_train_epochs = 2 if debug else 32,
 	)
 
-def sft_train_chinese_poems(model_id=10, overwritten_model_class=None, n_cuda=2, adapter_output_dirs=None):
+def sft_train_chinese_poems(model_id=10, overwritten_model_class=None, n_cuda=2, adapter_output_dirs=None, debug=False):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 7,
-		dataset_train_split = "train[:1000]",
-		test_dataset_ids_and_splits = [(7, "train[1000:1100]"), (5, "test")],
+		dataset_train_split = "train[:16]" if debug else "train[:1000]",
+		test_dataset_ids_and_splits = [(7, "train[16:32]"), (5, "test[:16]")] if debug else [(7, "train"), (5, "test")],
 		train_data_processor = lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
 		test_data_processors = [
 			lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
@@ -86,15 +88,15 @@ def sft_train_chinese_poems(model_id=10, overwritten_model_class=None, n_cuda=2,
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
 		per_device_eval_batch_size = 8,
-		num_train_epochs = 32,
-	)
+		num_train_epochs = 2 if debug else 32,
+	)	
 
-def sft_train_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None):
+def sft_train_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
 	sft_pipeline_test(
 		model_id = model_id,
 		train_dataset_id = 8,
-		dataset_train_split = "train",
-		test_dataset_ids_and_splits = [(8, "test"), (5, "test")],
+		dataset_train_split = "train[:16]" if debug else "train",
+		test_dataset_ids_and_splits = [(8, "test[:16]"), (5, "test[:16]")] if debug else [(8, "test"), (5, "test")],
 		train_data_processor = lambda _data: {"prompt": _data["problem"], "completion": _data["solution"]},
 		test_data_processors = [
 			lambda _data: {"prompt": _data["problem"], "completion": _data["solution"]},
@@ -105,7 +107,7 @@ def sft_train_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalL
 		adapter_output_dirs = adapter_output_dirs,
 		per_device_train_batch_size = 8,
 		per_device_eval_batch_size = 8,
-		num_train_epochs = 32,
+		num_train_epochs = 2 if debug else 32,
 	)
 
 # ----------------------------------------------------------------------
@@ -146,8 +148,6 @@ def sft_pipeline_test(
 			[0],	# Head 1
 			[num_hidden_layers - 1, num_hidden_layers - 2],	# Tail 2
 			[0, 1],	# Head 2
-			[num_hidden_layers - 1, num_hidden_layers - 2, num_hidden_layers - 3],	# Tail 3
-			[0, 1, 2],	# Head 3
 		]
 	for target_layer_ids in target_layer_ids_list:
 		time_string = time.strftime("%Y%m%d%H%M%S")
@@ -186,11 +186,24 @@ def sft_pipeline_test(
 			"num_train_epochs": num_train_epochs,
 		}
 		trainer_kwargs = {
+			# "compute_metrics": generate_compute_metrics_function(metrics = ["bleu", "rouge"], 
+																 # strategy = "evaluate", 
+																 # evaluate_home = evaluate_home,
+																 # tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True),
+																 # ),
+			"compute_metrics": generate_compute_metrics_function(metrics = [("calc_bleu", {"min_grams": 1, "max_grams": 3}, "bleu_3"),
+																			("calc_rouge_n", {'n': 3, "beta": 1}, "rouge_3"),
+																			("calc_rouge_w", {"weight_function": lambda _x: _x, "weight_function_reverse": lambda _x: _x, "beta": 1}, "rouge_l"),
+																			("calc_rouge_w", {"weight_function": lambda _x: _x ** 2, "weight_function_reverse": lambda _x: _x ** 0.5, "beta": 1}, "rouge_w"),
+																			], 
+																 strategy = "diy", 
+																 evaluate_home = evaluate_home,
+																 tokenizer = None,
+																 ),
 		}
 		kwargs = {**{"adapter_output_dirs": adapter_output_dirs}, **config_kwargs, **trainer_kwargs}
 		os.makedirs(config_kwargs["output_dir"], exist_ok=True)
-		with open(os.path.join(config_kwargs["output_dir"], "kwargs.json"), 'w', encoding="utf8") as f:
-			json.dump(kwargs, f, ensure_ascii=False)
+		save_args(kwargs, save_path = os.path.join(config_kwargs["output_dir"], "kwargs.json"))
 		sft_pipeline(
 			train_data_processor,
 			test_data_processors,
