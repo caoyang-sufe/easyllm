@@ -3,10 +3,10 @@
 # @email: caoyang@stu.sufe.edu.cn
 
 import json
-# import torch
+import torch
 import numpy
-# import seaborn as sns
-# from safetensors import safe_open
+import seaborn as sns
+from safetensors import safe_open
 from matplotlib import pyplot as plt
 
 # Plot mean and variance of a sequence of tensors
