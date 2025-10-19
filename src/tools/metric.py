@@ -14,7 +14,6 @@ import evaluate
 from torch.nn import functional as F
 from collections import Counter
 
-
 # Calculate perplexity of a single sample, loss on completion only
 # @param prompt: [List[<token_id>]]
 # @param completion: [List[<token_id>]]
@@ -28,7 +27,7 @@ def calc_perplexity(prompt, completion, model, device="cuda"):
 	labels[:, : prompt_length] = -100	# -100 refers to not calculating loss at this position
 	with torch.no_grad():
 		outputs = model(input_ids=input_ids, labels=labels)
-		return torch.exp(outputs.loss).item()	
+		return torch.exp(outputs.loss).item()
 
 # Calculate token accuracy (Precision)
 # @param target: [List[<token>]] <token> is Int or Str (prefer Int)
@@ -62,7 +61,7 @@ def calc_bleu(predict, target, min_grams = 1, max_grams = 3):
 			predict_n_grams_counter = Counter(predict_n_grams)
 			target_n_grams_counter = Counter(target_n_grams)
 			total = len(predict_n_grams)
-			correct = sum(min(predict_n_grams_counter[gram], target_n_grams_counter[gram]) 
+			correct = sum(min(predict_n_grams_counter[gram], target_n_grams_counter[gram])
 				for gram in predict_n_grams_counter)
 			precision = correct / total
 			precisions_by_n_grams.append(precision)
@@ -88,7 +87,7 @@ def calc_rouge_n(predict, target, n = 3, beta = 1):
 		target_n_grams_counter = Counter(target_n_grams)
 		total_p = len(predict_n_grams)
 		total_r = len(target_n_grams)
-		correct = sum(min(predict_n_grams_counter[gram], target_n_grams_counter[gram]) 
+		correct = sum(min(predict_n_grams_counter[gram], target_n_grams_counter[gram])
 			for gram in predict_n_grams_counter)
 		precision = correct / total_p
 		recall = correct / total_r
@@ -103,14 +102,14 @@ def calc_rouge_n(predict, target, n = 3, beta = 1):
 # Calculate ROUGE-W (Weighted ROUGE-L): https://aclanthology.org/W04-1013.pdf
 # @param target: [List[<token>]]
 # @param predict: [List[<token>]]
-# @param weight_function: [Function] 
+# @param weight_function: [Function]
 #   - Default function refers to the implementation in  https://aclanthology.org/W04-1013.pdf for more details
 #   - Set `weight_function = lambda _x: _x` then degrade to ROUGE-L
 # @param weight_function_reverse: [Function] the reverse function of weight_function
 # @param beta: [Float] F1 weight
 # @return: Dict["prediction": Float, "recall": Float, "f1_score": Float]
-def calc_rouge_w(predict, 
-				 target, 
+def calc_rouge_w(predict,
+				 target,
 				 weight_function = lambda _x: _x,
 				 weight_function_reverse = lambda _x: _x,
 				 beta = 1
@@ -149,15 +148,15 @@ def calc_rouge_w(predict,
 
 # ----------------------------------------------------------------------
 # Generate keyword arguments `compute_metrics` for `transformers.Trainer.__init__`
-# @param metrics: [List[Str] | List[Tuple(Str, Dict, Str)]] 
+# @param metrics: [List[Str] | List[Tuple(Str, Dict, Str)]]
 #   - e.g. ["bleu", "rouge"] or [evaluate.load("rouge"), evaluate.load("bleu")] when `strategy = "evaluate"`
 #   - e.g. [("calc_token_accuracy", {}, "token_accuracy"), ("calc_rouge_n", {'n': 3, "beta": 1}, "rouge_3")] when `strategy = 'diy'`
 # @param strategy: [Str] e.g. "evaluate" or "diy", which accept different formats of keyword arguments
 # @param evaluate_home: [Str] e.g. default import from src.unittests, which is the github repository of "https://github.com/huggingface/evaluate"
 # @param tokenizer: Huggingface tokenizer object
 # @return _compute_metrics: [Function]
-def generate_compute_metrics_function(metrics = ["bleu", "rouge"], 
-									  strategy = "evaluate", 
+def generate_compute_metrics_function(metrics = ["bleu", "rouge"],
+									  strategy = "evaluate",
 									  evaluate_home = None,
 									  tokenizer = None,
 									  ):
@@ -173,7 +172,7 @@ def generate_compute_metrics_function(metrics = ["bleu", "rouge"],
 			logging.info("Load metrics ...")
 			if evaluate_home is None:
 				from src.unittests import evaluate_home
-			metric_name_to_function = dict()	
+			metric_name_to_function = dict()
 			for metric_name in metrics:
 				metric_path = os.path.join(evaluate_home, "metrics", metric_name, f"{metric_name}.py")
 				logging.info(f"  - Load {metric_name} from {metric_path}")
@@ -181,7 +180,7 @@ def generate_compute_metrics_function(metrics = ["bleu", "rouge"],
 				logging.info(f"    + ok!")
 				metric_name_to_function[metric_name] = metric_function
 		else:
-			raise Exception(f"Unknown metric type (expect Str or Function): {type(metrics[0])}")	
+			raise Exception(f"Unknown metric type (expect Str or Function): {type(metrics[0])}")
 		# Get global `metric_name_to_function` like {"bleu": evaluate.load("bleu"), ...}
 		# @param _eval_prediction: [transformers.trainer_utils.EvalPrediction]
 		def _compute_metrics(_eval_prediction, **_kwargs):
@@ -200,14 +199,15 @@ def generate_compute_metrics_function(metrics = ["bleu", "rouge"],
 		# Token-in-token-out
 		def _compute_metrics(_eval_prediction, **_kwargs):
 			_batch_predictions, _batch_label_ids = _eval_prediction.predictions, _eval_prediction.label_ids	# Float(batch_size, seq_length, n_vocab), Long(batch_size, seq_length)
-			_batch_prediction_ids = _batch_predictions.argmax(-1)	# Float(batch_size, seq_length, n_vocab) => Long(batch_size, seq_length)
+			_shifted_batch_predictions, _shifted_batch_label_ids = _batch_predictions[..., : -1, :], _batch_label_ids[..., 1:]	# Float(batch_size, seq_length - 1, n_vocab), Long(batch_size, seq_length - 1)
+			_shifted_batch_prediction_ids = _shifted_batch_predictions.argmax(-1)	# Float(batch_size, seq_length, n_vocab) => Long(batch_size, seq_length)
 			_metric_summary = dict()
-			for _batch_prediction_id, _batch_label_id in zip(_batch_prediction_ids, _batch_label_ids):
-				_batch_prediction_id = _batch_prediction_id[_batch_label_id != -100] 	# Filter -100
-				_batch_label_id = _batch_label_id[_batch_label_id != -100] 	# Filter -100
-				assert len(_batch_prediction_id) == len(_batch_label_id), f"{len(_batch_prediction_id)} v.s. {len(_batch_label_id)}"
+			for _shifted_batch_prediction_id, _shifted_batch_label_id in zip(_shifted_batch_prediction_ids, _shifted_batch_label_ids):
+				_shifted_batch_prediction_id = _shifted_batch_prediction_id[_shifted_batch_label_id != -100] 	# Filter predictions according to labels != -100
+				_shifted_batch_label_id = _shifted_batch_label_id[_shifted_batch_label_id != -100] 	# Filter labels according to labels != -100
+				assert len(_shifted_batch_prediction_id) == len(_shifted_batch_label_id), f"{len(_shifted_batch_prediction_id)} v.s. {len(_shifted_batch_label_id)}"
 				for _metric_function_name, _metric_function_kwargs, _metric_name in metrics:
-					_metric_value = eval(_metric_function_name)(predict=_batch_prediction_id, target=_batch_label_id, **_metric_function_kwargs)
+					_metric_value = eval(_metric_function_name)(predict=_shifted_batch_prediction_id, target=_shifted_batch_label_id, **_metric_function_kwargs)
 					if _metric_function_name in ["calc_token_accuracy", "calc_bleu"]:
 						# Return single value
 						if not _metric_name in _metric_summary:

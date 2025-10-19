@@ -16,7 +16,7 @@ from transformers import (
 	TrainingArguments,
 	HfArgumentParser,
 )
-from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model, PeftModel
+from peft import prepare_model_for_kbit_training, get_peft_model, PeftModel
 from trl import (
 	ScriptArguments, ModelConfig,
 	SFTConfig, SFTTrainer,
@@ -99,7 +99,7 @@ def base_pipeline(name,
 		logging.info("Using AutoModelForCausalLM ...")
 		model = AutoModelForCausalLM.from_pretrained(
 			model_config.model_name_or_path,
-			device_map = "balanced",
+			device_map = "auto",
 			trust_remote_code = model_config.trust_remote_code,
 			quantization_config = quantization_config,
 		)
@@ -226,7 +226,7 @@ def base_pipeline(name,
 		model = model,
 		args = trainer_config,
 		peft_config = peft_config,
-		**trainer_kwargs	# train_dataset, eval_dataset, processing_class
+		**trainer_kwargs	# train_dataset, eval_dataset, processing_class, compute_metrics
 	)
 	trainer.train()
 	logging.info("  - Trainer finishes!")

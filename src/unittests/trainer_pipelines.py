@@ -89,7 +89,7 @@ def sft_train_chinese_poems(model_id=10, overwritten_model_class=None, n_cuda=2,
 		per_device_train_batch_size = 8,
 		per_device_eval_batch_size = 8,
 		num_train_epochs = 2 if debug else 32,
-	)	
+	)
 
 def sft_train_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
 	sft_pipeline_test(
@@ -148,6 +148,8 @@ def sft_pipeline_test(
 			[0],	# Head 1
 			[num_hidden_layers - 1, num_hidden_layers - 2],	# Tail 2
 			[0, 1],	# Head 2
+			[num_hidden_layers - 1, num_hidden_layers - 2, num_hidden_layers - 3],	# Tail 3
+			[0, 1, 2],	# Head 3
 		]
 	for target_layer_ids in target_layer_ids_list:
 		time_string = time.strftime("%Y%m%d%H%M%S")
@@ -186,20 +188,20 @@ def sft_pipeline_test(
 			"num_train_epochs": num_train_epochs,
 		}
 		trainer_kwargs = {
-			# "compute_metrics": generate_compute_metrics_function(metrics = ["bleu", "rouge"], 
-																 # strategy = "evaluate", 
+			# "compute_metrics": generate_compute_metrics_function(metrics = ["bleu", "rouge"],
+																 # strategy = "evaluate",
 																 # evaluate_home = evaluate_home,
 																 # tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True),
 																 # ),
-			"compute_metrics": generate_compute_metrics_function(metrics = [("calc_bleu", {"min_grams": 1, "max_grams": 3}, "bleu_3"),
-																			("calc_rouge_n", {'n': 3, "beta": 1}, "rouge_3"),
-																			("calc_rouge_w", {"weight_function": lambda _x: _x, "weight_function_reverse": lambda _x: _x, "beta": 1}, "rouge_l"),
-																			("calc_rouge_w", {"weight_function": lambda _x: _x ** 2, "weight_function_reverse": lambda _x: _x ** 0.5, "beta": 1}, "rouge_w"),
-																			], 
-																 strategy = "diy", 
-																 evaluate_home = evaluate_home,
-																 tokenizer = None,
-																 ),
+			# "compute_metrics": generate_compute_metrics_function(metrics = [("calc_bleu", {"min_grams": 1, "max_grams": 3}, "bleu_3"),
+																			# ("calc_rouge_n", {'n': 3, "beta": 1}, "rouge_3"),
+																			# ("calc_rouge_w", {"weight_function": lambda _x: _x, "weight_function_reverse": lambda _x: _x, "beta": 1}, "rouge_l"),
+																			# ("calc_rouge_w", {"weight_function": lambda _x: _x ** 2, "weight_function_reverse": lambda _x: _x ** 0.5, "beta": 1}, "rouge_w"),
+																			# ],
+																 # strategy = "diy",
+																 # evaluate_home = evaluate_home,
+																 # tokenizer = None,
+																 # ),
 		}
 		kwargs = {**{"adapter_output_dirs": adapter_output_dirs}, **config_kwargs, **trainer_kwargs}
 		os.makedirs(config_kwargs["output_dir"], exist_ok=True)

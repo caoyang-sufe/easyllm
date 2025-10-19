@@ -33,6 +33,7 @@ if platform.system() == "Linux":
 		"HuggingFaceH4/MATH-500",	# 5 test["problem", "answer"]
 		"newfacade/LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
 		"larryvrh/Chinese-Poems", # 7 train["content"], you need to manually split
+		"HuggingFaceH4/MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
 	]
 
 elif platform.system() == "Windows":

@@ -89,17 +89,17 @@ logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%
 # 1. TRAINER
 # ----------------------------------------------------------------------
 
-sft_train_chinese_poems(
-	model_id = 0,
-	overwritten_model_class = None,
-	n_cuda = 0,
-	adapter_output_dirs = None,
-	debug = True,
-)
+# sft_train_chinese_poems(
+	# model_id = 0,
+	# overwritten_model_class = None,
+	# n_cuda = 0,
+	# adapter_output_dirs = None,
+	# debug = True,
+# )
 
 # eval(function_name)(
 	# model_id = 12,
-	# overwritten_model_class = "ParallelQwen3ForCausalLM",
+	# overwritten_model_class = None,
 	# n_cuda = 2,
 	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
 # )
@@ -124,6 +124,41 @@ sft_train_chinese_poems(
 	# n_cuda = 2,
 	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
 # )
+
+sft_train_chinese_poems(
+	model_id = 10,
+	overwritten_model_class = "ParallelLlamaForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
+)
+sft_train_leetcodedataset(
+	model_id = 11,
+	overwritten_model_class = "ParallelLlamaForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+)
+sft_train_chinese_poems(
+	model_id = 11,
+	overwritten_model_class = "ParallelLlamaForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+)
+sft_train_gsm8k(
+	model_id = 11,
+	overwritten_model_class = "ParallelLlamaForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+)
+
+
+# sft_train_leetcodedataset(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
+# )
+
+
 
 # ----------------------------------------------------------------------
 # 2. EVALUATOR
