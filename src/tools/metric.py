@@ -168,15 +168,16 @@ def generate_compute_metrics_function(metrics = ["bleu", "rouge"],
 			logging.info("Metrics from callable functions!")
 			metric_name_to_function = {metric.name: metric for metric in metrics}
 		elif isinstance(metrics[0], str):
-			from datasets import DownloadConfig
 			logging.info("Load metrics ...")
+			from datasets import DownloadConfig
+			download_config = DownloadConfig(use_etag=False)
 			if evaluate_home is None:
 				from src.unittests import evaluate_home
 			metric_name_to_function = dict()
 			for metric_name in metrics:
 				metric_path = os.path.join(evaluate_home, "metrics", metric_name, f"{metric_name}.py")
 				logging.info(f"  - Load {metric_name} from {metric_path}")
-				metric_function = evaluate.load(metric_path)
+				metric_function = evaluate.load(metric_path, download_config=download_config)
 				logging.info(f"    + ok!")
 				metric_name_to_function[metric_name] = metric_function
 		else:
@@ -199,15 +200,14 @@ def generate_compute_metrics_function(metrics = ["bleu", "rouge"],
 		# Token-in-token-out
 		def _compute_metrics(_eval_prediction, **_kwargs):
 			_batch_predictions, _batch_label_ids = _eval_prediction.predictions, _eval_prediction.label_ids	# Float(batch_size, seq_length, n_vocab), Long(batch_size, seq_length)
-			_shifted_batch_predictions, _shifted_batch_label_ids = _batch_predictions[..., : -1, :], _batch_label_ids[..., 1:]	# Float(batch_size, seq_length - 1, n_vocab), Long(batch_size, seq_length - 1)
-			_shifted_batch_prediction_ids = _shifted_batch_predictions.argmax(-1)	# Float(batch_size, seq_length, n_vocab) => Long(batch_size, seq_length)
+			_batch_prediction_ids = _batch_predictions.argmax(-1)	# Float(batch_size, seq_length, n_vocab) => Long(batch_size, seq_length)
 			_metric_summary = dict()
-			for _shifted_batch_prediction_id, _shifted_batch_label_id in zip(_shifted_batch_prediction_ids, _shifted_batch_label_ids):
-				_shifted_batch_prediction_id = _shifted_batch_prediction_id[_shifted_batch_label_id != -100] 	# Filter predictions according to labels != -100
-				_shifted_batch_label_id = _shifted_batch_label_id[_shifted_batch_label_id != -100] 	# Filter labels according to labels != -100
-				assert len(_shifted_batch_prediction_id) == len(_shifted_batch_label_id), f"{len(_shifted_batch_prediction_id)} v.s. {len(_shifted_batch_label_id)}"
+			for _batch_prediction_id, _batch_label_id in zip(_batch_prediction_ids, _batch_label_ids):
+				_batch_prediction_id = _batch_prediction_id[_batch_label_id != -100] 	# Filter predictions according to labels != -100
+				_batch_label_id = _batch_label_id[_batch_label_id != -100] 	# Filter labels according to labels != -100
+				assert len(_batch_prediction_id) == len(_batch_label_id), f"{len(_batch_prediction_id)} v.s. {len(_batch_label_id)}"
 				for _metric_function_name, _metric_function_kwargs, _metric_name in metrics:
-					_metric_value = eval(_metric_function_name)(predict=_shifted_batch_prediction_id, target=_shifted_batch_label_id, **_metric_function_kwargs)
+					_metric_value = eval(_metric_function_name)(predict=_batch_prediction_id, target=_batch_label_id, **_metric_function_kwargs)
 					if _metric_function_name in ["calc_token_accuracy", "calc_bleu"]:
 						# Return single value
 						if not _metric_name in _metric_summary:
