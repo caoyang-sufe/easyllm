@@ -34,6 +34,7 @@ if platform.system() == "Linux":
 		"newfacade/LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
 		"larryvrh/Chinese-Poems", # 7 train["content"], you need to manually split
 		"HuggingFaceH4/MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
+		"MxMode/Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
 	]
 
 elif platform.system() == "Windows":
@@ -66,6 +67,7 @@ elif platform.system() == "Windows":
 		r"newfacade\LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
 		r"larryvrh\Chinese-Poems", # 7 train["content"], you need to manually split
 		r"HuggingFaceH4\MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
+		r"MxMode\Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
 	]
 
 else:

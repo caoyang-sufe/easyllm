@@ -5,10 +5,10 @@
 
 from datasets import load_dataset, DatasetDict
 
-# Add split to several splits of datasets
-# @param dataset: [DatasetDict] raw dataset
-# @param dataset_splits: [List[Dataset]] splits to be added to raw dataset
-# @param split_names: [List[Str]] names of each split in raw dataset
+# Add several splits to the given dataset
+# @param dataset: [DatasetDict] Given dataset
+# @param dataset_splits: [List[Dataset]] Several splits to be added to raw dataset
+# @param split_names: [List[Str]] Names of each split in raw dataset
 # @return: New DatasetDict
 def add_dataset_split(dataset, dataset_splits, split_names=None):
 	if split_names is None:

@@ -24,7 +24,7 @@ def calc_perplexity(prompt, completion, model, device="cuda"):
 	prompt_length = len(prompt)
 	input_ids = torch.LongTensor([prompt + completion]).to(device)
 	labels = input_ids.clone().to(device)
-	labels[:, : prompt_length] = -100	# -100 refers to not calculating loss at this position
+	labels[:, :prompt_length] = -100	# -100 refers to not calculating loss at this position
 	with torch.no_grad():
 		outputs = model(input_ids=input_ids, labels=labels)
 		return torch.exp(outputs.loss).item()

@@ -77,7 +77,7 @@ def sft_train_chinese_poems(model_id=10, overwritten_model_class=None, n_cuda=2,
 		model_id = model_id,
 		train_dataset_id = 7,
 		dataset_train_split = "train[:16]" if debug else "train[:1000]",
-		test_dataset_ids_and_splits = [(7, "train[16:32]"), (5, "test[:16]")] if debug else [(7, "train"), (5, "test")],
+		test_dataset_ids_and_splits = [(7, "train[16:32]"), (5, "test[:16]")] if debug else [(7, "train[1000:1100]"), (5, "test")],
 		train_data_processor = lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
 		test_data_processors = [
 			lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
@@ -109,6 +109,28 @@ def sft_train_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalL
 		per_device_eval_batch_size = 8,
 		num_train_epochs = 2 if debug else 32,
 	)
+
+
+def sft_train_chinese_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
+	sft_pipeline_test(
+		model_id = model_id,
+		train_dataset_id = 9,
+		dataset_train_split = "train[:16]" if debug else "train[:1000]",
+		test_dataset_ids_and_splits = [(9, "train[16:24]"), (5, "test[:16]")] if debug else [(9, "train[1000:1100]"), (5, "test")],
+		train_data_processor = lambda _data: {"prompt": _data["prompt"], "completion": _data["response"]},
+		test_data_processors = [
+			lambda _data: {"prompt": _data["prompt"], "completion": _data["response"]},
+			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
+		],
+		overwritten_model_class = overwritten_model_class,
+		n_cuda = n_cuda,
+		adapter_output_dirs = adapter_output_dirs,
+		per_device_train_batch_size = 8,
+		per_device_eval_batch_size = 8,
+		num_train_epochs = 2 if debug else 32,
+	)
+
+
 
 # ----------------------------------------------------------------------
 # Base pipeline test

@@ -19,6 +19,7 @@ from src.unittests.trainer_pipelines import (
 	sft_train_leetcodedataset,
 	sft_train_chinese_poems,
 	sft_train_math,
+	sft_train_chinese_math,
 )
 from src.unittests.generate_pipelines import (
 	decode_pipeline_test,
@@ -44,6 +45,7 @@ with open("check.txt", 'w', encoding="utf8") as f:
 	f.write(f"{torch.backends.mps.is_available()}\n")
 	f.write(f"{torch.cuda.device_count()}\n")
 
+
 ########################################################################
 # ----------------------------------------------------------------------
 # FUNCTION NAME
@@ -55,7 +57,9 @@ with open("check.txt", 'w', encoding="utf8") as f:
 # function_name = "sft_train_gsm8k"
 # function_name = "sft_train_leetcodedataset"
 # function_name = "sft_train_chinese_poems"
-function_name = "sft_train_math"
+# function_name = "sft_train_math"
+# function_name = "sft_train_chinese_math"
+
 # function_name = "dpo_pipeline_test"
 # function_name = "grpo_pipeline_test"
 # function_name = "ppo_pipeline_test"
@@ -81,13 +85,22 @@ function_name = "sft_train_math"
 # END
 # ----------------------------------------------------------------------
 ########################################################################
-logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
+
+if "function_name" in dir():
+	logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
+else:
+	parser = argparse.ArgumentParser("--")
+	parser.add_argument("--name", default="1-stage-sft-on-chinese-math", type=str)	# e.g. "esg_crawler", "esg_downloader", "csdn_watcher_and_reader"
+	args = parser.parse_args()
+	logger = initialize_logger(f"./log/{args.name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
 ########################################################################
 # ----------------------------------------------------------------------
 # FUNCTION CALL
 # ----------------------------------------------------------------------
 # 1. TRAINER
 # ----------------------------------------------------------------------
+
+# 2-stage-sft
 
 # sft_train_chinese_poems(
 	# model_id = 0,
@@ -125,31 +138,33 @@ logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%
 	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
 # )
 
-sft_train_chinese_poems(
-	model_id = 10,
-	overwritten_model_class = "ParallelLlamaForCausalLM",
-	n_cuda = 2,
-	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
-)
-sft_train_leetcodedataset(
-	model_id = 11,
-	overwritten_model_class = "ParallelLlamaForCausalLM",
-	n_cuda = 2,
-	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
-)
-sft_train_chinese_poems(
-	model_id = 11,
-	overwritten_model_class = "ParallelLlamaForCausalLM",
-	n_cuda = 2,
-	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
-)
-sft_train_gsm8k(
-	model_id = 11,
-	overwritten_model_class = "ParallelLlamaForCausalLM",
-	n_cuda = 2,
-	adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
-)
+# sft_train_chinese_poems(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
+# )
 
+# sft_train_chinese_poems(
+	# model_id = 11,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+# )
+
+# sft_train_leetcodedataset(
+	# model_id = 11,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+# )
+
+# sft_train_gsm8k(
+	# model_id = 11,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+# )
 
 # sft_train_leetcodedataset(
 	# model_id = 10,
@@ -158,7 +173,38 @@ sft_train_gsm8k(
 	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
 # )
 
+# 1-stage-sft
 
+sft_train_chinese_math(
+	model_id = 10,
+	overwritten_model_class = "ParallelLlamaForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = None,
+)
+sft_train_chinese_math(
+	model_id = 12,
+	overwritten_model_class = "ParallelQwen3ForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = None,
+)
+sft_train_chinese_math(
+	model_id = 11,
+	overwritten_model_class = "ParallelLlamaForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = None,
+)
+sft_train_chinese_math(
+	model_id = 9,
+	overwritten_model_class = "ParallelQwen2ForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = None,
+)
+sft_train_chinese_math(
+	model_id = 8,
+	overwritten_model_class = "ParallelQwen2ForCausalLM",
+	n_cuda = 2,
+	adapter_output_dirs = None,
+)
 
 # ----------------------------------------------------------------------
 # 2. EVALUATOR
