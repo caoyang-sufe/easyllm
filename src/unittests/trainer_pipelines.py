@@ -170,8 +170,8 @@ def sft_pipeline_test(
 			[0],	# Head 1
 			[num_hidden_layers - 1, num_hidden_layers - 2],	# Tail 2
 			[0, 1],	# Head 2
-			[num_hidden_layers - 1, num_hidden_layers - 2, num_hidden_layers - 3],	# Tail 3
-			[0, 1, 2],	# Head 3
+			# [num_hidden_layers - 1, num_hidden_layers - 2, num_hidden_layers - 3],	# Tail 3
+			# [0, 1, 2],	# Head 3
 		]
 	for target_layer_ids in target_layer_ids_list:
 		time_string = time.strftime("%Y%m%d%H%M%S")

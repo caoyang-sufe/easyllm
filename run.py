@@ -57,7 +57,7 @@ with open("check.txt", 'w', encoding="utf8") as f:
 # function_name = "sft_train_gsm8k"
 # function_name = "sft_train_leetcodedataset"
 # function_name = "sft_train_chinese_poems"
-# function_name = "sft_train_math"
+function_name = "sft_train_math"
 # function_name = "sft_train_chinese_math"
 
 # function_name = "dpo_pipeline_test"
@@ -90,7 +90,7 @@ if "function_name" in dir():
 	logger = initialize_logger(f"./log/{function_name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
 else:
 	parser = argparse.ArgumentParser("--")
-	parser.add_argument("--name", default="1-stage-sft-on-chinese-math", type=str)	# e.g. "esg_crawler", "esg_downloader", "csdn_watcher_and_reader"
+	parser.add_argument("--name", default="2-stage-sft-from-chinese-math", type=str)	# e.g. "esg_crawler", "esg_downloader", "csdn_watcher_and_reader"
 	args = parser.parse_args()
 	logger = initialize_logger(f"./log/{args.name}+{time.strftime('%Y-%m-%d-%H-%M-%S')}.log", mode='w')
 ########################################################################
@@ -101,110 +101,146 @@ else:
 # ----------------------------------------------------------------------
 
 # 2-stage-sft
+model_ids_to_adapter_output_dirs = {
+	9: [
+		"/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen2.5-7B-Instruct+MATH-500+20250924051642",
+	],
+	10: [
+		"/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919",
+		"/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+Math-Chinese-DeepSeek-R1-10K+20251021182355/checkpoint-2000",
+	],
+	11: [
+		"/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014",
+	],
+	12: [
+		"/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"
+	],
+}
 
-# sft_train_chinese_poems(
-	# model_id = 0,
-	# overwritten_model_class = None,
-	# n_cuda = 0,
-	# adapter_output_dirs = None,
-	# debug = True,
-# )
-
-# eval(function_name)(
-	# model_id = 12,
-	# overwritten_model_class = None,
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
-# )
-
-# eval(function_name)(
-	# model_id = 10,
-	# overwritten_model_class = "ParallelLlamaForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
-# )
-
-# sft_train_leetcodedataset(
-	# model_id = 12,
-	# overwritten_model_class = "ParallelQwen3ForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
-# )
-
-# sft_train_gsm8k(
-	# model_id = 12,
-	# overwritten_model_class = "ParallelQwen3ForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
-# )
-
-# sft_train_chinese_poems(
-	# model_id = 10,
-	# overwritten_model_class = "ParallelLlamaForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
-# )
-
-# sft_train_chinese_poems(
-	# model_id = 11,
-	# overwritten_model_class = "ParallelLlamaForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
-# )
-
-# sft_train_leetcodedataset(
-	# model_id = 11,
-	# overwritten_model_class = "ParallelLlamaForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
-# )
-
-# sft_train_gsm8k(
-	# model_id = 11,
-	# overwritten_model_class = "ParallelLlamaForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
-# )
-
-# sft_train_leetcodedataset(
-	# model_id = 10,
-	# overwritten_model_class = "ParallelLlamaForCausalLM",
-	# n_cuda = 2,
-	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
-# )
-
-# 1-stage-sft
-
-sft_train_chinese_math(
+sft_train_math(
 	model_id = 10,
 	overwritten_model_class = "ParallelLlamaForCausalLM",
 	n_cuda = 2,
-	adapter_output_dirs = None,
+	adapter_output_dirs = model_ids_to_adapter_output_dirs[10][0],
 )
-sft_train_chinese_math(
-	model_id = 12,
-	overwritten_model_class = "ParallelQwen3ForCausalLM",
-	n_cuda = 2,
-	adapter_output_dirs = None,
-)
-sft_train_chinese_math(
+
+sft_train_math(
 	model_id = 11,
 	overwritten_model_class = "ParallelLlamaForCausalLM",
 	n_cuda = 2,
-	adapter_output_dirs = None,
+	adapter_output_dirs = model_ids_to_adapter_output_dirs[11][0],
 )
-sft_train_chinese_math(
-	model_id = 9,
-	overwritten_model_class = "ParallelQwen2ForCausalLM",
-	n_cuda = 2,
-	adapter_output_dirs = None,
-)
-sft_train_chinese_math(
-	model_id = 8,
-	overwritten_model_class = "ParallelQwen2ForCausalLM",
-	n_cuda = 2,
-	adapter_output_dirs = None,
-)
+
+
+# sft_train_leetcodedataset(
+	# model_id = 12,
+	# overwritten_model_class = "ParallelQwen3ForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
+# )
+# sft_train_gsm8k(
+	# model_id = 12,
+	# overwritten_model_class = "ParallelQwen3ForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"],
+# )
+# sft_train_chinese_poems(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
+# )
+# sft_train_chinese_poems(
+	# model_id = 11,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+# )
+# sft_train_leetcodedataset(
+	# model_id = 11,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+# )
+# sft_train_gsm8k(
+	# model_id = 11,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014"],
+# )
+# sft_train_leetcodedataset(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = ["/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919"],
+
+# sft_train_chinese_poems(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = [model_ids_to_adapter_output_dirs[10][1]],
+# )
+
+# sft_train_math_500(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = [model_ids_to_adapter_output_dirs[10][1]],
+# )
+
+# sft_train_math(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = [model_ids_to_adapter_output_dirs[10][1]],
+# )
+
+# sft_train_leetcodedataset(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = [model_ids_to_adapter_output_dirs[10][1]],
+# )
+
+# sft_train_gsm8k(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = [model_ids_to_adapter_output_dirs[10][1]],
+# )
+
+# - * - * - * - * - * - * - * - * - * - * - * - * - * - * - * - * - * -
+# 1-stage-sft
+# sft_train_chinese_math(
+	# model_id = 10,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = None,
+# )
+# sft_train_chinese_math(
+	# model_id = 12,
+	# overwritten_model_class = "ParallelQwen3ForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = None,
+# )
+# sft_train_chinese_math(
+	# model_id = 11,
+	# overwritten_model_class = "ParallelLlamaForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = None,
+# )
+# sft_train_chinese_math(
+	# model_id = 9,
+	# overwritten_model_class = "ParallelQwen2ForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = None,
+# )
+# sft_train_chinese_math(
+	# model_id = 8,
+	# overwritten_model_class = "ParallelQwen2ForCausalLM",
+	# n_cuda = 2,
+	# adapter_output_dirs = None,
+# )
 
 # ----------------------------------------------------------------------
 # 2. EVALUATOR
@@ -273,7 +309,8 @@ sft_train_chinese_math(
 # 3. GENERATE
 # ----------------------------------------------------------------------
 # one_time_forward_pipeline_test(model_id=-1, device=None, overwritten_model_class=None, n_cuda=2, s=0)
-# decode_pipeline_test(model_id=-1, device=None)
+# decode_pipeline_test(model_id=10, device="cpu")
+# decode_pipeline_test(model_id=11, device="cpu")
 # generate_pipeline_test(model_id=-1, device=None)
 # ----------------------------------------------------------------------
 # 4. ANALYSIS

@@ -27,6 +27,11 @@ from src.modules import (
 
 # Do only one time forward to check model outputs
 # @param model: Huggingface AutoModel object
+# @param tokenizer: Huggingface AutoTokenizer object
+# @param prompt: [Str]
+# @param device: [Str|torch.device] e.g. "cpu", "cuda"
+# @param forward_hook_module_names: [List[Str]] Default None, otherwise register forward hook for `forward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
+# @param backward_hook_module_names: [List[Str]] Default None, otherwise register backward hook for `backward_hook_module_names`, e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
 def one_time_forward_pipeline(
 	model, 
 	tokenizer,
