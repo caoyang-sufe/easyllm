@@ -251,7 +251,7 @@ def plot_trainer_state(trainer_state_paths,
 			if nrows > 1:
 				for k, eval_key in enumerate(eval_keys):
 					target_ax = axes[k + 1] if ncols == 1 else axes[k + 1][j]
-					target_ax.plot(x_data_eval_dict[eval_key], y_data_eval_dict[eval_key][y_index_name], label=trainer_state_name)
+					target_ax.plot(x_data_eval_dict[eval_key], y_data_eval_dict[eval_key][y_index_name], label=trainer_state_name, marker='o')
 					target_ax.set_xlabel(x_index_name), target_ax.set_ylabel(y_index_name), target_ax.set_title(f"{eval_key}_{y_index_name} by {x_index_name}")
 					target_ax.legend(), target_ax.grid(True, alpha=.3)
 	if save_path is not None:

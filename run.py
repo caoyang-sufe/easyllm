@@ -87,25 +87,52 @@ else:
 # 1. TRAINER
 # ----------------------------------------------------------------------
 
-# 2-stage-sft
+## 1.1 1-stage-sft
+# model_ids = [11, 10, 9, 8, 12]	# 7B-level model
+# train_dataset_ids = [5, 9]	# MATH-500, MATH-Chinese
+# logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids}")
+# for train_dataset_id in train_dataset_ids:
+	# for model_id in model_ids:	
+		# logger.info(f"model_id: {model_id} - train_dataset_id: {train_dataset_id}")
+		# sft_pipeline_test(
+			# model_id = model_id,
+			# train_dataset_id = train_dataset_id,
+			# eval_dataset_ids = [train_dataset_id],
+			# adapter_output_dirs = None,
+			# per_device_train_batch_size = 8,
+			# per_device_eval_batch_size = 8,
+			# num_train_epochs = 16,
+			# n_cuda = 2,
+			# use_overwritten_model_class = True,
+		# )
+
+## 1.2 2-stage-sft
+save_dir = "/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/2-for-base/"
 model_ids_to_adapter_output_dirs = {
+	8: {
+		5: os.path.join(save_dir, "sft+Qwen1.5-7B+MATH-500+20251023184858/checkpoint-250"),
+		9: os.path.join(save_dir, ""),
+	},
 	9: {
-		5: "/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen2.5-7B-Instruct+MATH-500+20250924051642",
+		5: os.path.join(save_dir, "sft+Qwen2.5-7B-Instruct+MATH-500+20251023183040/checkpoint-800"),
+		9: os.path.join(save_dir, ""),
 	},
 	10: {
-		5: "/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+MATH-500+20250924023919",
-		9: "/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+llama-2-7b-hf+Math-Chinese-DeepSeek-R1-10K+20251021182355/checkpoint-2000",
+		5: os.path.join(save_dir, "sft+llama-2-7b-hf+MATH-500+20251023180939/checkpoint-300"),
+		9: os.path.join(save_dir, "sft+llama-2-7b-hf+Math-Chinese-DeepSeek-R1-10K+20251021182355/checkpoint-2000"),
 	},
 	11: {
-		5: "/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Meta-Llama-3.1-8B-Instruct-hf+gsm8k+20250924114014",
+		5: os.path.join(save_dir, "sft+Meta-Llama-3.1-8B-Instruct-hf+MATH-500+20251023175011/checkpoint-350"),
+		9: os.path.join(save_dir, ""),
 	},
 	12: {
-		5: "/nfsshare/home/caoyang/caoyang/easyllm/temp/1-stage-sft/sft+Qwen3-8B-Instruct+MATH-500+20250924074338"
+		5: os.path.join(save_dir, "sft+Qwen3-8B-Instruct+MATH-500+20251023190810/checkpoint-800"),
+		9: os.path.join(save_dir, ""),
 	},
 }
-model_ids = [10]
-train_dataset_ids = [7, 5, 6, 8, 4]
-eval_dataset_id = 9	# Chinese-Math
+model_ids = [10, 11, 12, 9, 8]
+train_dataset_ids = [6, 7, 8, 9, 4]
+eval_dataset_id = 5	# MATH-500
 logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids} - eval_dataset_id: {eval_dataset_id}")
 for model_id in model_ids:
 	for train_dataset_id in train_dataset_ids:
@@ -120,6 +147,7 @@ for model_id in model_ids:
 			num_train_epochs = 32,
 			n_cuda = 2,
 			use_overwritten_model_class = True,
+			experiment_name = "7b-models-2-stage-sft-based-on-MATH-500"
 		)
 # ----------------------------------------------------------------------
 # 2. EVALUATOR

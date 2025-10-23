@@ -72,9 +72,9 @@ if platform.system() == "Linux":
 		"trl-lib/ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
 		"trl-internal-testing/descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
 		"YeungNLP/firefly-train-1.1M", # 3 train["input", "target"]
-		"openai/gsm8k",	# 4 train["question", "answer"] + test["question", "answer"]
-		"HuggingFaceH4/MATH-500",	# 5 test["problem", "answer"]
-		"newfacade/LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
+		"openai/gsm8k",	# 4 train7473["question", "answer"] + test1319["question", "answer"]
+		"HuggingFaceH4/MATH-500",	# 5 test500["problem", "answer"]
+		"newfacade/LeetCodeDataset",	# 6 train2461["query", "response"] + test228["query", "response"]
 		"larryvrh/Chinese-Poems", # 7 train["content"], you need to manually split
 		"HuggingFaceH4/MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
 		"MxMode/Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
