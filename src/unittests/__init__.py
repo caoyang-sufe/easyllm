@@ -4,6 +4,49 @@
 
 import platform
 
+model_parallel_classes_map = {
+	0: None,	# Small model
+	1: None,	# NotImplemented
+	2: None,	# NotImplemented
+	3: None,	# NotImplemented
+	4: None,	# Small model
+	5: "ParallelQwen2ForCausalLM",
+	6: "ParallelLlamaForCausalLM",
+	7: "ParallelDeepseekForCausalLM",
+	8: "ParallelQwen2ForCausalLM",
+	9: "ParallelQwen2ForCausalLM",
+	10: "ParallelLlamaForCausalLM",
+	11: "ParallelLlamaForCausalLM",
+	12: "ParallelQwen3ForCausalLM",
+	13: None,	# Small model
+}
+
+dataset_processors_map = {
+	0: {"train": lambda _x: {"prompt": _x["prompt"], "completion": _x["completion"]}, "test": lambda _x: {"prompt": _x["prompt"], "completion": _x["completion"]}},	# tldr
+	1: None,	# DPO Not Implemented
+	2: None,	# DPO Not Implemented
+	3: {"train": lambda _x: {"prompt": _x["input"], "completion": _x["target"]}, "test": lambda _x: {"prompt": _x["input"], "completion": _x["target"]}},	# firefly
+	4: {"train": lambda _x: {"prompt": _x["question"], "completion": _x["answer"]}, "test": lambda _x: {"prompt": _x["question"], "completion": _x["answer"]}},	# gsm8k
+	5: {"train": lambda _x: {"prompt": _x["problem"], "completion": _x["answer"]}, "test": lambda _x: {"prompt": _x["problem"], "completion": _x["answer"]}},	# MATH-500
+	6: {"train": lambda _x: {"prompt": _x["query"], "completion": _x["response"]}, "test": lambda _x: {"prompt": _x["query"], "completion": _x["response"]}},	# LeetCodeDataset
+	7: {"train": lambda _x: {"prompt": _x["content"][:-10], "completion": _x["content"][-10:]}, "test": lambda _x: {"prompt": _x["content"][:-10], "completion": _x["content"][-10:]}},	# Chinese-Poems
+	8: {"train": lambda _x: {"prompt": _x["problem"], "completion": _x["solution"]}, "test": lambda _x: {"prompt": _x["problem"], "completion": _x["solution"]}},	# MATH
+	9: {"train": lambda _x: {"prompt": _x["prompt"], "completion": _x["response"]}, "test": lambda _x: {"prompt": _x["prompt"], "completion": _x["response"]}},	# Math-Chinese-DeepSeek-R1-10K
+}
+
+dataset_train_test_splits_map = {
+	0: {"train": "train[:1000]", "test": "validation[:200]"},	# tldr
+	1: None,	# DPO Not Implemented
+	2: None,	# DPO Not Implemented
+	3: {"train": "train[:1000]", "test": "train[1000:1100]"},	# firefly
+	4: {"train": "train", "test": "test"},	# gsm8k
+	5: {"train": "test[:400]", "test": "test[400:]"},	# MATH-500
+	6: {"train": "train", "test": "test"},	# LeetCodeDataset
+	7: {"train": "train[:1000]", "test": "train[1000:1100]"},	# Chinese-Poems
+	8: {"train": "train", "test": "test"},	# MATH
+	9: {"train": "train[:1000]", "test": "train[1000:1100]"},	# Math-Chinese-DeepSeek-R1-10K
+}
+
 if platform.system() == "Linux":
 	evaluate_home = "/nfsshare/home/caoyang/resource/evaluate"
 	model_home = "/nfsshare/home/caoyang/resource/model"
