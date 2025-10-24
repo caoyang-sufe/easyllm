@@ -11,168 +11,79 @@ from transformers import AutoConfig, AutoTokenizer
 from src.tools.easy import save_args
 from src.tools.datasets import add_dataset_split
 from src.tools.metric import generate_compute_metrics_function
-from src.unittests import model_home, dataset_home, model_names, dataset_names, evaluate_home
+from src.unittests import (
+	model_home, dataset_home, model_names, dataset_names, evaluate_home, 
+	dataset_processors_map, dataset_train_test_splits_map, model_parallel_classes_map
+)
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
 
-# ----------------------------------------------------------------------
-# Concrete dataset and model test
-def sft_train_math_500(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
-	sft_pipeline_test(
-		model_id = model_id,
-		train_dataset_id = 5,
-		dataset_train_split = "test[:16]" if debug else "test[:400]",
-		test_dataset_ids_and_splits = [(5, "test[400:416]")] if debug else [(5, "test[400:]")],
-		train_data_processor = lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
-		test_data_processors = [
-			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
-		],
-		overwritten_model_class = overwritten_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		per_device_train_batch_size = 8,
-		per_device_eval_batch_size = 8,
-		num_train_epochs = 2 if debug else 32,
-	)
-
-def sft_train_gsm8k(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
-	sft_pipeline_test(
-		model_id = model_id,
-		train_dataset_id = 4,
-		dataset_train_split = "train[:16]" if debug else "train",
-		test_dataset_ids_and_splits = [(4, "test[:16]"), (5, "test[:16]")] if debug else [(4, "test"), (5, "test")],
-		train_data_processor = lambda _data: {"prompt": _data["question"], "completion": _data["answer"]},
-		test_data_processors = [
-			lambda _data: {"prompt": _data["question"], "completion": _data["answer"]},
-			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
-		],
-		overwritten_model_class = overwritten_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		per_device_train_batch_size = 8,
-		per_device_eval_batch_size = 8,
-		num_train_epochs = 2 if debug else 32,
-	)
-
-def sft_train_leetcodedataset(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
-	sft_pipeline_test(
-		model_id = model_id,
-		train_dataset_id = 6,
-		dataset_train_split = "train[:16]" if debug else "train",
-		test_dataset_ids_and_splits = [(6, "test[:16]"), (5, "test[:16]")] if debug else [(6, "test"), (5, "test")],
-		train_data_processor = lambda _data: {"prompt": _data["query"], "completion": _data["response"]},
-		test_data_processors = [
-			lambda _data: {"prompt": _data["query"], "completion": _data["response"]},
-			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
-		],
-		overwritten_model_class = overwritten_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		per_device_train_batch_size = 8,
-		per_device_eval_batch_size = 8,
-		num_train_epochs = 2 if debug else 32,
-	)
-
-def sft_train_chinese_poems(model_id=10, overwritten_model_class=None, n_cuda=2, adapter_output_dirs=None, debug=False):
-	sft_pipeline_test(
-		model_id = model_id,
-		train_dataset_id = 7,
-		dataset_train_split = "train[:16]" if debug else "train[:1000]",
-		test_dataset_ids_and_splits = [(7, "train[16:32]"), (5, "test[:16]")] if debug else [(7, "train[1000:1100]"), (5, "test")],
-		train_data_processor = lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
-		test_data_processors = [
-			lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
-			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
-		],
-		overwritten_model_class = overwritten_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		per_device_train_batch_size = 8,
-		per_device_eval_batch_size = 8,
-		num_train_epochs = 2 if debug else 32,
-	)
-
-def sft_train_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
-	sft_pipeline_test(
-		model_id = model_id,
-		train_dataset_id = 8,
-		dataset_train_split = "train[:16]" if debug else "train",
-		test_dataset_ids_and_splits = [(8, "test[:16]"), (5, "test[:16]")] if debug else [(8, "test"), (5, "test")],
-		train_data_processor = lambda _data: {"prompt": _data["problem"], "completion": _data["solution"]},
-		test_data_processors = [
-			lambda _data: {"prompt": _data["problem"], "completion": _data["solution"]},
-			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
-		],
-		overwritten_model_class = overwritten_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		per_device_train_batch_size = 8,
-		per_device_eval_batch_size = 8,
-		num_train_epochs = 2 if debug else 32,
-	)
-
-
-def sft_train_chinese_math(model_id=10, overwritten_model_class="ParallelLlamaForCausalLM", n_cuda=2, adapter_output_dirs=None, debug=False):
-	sft_pipeline_test(
-		model_id = model_id,
-		train_dataset_id = 9,
-		dataset_train_split = "train[:16]" if debug else "train[:1000]",
-		test_dataset_ids_and_splits = [(9, "train[16:24]"), (5, "test[:16]")] if debug else [(9, "train[1000:1100]"), (5, "test")],
-		train_data_processor = lambda _data: {"prompt": _data["prompt"], "completion": _data["response"]},
-		test_data_processors = [
-			lambda _data: {"prompt": _data["prompt"], "completion": _data["response"]},
-			lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
-		],
-		overwritten_model_class = overwritten_model_class,
-		n_cuda = n_cuda,
-		adapter_output_dirs = adapter_output_dirs,
-		per_device_train_batch_size = 8,
-		per_device_eval_batch_size = 8,
-		num_train_epochs = 2 if debug else 32,
-	)
-
-
-
-# ----------------------------------------------------------------------
 # Base pipeline test
 def sft_pipeline_test(
 	model_id = 10,
 	train_dataset_id = 7,
-	dataset_train_split = "train[:1000]",
-	test_dataset_ids_and_splits = [(7, "train[1000:1100]"), (5, "test")],
-	train_data_processor = lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
-	test_data_processors = [
-		lambda _data: {"prompt": _data["content"][:-10], "completion": _data["content"][-10:]},
-		lambda _data: {"prompt": _data["problem"], "completion": _data["answer"]},
-	],
-	overwritten_model_class = "ParallelLlamaForCausalLM",
-	n_cuda = 2,
+	eval_dataset_ids = [7, 5],
+	target_layer_ids_list = None,
 	adapter_output_dirs = None,
 	per_device_train_batch_size = 8,
 	per_device_eval_batch_size = 8,
 	num_train_epochs = 32,
+	n_cuda = 2,
+	use_overwritten_model_class = True,
+	experiment_name = None,
 ):
+	# ------------------------------------------------------------------
+	# 1. Model Config
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
-	if adapter_output_dirs is None:
-		# 1-stage-sft
-		target_layer_ids_list = [
-			list(range(num_hidden_layers)),	# Full
-			[0, 1, 2, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
-			list(range(3, num_hidden_layers - 3)),	# Body only
-			list(range(num_hidden_layers // 2)), # 1st Half
-			list(range(num_hidden_layers // 2, num_hidden_layers)), # 2nd Half
-		]
+	# ------------------------------------------------------------------
+	# 2. Target Layers
+	if target_layer_ids_list is None:
+		logging.info("Use default target_ley_ids_list ...")
+		if adapter_output_dirs is None:
+			# 1-stage-sft
+			target_layer_ids_list = [
+				list(range(num_hidden_layers)),	# Full
+				# [0, 1, 2, num_hidden_layers - 3, num_hidden_layers - 2, num_hidden_layers - 1],	# Head and tails only
+				# list(range(3, num_hidden_layers - 3)),	# Body only
+				# list(range(num_hidden_layers // 2)), # 1st Half
+				# list(range(num_hidden_layers // 2, num_hidden_layers)), # 2nd Half
+			]
+		else:
+			# 2-stage-sft
+			target_layer_ids_list = [
+				[num_hidden_layers - 1],	# Tail 1
+				[0],	# Head 1
+				[num_hidden_layers - 1, num_hidden_layers - 2],	# Tail 2
+				[0, 1],	# Head 2
+				# [num_hidden_layers - 1, num_hidden_layers - 2, num_hidden_layers - 3],	# Tail 3
+				# [0, 1, 2],	# Head 3
+			]
+			target_layer_ids_list = [
+				[i] for i in range(num_hidden_layers)	# All of the single layer
+			]
 	else:
-		# 2-stage-sft
-		target_layer_ids_list = [
-			[num_hidden_layers - 1],	# Tail 1
-			[0],	# Head 1
-			[num_hidden_layers - 1, num_hidden_layers - 2],	# Tail 2
-			[0, 1],	# Head 2
-			# [num_hidden_layers - 1, num_hidden_layers - 2, num_hidden_layers - 3],	# Tail 3
-			# [0, 1, 2],	# Head 3
-		]
+		logging.info("Use keyword argument target_layer_ids_list")
+		target_layer_ids_list = target_layer_ids_list[:]
+	logging.info(f"  - target_layer_ids_list: {target_layer_ids_list}")
+	# ------------------------------------------------------------------
+	# 3. Set dataset splits and dataset processor
+	dataset_train_split = dataset_train_test_splits_map[train_dataset_id]["train"]
+	test_dataset_ids_and_splits = [
+		(eval_dataset_id, dataset_train_test_splits_map[eval_dataset_id]["test"])
+		for eval_dataset_id in eval_dataset_ids
+	]
+	train_data_processor = dataset_processors_map[train_dataset_id]["train"]
+	test_data_processors = [
+		dataset_processors_map[eval_dataset_id]["test"]
+		for eval_dataset_id in eval_dataset_ids
+	]
+	# ------------------------------------------------------------------
+	# 4. Set experiment name
+	if experiment_name is None:
+		time_string = time.strftime("%Y%m%d%H%M%S")
+		experiment_name = f"sft+model-{model_id}+train-{train_dataset_id}+eval-{eval_dataset_ids[-1]}"
+	experiment_name = experiment_name.strip('/') + '/'
 	for target_layer_ids in target_layer_ids_list:
 		time_string = time.strftime("%Y%m%d%H%M%S")
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
@@ -183,7 +94,7 @@ def sft_pipeline_test(
 		logging.info(f"  - Model: {model_name_or_path}")
 		logging.info(f"  - Dataset: {dataset_name}")
 		config_kwargs = {
-			"output_dir": f"./temp/sft+{model_name_or_path.split('/')[-1]}+{train_dataset_path.split('/')[-1]}+{time_string}",
+			"output_dir": f"./experiments/{experiment_name}sft+{model_name_or_path.split('/')[-1]}+{train_dataset_path.split('/')[-1]}+{time_string}",
 			"model_name_or_path": model_name_or_path,
 			"dataset_name": dataset_name,
 			"trust_remote_code": True,
@@ -195,10 +106,10 @@ def sft_pipeline_test(
 			"lora_target_modules": [f"model.layers.{i}.self_attn.q_proj" for i in target_layer_ids] + \
 				[f"model.layers.{i}.self_attn.k_proj" for i in target_layer_ids] + \
 				[f"model.layers.{i}.self_attn.v_proj" for i in target_layer_ids],
-			"lora_r": 16,
-			"lora_alpha": 16,
-			"lora_dropout": .05,
-			"lora_task_type": "CAUSAL_LM",
+			"lora_r": 16,	# Default
+			"lora_alpha": 16,	# Default
+			"lora_dropout": .05,	# Default
+			"lora_task_type": "CAUSAL_LM",	# Default
 			# Logging
 			"logging_strategy": "steps",
 			"logging_steps": 1,
@@ -208,6 +119,7 @@ def sft_pipeline_test(
 			"per_device_train_batch_size": per_device_train_batch_size,
 			"per_device_eval_batch_size": per_device_eval_batch_size,
 			"num_train_epochs": num_train_epochs,
+			"learning_rate": 2e-05,	# Default
 		}
 		trainer_kwargs = {
 			# "compute_metrics": generate_compute_metrics_function(metrics = ["bleu", "rouge"],
@@ -233,7 +145,7 @@ def sft_pipeline_test(
 			test_data_processors,
 			config_kwargs,
 			trainer_kwargs,
-			overwritten_model_class = overwritten_model_class,
+			overwritten_model_class = model_parallel_classes_map[model_id] if use_overwritten_model_class else None,
 			overwritten_model_class_init_kwargs = {"n_cuda": n_cuda, "device_map": "cpu"},
 			adapter_output_dirs = adapter_output_dirs,
 			parse_arguments = False,
