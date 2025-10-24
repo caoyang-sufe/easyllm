@@ -121,14 +121,14 @@ sft_train_math(
 	model_id = 10,
 	overwritten_model_class = "ParallelLlamaForCausalLM",
 	n_cuda = 2,
-	adapter_output_dirs = model_ids_to_adapter_output_dirs[10][0],
+	adapter_output_dirs = [model_ids_to_adapter_output_dirs[10][0]],
 )
 
 sft_train_math(
 	model_id = 11,
 	overwritten_model_class = "ParallelLlamaForCausalLM",
 	n_cuda = 2,
-	adapter_output_dirs = model_ids_to_adapter_output_dirs[11][0],
+	adapter_output_dirs = [model_ids_to_adapter_output_dirs[11][0]],
 )
 
 
