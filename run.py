@@ -88,7 +88,6 @@ else:
 # ----------------------------------------------------------------------
 
 ## 1.1 1-stage-sft
-
 model_ids = [11, 10, 9, 8, 12]	# 7B-level model
 train_dataset_ids = [4, 6, 7, 8]	# MATH-500, MATH-Chinese
 logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids}")
@@ -105,6 +104,7 @@ for train_dataset_id in train_dataset_ids:
 			num_train_epochs = 16,
 			n_cuda = 2,
 			use_overwritten_model_class = True,
+			experiment_name = "7b-model-1-stage-sft",
 		)
 
 ## 1.2 2-stage-sft
