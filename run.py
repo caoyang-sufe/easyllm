@@ -88,24 +88,24 @@ else:
 # ----------------------------------------------------------------------
 
 ## 1.1 1-stage-sft
-model_ids = [11, 10, 9, 8, 12]	# 7B-level model
-train_dataset_ids = [4, 6, 7, 8]	# MATH-500, MATH-Chinese
-logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids}")
-for train_dataset_id in train_dataset_ids:
-	for model_id in model_ids:
-		logger.info(f"model_id: {model_id} - train_dataset_id: {train_dataset_id}")
-		sft_pipeline_test(
-			model_id = model_id,
-			train_dataset_id = train_dataset_id,
-			eval_dataset_ids = [train_dataset_id],
-			adapter_output_dirs = None,
-			per_device_train_batch_size = 8,
-			per_device_eval_batch_size = 8,
-			num_train_epochs = 16,
-			n_cuda = 2,
-			use_overwritten_model_class = True,
-			experiment_name = "7b-model-1-stage-sft",
-		)
+# model_ids = [11, 10, 9, 8, 12]	# 7B-level model
+# train_dataset_ids = [4, 6, 7, 8]	# ! MATH-500, MATH-Chinese
+# logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids}")
+# for train_dataset_id in train_dataset_ids:
+	# for model_id in model_ids:
+		# logger.info(f"model_id: {model_id} - train_dataset_id: {train_dataset_id}")
+		# sft_pipeline_test(
+			# model_id = model_id,
+			# train_dataset_id = train_dataset_id,
+			# eval_dataset_ids = [train_dataset_id],
+			# adapter_output_dirs = None,
+			# per_device_train_batch_size = 8,
+			# per_device_eval_batch_size = 8,
+			# num_train_epochs = 16,
+			# n_cuda = 2,
+			# use_overwritten_model_class = True,
+			# experiment_name = "7b-model-1-stage-sft",
+		# )
 
 ## 1.2 2-stage-sft
 model_names = [
@@ -147,37 +147,39 @@ model_ids_to_adapter_output_dirs = {
 		9: os.path.join(save_dir, "sft+Qwen3-8B-Instruct+Math-Chinese-DeepSeek-R1-10K+20251024015850/checkpoint-2000"),
 	},
 }
-# dataset_names = [
-	# "trl-lib/tldr",	# 0 train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
-	# "trl-lib/ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
-	# "trl-internal-testing/descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
-	# "YeungNLP/firefly-train-1.1M", # 3 train["input", "target"]
-	# "openai/gsm8k",	# 4 train["question", "answer"] + test["question", "answer"]
-	# "HuggingFaceH4/MATH-500",	# 5 test["problem", "answer"]
-	# "newfacade/LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
-	# "larryvrh/Chinese-Poems", # 7 train["content"], you need to manually split
-	# "HuggingFaceH4/MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
-	# "MxMode/Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
-# ]
-# model_ids = [10, 11, 12, 9, 8]
-# train_dataset_ids = [6, 7, 8, 9, 4]
-# eval_dataset_id = 5	# MATH-500
-# logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids} - eval_dataset_id: {eval_dataset_id}")
-# for model_id in model_ids:
-	# for train_dataset_id in train_dataset_ids:
-		# logger.info(f"model_id: {model_id} - train_dataset_id: {train_dataset_id}")
-		# sft_pipeline_test(
-			# model_id = model_id,
-			# train_dataset_id = train_dataset_id,
-			# eval_dataset_ids = [train_dataset_id, eval_dataset_id],
-			# adapter_output_dirs = [model_ids_to_adapter_output_dirs[model_id][eval_dataset_id]],
-			# per_device_train_batch_size = 8,
-			# per_device_eval_batch_size = 8,
-			# num_train_epochs = 32,
-			# n_cuda = 2,
-			# use_overwritten_model_class = True,
-			# experiment_name = "7b-models-2-stage-sft-based-on-MATH-500"
-		# )
+dataset_names = [
+	"trl-lib/tldr",	# 0 train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
+	"trl-lib/ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
+	"trl-internal-testing/descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
+	"YeungNLP/firefly-train-1.1M", # 3 train["input", "target"]
+	"openai/gsm8k",	# 4 train["question", "answer"] + test["question", "answer"]
+	"HuggingFaceH4/MATH-500",	# 5 test["problem", "answer"]
+	"newfacade/LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
+	"larryvrh/Chinese-Poems", # 7 train["content"], you need to manually split
+	"HuggingFaceH4/MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
+	"MxMode/Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
+]
+model_ids = [10, 11, 12, 9, 8]
+model_ids = [12, 9, 8]
+model_ids = [8]
+train_dataset_ids = [6, 7, 8, 9, 4]
+eval_dataset_id = 5	# MATH-500
+logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids} - eval_dataset_id: {eval_dataset_id}")
+for model_id in model_ids:
+	for train_dataset_id in train_dataset_ids:
+		logger.info(f"model_id: {model_id} - train_dataset_id: {train_dataset_id}")
+		sft_pipeline_test(
+			model_id = model_id,
+			train_dataset_id = train_dataset_id,
+			eval_dataset_ids = [train_dataset_id, eval_dataset_id],
+			adapter_output_dirs = [model_ids_to_adapter_output_dirs[model_id][eval_dataset_id]],
+			per_device_train_batch_size = 8,
+			per_device_eval_batch_size = 8,
+			num_train_epochs = 32,
+			n_cuda = 2,
+			use_overwritten_model_class = True,
+			experiment_name = "7b-models-2-stage-sft-based-on-MATH-500"
+		)
 # ----------------------------------------------------------------------
 # 2. EVALUATOR
 # ----------------------------------------------------------------------

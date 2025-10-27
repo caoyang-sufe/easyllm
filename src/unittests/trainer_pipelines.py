@@ -39,7 +39,7 @@ def sft_pipeline_test(
 	# ------------------------------------------------------------------
 	# 2. Target Layers
 	if target_layer_ids_list is None:
-		logging.info("Use default target_ley_ids_list ...")
+		logging.info("Use default target_layer_ids_list ...")
 		if adapter_output_dirs is None:
 			# 1-stage-sft
 			target_layer_ids_list = [

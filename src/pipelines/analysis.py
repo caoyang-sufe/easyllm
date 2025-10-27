@@ -182,6 +182,7 @@ def vertical_comparison_of_forward_hook(
 	assert hook_data is not None or hook_data_path is not None
 	if hook_data is None:
 		hook_data = torch.load(hook_data_path, weights_only=False)
+	max_length = min(max_length, len(hook_data))
 	for token_i in range(max_length):
 		comparison_summary_dict = {index: list() for index in ["mean_diff", "max_diff", "corr", "sim", "robust_corr", "robust_sim"]}
 		# Plot heatmap of input-output difference
@@ -431,3 +432,91 @@ def rank_analysis_of_forward_hook(
 	else:
 		plt.show()
 	plt.close()
+
+# Compare several layer outputs/inputs with the first/last layer input/output
+# Focusing on comparing the outputs of the different modules
+# @param hook_data: [List[Dict]] List of forward hook data object defined in `src.tools.hook.register_forward_hook_decorator`
+# @param hook_data_path: [Str] Default None but at least one of `hook_datas` and `hook_data_paths` is not None
+# @param hook_module_names: List[Str], e.g. ["model.layers[0]"]
+# @param comparison_index: List[Str], e.g. ["mean_diff", "max_diff", "corr"]
+# @param max_length: [Int] when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
+# @param figure_size: [Int] Default 5
+# @param watched_module_names: List[Int], you can selected several module here to plot heat map of input-output difference
+# @param outlier_ratio: [Float] Default 0 means not filtering outlier. Setting as a 0-1 ratio to filter outliers
+# @param mode: [Str] e.g. "first" or "last", namely the first layer inputs with all others' outputs, or the last outputs with all others' inputs
+def layer_output_comparison(
+	hook_data = None,
+	hook_data_path = None,
+	hook_module_names = ["model.layers[0]", "model.layers[1]", "model.layers[2]"],
+	comparison_index = ["mean_diff", "max_diff", "corr", "sim", "robust_corr", "robust_sim"],
+	max_length = 999,
+	figure_size = 5,
+	outlier_ratio = 0.,
+	mode = "first",
+):
+	assert hook_data is not None or hook_data_path is not None
+	assert mode in ["first", "last"]
+	if hook_data is None:
+		hook_data = torch.load(hook_data_path, weights_only=False)
+	max_length = min(max_length, len(hook_data))
+	for token_i in range(max_length):
+		comparison_summary_dict = {index: list() for index in ["mean_diff", "max_diff", "corr", "sim", "robust_corr", "robust_sim"]}
+		subplot_index = -1
+		if mode == "first":
+			base_module_name = hook_module_names[0]
+			input_tensor = hook_data[token_i][base_module_name].get("input", hook_data[token_i][base_module_name].get("args"))[0][0]
+		elif mode == "last":
+			base_module_name = hook_module_names[-1]
+			input_tensor = hook_data[token_i][base_module_name]["output"][0][0]
+		else:
+			assert False
+		for module_name in hook_module_names:
+			if mode == "first":
+				output_tensor = hook_data[token_i][module_name]["output"][0][0]
+			elif mode == "last":
+				output_tensor = hook_data[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
+			else:
+				assert False
+			diff = input_tensor - output_tensor
+			mean_diff = torch.norm(diff, p="fro") / input_tensor.numel()
+			max_diff = torch.max(torch.abs(diff)).item()
+			corr = torch.corrcoef(torch.stack([input_tensor.flatten(), output_tensor.flatten()]))[0, 1].item()
+			sim = F.cosine_similarity(input_tensor.flatten(), output_tensor.flatten(), dim=0).item()
+			robust_corr = robust_corrcoef(input_tensor, output_tensor, outlier_ratio = outlier_ratio)
+			robust_sim = robust_cosine_similarity(input_tensor, output_tensor, outlier_ratio = outlier_ratio)
+			comparison_summary_dict["mean_diff"].append(mean_diff.item())
+			comparison_summary_dict["max_diff"].append(max_diff)
+			comparison_summary_dict["corr"].append(corr)
+			comparison_summary_dict["sim"].append(sim)
+			comparison_summary_dict["robust_corr"].append(robust_corr)
+			comparison_summary_dict["robust_sim"].append(robust_sim)
+		# Plot line chart of comparison index
+		ncols = len(comparison_index)
+		nrows = 1
+		fig, axes = plt.subplots(
+			nrows = nrows,
+			ncols = ncols,
+			figsize = (ncols * figure_size * 1.2, nrows * figure_size),
+		)
+		for c, summary_key in enumerate(comparison_index):
+			for r in range(nrows):
+				if ncols == 1 and nrows == 1:
+					target_ax = axes
+				elif ncols == 1:
+					target_ax = axes[r]
+				elif nrows == 1:
+					target_ax = axes[c]
+				else:
+					target_ax = axes[r, c]
+				x = list(range(len(hook_module_names)))
+				target_ax.plot(x, comparison_summary_dict[summary_key], label=summary_key, marker='o')
+				# Plot text on each dot
+				if summary_key in ["corr", "sim", "robust_corr", "robust_sim"]:
+					for i, (x_i, y_i) in enumerate(zip(x, comparison_summary_dict[summary_key])):
+						text_flag = i % 3 == 0
+						last_y_flag = abs(y_i - comparison_summary_dict[summary_key][i - 1]) > .1 if i > 0 else True
+						next_y_flag = abs(y_i - comparison_summary_dict[summary_key][i + 1]) > .1 if i < len(x) - 1 else True
+						if text_flag or (last_y_flag and next_y_flag):
+							target_ax.text(x_i, y_i, str(round(y_i, 3)), ha="center", va="bottom", fontsize=12, color="red")
+				target_ax.legend(), target_ax.set_xlabel("Layer #"), target_ax.set_ylabel(summary_key), target_ax.set_title(f"{comparison_index[c]} on token {token_i}")
+		plt.show(), plt.close()
