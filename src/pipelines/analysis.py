@@ -434,7 +434,7 @@ def rank_analysis_of_forward_hook(
 	plt.close()
 
 # Compare several layer outputs/inputs with the first/last layer input/output
-# Focusing on comparing the outputs of the different modules
+# Focusing on comparing the outputs of the different modules (similar to `vertical_comparison_of_forward_hook`)
 # @param hook_data: [List[Dict]] List of forward hook data object defined in `src.tools.hook.register_forward_hook_decorator`
 # @param hook_data_path: [Str] Default None but at least one of `hook_datas` and `hook_data_paths` is not None
 # @param hook_module_names: List[Str], e.g. ["model.layers[0]"]
@@ -444,7 +444,7 @@ def rank_analysis_of_forward_hook(
 # @param watched_module_names: List[Int], you can selected several module here to plot heat map of input-output difference
 # @param outlier_ratio: [Float] Default 0 means not filtering outlier. Setting as a 0-1 ratio to filter outliers
 # @param mode: [Str] e.g. "first" or "last", namely the first layer inputs with all others' outputs, or the last outputs with all others' inputs
-def layer_output_comparison(
+def layer_input_or_output_comparison(
 	hook_data = None,
 	hook_data_path = None,
 	hook_module_names = ["model.layers[0]", "model.layers[1]", "model.layers[2]"],
@@ -520,3 +520,15 @@ def layer_output_comparison(
 							target_ax.text(x_i, y_i, str(round(y_i, 3)), ha="center", va="bottom", fontsize=12, color="red")
 				target_ax.legend(), target_ax.set_xlabel("Layer #"), target_ax.set_ylabel(summary_key), target_ax.set_title(f"{comparison_index[c]} on token {token_i}")
 		plt.show(), plt.close()
+
+# Compare the numerical of weight data in given modules
+def numerical_analysis_of_weight_data(
+	model,
+	module_names = ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj", "model.layers[0].self_attn.v_proj"],
+):
+	for module_name in module_names:
+		module = eval(f"model.{module_name}")
+		for parameter_name, parameter in module.named_parameters():
+			modified_name = name.replace('[', '.').replace(']', str())
+			tensor =  eval(f"model.{module_name}.{modified_name}")
+			print(tensor.mean())
