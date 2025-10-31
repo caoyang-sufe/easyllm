@@ -160,10 +160,9 @@ dataset_names = [
 	"MxMode/Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
 ]
 model_ids = [10, 11, 12, 9, 8]
-model_ids = [12, 9, 8]
-model_ids = [8]
-train_dataset_ids = [6, 7, 8, 9, 4]
+train_dataset_ids = [5, 6, 7, 8, 9, 4]
 eval_dataset_id = 5	# MATH-500
+eval_dataset_id = 9 # Chinese-MATH
 logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids} - eval_dataset_id: {eval_dataset_id}")
 for model_id in model_ids:
 	for train_dataset_id in train_dataset_ids:
@@ -178,7 +177,8 @@ for model_id in model_ids:
 			num_train_epochs = 32,
 			n_cuda = 2,
 			use_overwritten_model_class = True,
-			experiment_name = "7b-models-2-stage-sft-based-on-MATH-500"
+			experiment_name = "7b-models-2-stage-sft-based-on-Math-Chinese-DeepSeek-R1-10K",
+			# experiment_name = "7b-models-2-stage-sft-based-on-MATH-500",
 		)
 # ----------------------------------------------------------------------
 # 2. EVALUATOR

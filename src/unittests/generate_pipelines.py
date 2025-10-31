@@ -29,14 +29,16 @@ from src.modules import (
 )
 
 # Do one forward for long prompts
-def one_time_forward_pipeline_test(model_id=-1, device=None, overwritten_model_class=None, n_cuda=2):
+def one_time_forward_pipeline_test(model_id=-1, prompts=None, device=None, overwritten_model_class=None, n_cuda=2):
 	logging.info("One time forward unittest")
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	model_name = model_names[model_id].split('/')[-1].split('\\')[-1]
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
 	forward_hook_module_names = [f"layers[{i}]" for i in range(num_hidden_layers)]
-	prompts = LONG_PROMPT[:]
+	backward_hook_module_names = None
+	if prompts is None:
+		prompts = LONG_PROMPT[:]
 	logging.info(f"Load model from: {model_name_or_path}")
 	if overwritten_model_class is None:
 		logging.info("  - Using AutoModel ...")
@@ -48,7 +50,7 @@ def one_time_forward_pipeline_test(model_id=-1, device=None, overwritten_model_c
 			n_cuda = n_cuda,
 			device_map = "cpu",
 		)
-		# model.module_to_device()
+		# model.module_to_device()	# Currently do module_to_device at the first forward propagation
 	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 	for name, parameter in model.named_parameters():
 		logging.info(f"{name}: {parameter.device}")
@@ -61,7 +63,7 @@ def one_time_forward_pipeline_test(model_id=-1, device=None, overwritten_model_c
 				prompt = prompts[i],
 				device = "cuda:0",
 				forward_hook_module_names = forward_hook_module_names,
-				backward_hook_module_names = None,
+				backward_hook_module_names = backward_hook_module_names,
 			)
 			save_path = f"./temp/1f+fhook+{model_name}+{i}.pt"
 			logging.info(f"Export forward hook data to {save_path}")
