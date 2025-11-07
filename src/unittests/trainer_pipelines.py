@@ -23,7 +23,7 @@ def sft_pipeline_test(
 	train_dataset_id = 7,
 	eval_dataset_ids = [7, 5],
 	target_layer_ids_list = None,
-	adapter_output_dirs = None,
+	adapter_output_dirs = None,	# [List[Str]] the output_dirs of other adapters to load
 	per_device_train_batch_size = 8,
 	per_device_eval_batch_size = 8,
 	num_train_epochs = 32,

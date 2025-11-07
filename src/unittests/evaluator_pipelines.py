@@ -28,6 +28,17 @@ from src.modules import (
 	ParallelDeepseekV3Model, ParallelDeepseekV3ForCausalLM,
 )
 
+def base_evaluator(
+	model_id, 
+	dataset_ids,
+	use_overwritten_model_class = True,
+	n_cuda = 2,
+	do_sample = False,
+	adapter_output_dirs = None,
+):
+	pass
+	
+
 def evaluate_math_500(model_id=10, overwritten_model_class=None, n_cuda=2, do_sample=False, adapter_output_dirs=None):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"Load model: {model_name_or_path} ...")
