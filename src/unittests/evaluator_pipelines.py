@@ -11,7 +11,10 @@ import logging
 from datasets import load_dataset
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model, PeftModel
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
-from src.unittests import model_home, dataset_home, model_names, dataset_names
+from src.unittests import (
+	model_home, dataset_home, model_names, dataset_names, evaluate_home, 
+	dataset_processors_map, dataset_train_test_splits_map, model_parallel_classes_map
+)
 from src.pipelines.evaluator import base_pipeline
 from src.modules import (
 	ParallelQwen2Model, SkipLayerQwen2ForCausalLM,
@@ -27,6 +30,33 @@ from src.modules import (
 	SkipLayerDeepseekV3Model, SkipLayerDeepseekV3ForCausalLM,
 	ParallelDeepseekV3Model, ParallelDeepseekV3ForCausalLM,
 )
+
+def easy_evaluate(
+	model_id = 10, 
+	dataset_ids = [7, 5],
+	adapter_output_dirs = None,
+	n_cuda=2, 
+	do_sample=False, 
+	adapter_output_dirs=None,
+):
+	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	logging.info(f"Load model: {model_name_or_path} ...")
+	tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+	if overwritten_model_class is None:
+		logging.info("  - Using AutoModelForCausalLM ...")
+		device = "cuda" if torch.cuda.is_available() else "cpu"
+		model = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map="auto")
+	else:
+		logging.info(f"  - Using {overwritten_model_class} ...")
+		device = "cuda:0"
+		model = eval(overwritten_model_class).from_pretrained(model_name_or_path, n_cuda = n_cuda)
+		model.module_to_device()
+	if adapter_output_dirs is not None:
+		logging.info(f"  - Load adapters ...")
+		for i, adapter_output_dir in enumerate(adapter_output_dirs):
+			logging.info(f"    - Load adapter {i}: {adapter_output_dir}")
+			model = PeftModel.from_pretrained(model, model_id = adapter_output_dir)
+			model = model.merge_and_unload()
 
 def evaluate_math_500(model_id=10, overwritten_model_class=None, n_cuda=2, do_sample=False, adapter_output_dirs=None):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])

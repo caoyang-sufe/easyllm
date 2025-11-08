@@ -348,7 +348,6 @@ def plot_lora_adapter_statistics(adapter_path,
 	plt.close()
 	return summary
 
-
 # Bar plot the results of evaluation, i.e. the dumped JSON of evaluator pipelines
 # @param result_paths: [List[Str]] JSON paths of evaluation results
 # @param result_names: [List[Str]|NoneType] Give name to each result file, default use the JSON filename
