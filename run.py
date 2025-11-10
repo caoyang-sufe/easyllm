@@ -148,18 +148,21 @@ model_ids_to_adapter_output_dirs = {
 	},
 }
 dataset_names = [
-	"trl-lib/tldr",	# 0 train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
-	"trl-lib/ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
-	"trl-internal-testing/descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
-	"YeungNLP/firefly-train-1.1M", # 3 train["input", "target"]
-	"openai/gsm8k",	# 4 train["question", "answer"] + test["question", "answer"]
-	"HuggingFaceH4/MATH-500",	# 5 test["problem", "answer"]
-	"newfacade/LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
-	"larryvrh/Chinese-Poems", # 7 train["content"], you need to manually split
-	"HuggingFaceH4/MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
-	"MxMode/Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
+	"tldr",	# 0 train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
+	"ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
+	"descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
+	"firefly-train-1.1M", # 3 train["input", "target"]
+	"gsm8k",	# 4 train["question", "answer"] + test["question", "answer"]
+	"MATH-500",	# 5 test["problem", "answer"]
+	"LeetCodeDataset",	# 6 train["query", "response"] + test["query", "response"]
+	"Chinese-Poems", # 7 train["content"], you need to manually split
+	"MATH", # 8 train["problem", "solution"] + test["problem", "solution"]
+	"Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
 ]
 model_ids = [10, 11, 12, 9, 8]
+model_ids = [12, 9, 8]
+model_ids = [11, 12, 9, 8]
+# model_ids = [9, 8]
 train_dataset_ids = [5, 6, 7, 8, 9, 4]
 eval_dataset_id = 5	# MATH-500
 eval_dataset_id = 9 # Chinese-MATH
@@ -177,8 +180,7 @@ for model_id in model_ids:
 			num_train_epochs = 32,
 			n_cuda = 2,
 			use_overwritten_model_class = True,
-			experiment_name = "7b-models-2-stage-sft-based-on-Math-Chinese-DeepSeek-R1-10K",
-			# experiment_name = "7b-models-2-stage-sft-based-on-MATH-500",
+			experiment_name = f"7b-models-2-stage-sft-based-on-{dataset_names[eval_dataset_id]}"
 		)
 # ----------------------------------------------------------------------
 # 2. EVALUATOR

@@ -2,9 +2,12 @@
 # @author: caoyang
 # @email: caoyang@stu.sufe.edu.cn
 
+import io
+import os
 import json
 import torch
 import numpy
+import pickle
 import seaborn as sns
 from safetensors import safe_open
 from matplotlib import pyplot as plt
@@ -24,13 +27,13 @@ from matplotlib import pyplot as plt
 def plot_tensor_mean_and_variance(tensors,
 								  ax = None,
 								  figsize=(10, 8),
-						  		  save_path = None,
-						  		  is_show = True,
-						  		  x_label = "Tensors",
-						  		  y_labels = ("Mean", "Variance"),
-						  		  title = "Trend of Mean and Variance",
-						  		  colors = ("red", "blue"),
-						  		  ):
+								  save_path = None,
+								  is_show = True,
+								  x_label = "Tensors",
+								  y_labels = ("Mean", "Variance"),
+								  title = "Trend of Mean and Variance",
+								  colors = ("red", "blue"),
+								  ):
 	x = list(range(len(tensors)))
 	means = [tensor.mean().item() for tensor in tensors]
 	variances = [tensor.var().item() for tensor in tensors]
@@ -259,6 +262,7 @@ def plot_trainer_state(trainer_state_paths,
 	if is_show:
 		plt.show()
 	plt.close()
+	return axes
 
 # Plot statistics of SVD of LoRA adapter, e.g. LoRA rank, nuclear_norm
 # @param adapter_path: [Str] The `output_dir` of `transformers.trainer`
@@ -429,3 +433,98 @@ def plot_evaluation_results(result_paths,
 	if is_show:
 		plt.show()
 	plt.close()
+
+# Given several axes, rearrange them as a new subplots
+# @param axes: List[axes] Axes to be rearranged
+# @param figure_size: [Int] Figure size of width or height (usually the same)
+# @param nrows: [Int] Number of rows in subplots
+# @param ncols: [Int] Number 
+# @param save_path: [Str] Figure save path
+# @param is_show: [Boolean] Whether to show figure
+def rearrange_axes_to_subplots(axes, 
+							   figure_size = 5, 
+							   nrows = None, 
+							   ncols = None,
+							   save_path = None,
+							   is_show = True,
+							   ):
+	n_subplots = len(axes)
+	if nrows is None and ncols is None:
+		nrows = 4
+		ncols = n_subplots // nrows + (n_subplots % nrows != 0)
+	elif nrows is None:
+		nrows = n_subplots // ncols + (n_subplots % ncols != 0)
+	elif ncols is None:
+		ncols = n_subplots // nrows + (n_subplots % nrows != 0)
+	else:
+		assert nrows * ncols >= n_subplots, f"{n_subplots} v.s. {nrows} × {ncols}"
+	def _save_ax_to_buffer(_ax):
+		_buffer = io.BytesIO()
+		_fig_temp = plt.figure()
+		_ax_temp = _fig_temp.add_subplot(111)
+		_copy_axes_content(_ax, _ax_temp)
+		pickle.dump(_fig_temp, _buffer)
+		plt.close(_fig_temp)
+		_buffer.seek(0)
+		return _buffer
+
+	def _load_ax_from_buffer(_buffer, _ax):
+		_fig_temp = pickle.load(_buffer)
+		_ax_temp = _fig_temp.get_axes()[0]
+		_copy_axes_content(_ax_temp, _ax)
+		plt.close(_fig_temp)
+
+	def _copy_axes_content(_old_ax, _new_ax):
+		for _line in _old_ax.get_lines():
+			_x_data = _line.get_xdata()
+			_y_data = _line.get_ydata()
+			_new_ax.plot(
+				_x_data, _y_data, 
+				color = _line.get_color(),
+				linestyle = _line.get_linestyle(),
+				linewidth = _line.get_linewidth(),
+				marker = _line.get_marker(),
+				label = _line.get_label(),
+			)
+		for _collection in _old_ax.collections:
+			if hasattr(_collection, "get_offsets"):
+				_offsets = _collection.get_offsets()
+				if len(_offsets) > 0:
+					_new_ax.scatter(
+						_offsets[:, 0], _offsets[:, 1],
+						c = _collection.get_array(),
+						cmap = _collection.get_cmap(),
+						alpha = _collection.get_alpha(),
+					)
+		_new_ax.set_title(_old_ax.get_title())
+		_new_ax.set_xlabel(_old_ax.get_xlabel())
+		_new_ax.set_ylabel(_old_ax.get_ylabel())
+		_new_ax.set_xlim(_old_ax.get_xlim())
+		_new_ax.set_ylim(_old_ax.get_ylim())
+		if _old_ax.get_legend():
+			_new_ax.legend()
+	buffers = []
+	for old_ax in axes:
+		buffers.append(_save_ax_to_buffer(old_ax))
+	new_fig, new_axes = plt.subplots(
+		nrows = nrows,
+		ncols = ncols,
+		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+	)
+	for i, buffer in enumerate(buffers):
+		row, col = i // ncols, i % ncols
+		if nrows == 1 and ncols == 1:
+			_load_ax_from_buffer(buffer, new_axes)
+		elif nrows == 1:
+			_load_ax_from_buffer(buffer, new_axes[col])
+		elif ncols == 1:
+			_load_ax_from_buffer(buffer, new_axes[row])
+		else:
+			_load_ax_from_buffer(buffer, new_axes[row][col])
+	plt.tight_layout()
+	if save_path is not None:
+		plt.savefig(save_path)
+	if is_show:
+		plt.show()
+	plt.close()
+
