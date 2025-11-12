@@ -9,12 +9,124 @@ import torch
 import numpy
 import pickle
 import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
+import matplotlib.backends.backend_agg as FigureCanvasAgg
 from safetensors import safe_open
-from matplotlib import pyplot as plt
+
+# Extract all the data in the given Axes
+# It is prepared for axes transfer (move axes in one figure to another)
+# @param ax: Matplotlib subplot axes object
+# @return ax_data: [Dict] Many attributes related to axes
+def get_ax_data(ax):
+	ax_data = {
+		"title": ax.get_title(),
+		"xlabel": ax.get_xlabel(),
+		"ylabel": ax.get_ylabel(),
+		"xlim": ax.get_xlim(),
+		"ylim": ax.get_ylim(),
+		"collections_data": list(),	# Scatter, Bar plots
+		"lines_data": list(),	# Line plots
+		"patches_data": list(),	# Bar plots
+		"texts_data": list(),	# All plots
+	}
+	for line in ax.get_lines():
+		line_data = {
+			"xdata": line.get_xdata(),
+			"ydata": line.get_ydata(),
+			"color": line.get_color(),
+			"linestyle": line.get_linestyle(),
+			"linewidth": line.get_linewidth(),
+			"marker": line.get_marker(),
+			"label": line.get_label()
+		}
+		ax_data["lines_data"].append(line_data)
+	for collection in ax.collections:
+		if hasattr(collection, "get_offsets"):
+			collection_data = {
+				"offsets": collection.get_offsets(),
+				"array": collection.get_array(),
+				"cmap": collection.get_cmap().name if collection.get_cmap() else None,
+				"alpha": collection.get_alpha()
+			}
+			ax_data["collections_data"].append(collection_data)
+	for patch in ax.patches:
+		patch_data = {
+			"xy": (patch.get_x(), patch.get_y()),
+			"width": patch.get_width(),
+			"height": patch.get_height(),
+			"facecolor": patch.get_facecolor(),
+			"edgecolor": patch.get_edgecolor(),
+			"alpha": patch.get_alpha()
+		}
+		ax_data["patches_data"].append(patch_data)
+	for text in ax.texts:
+		text_data = {
+			'x': text.get_position()[0],
+			'y': text.get_position()[1],
+			's': text.get_text(),
+			"fontsize": text.get_fontsize(),
+			"color": text.get_color()
+		}
+		ax_data["texts_data"].append(text_data)
+	return ax_data		
+
+# Clone the given axes 
+# Currently support line, scatter, bar plots. Pie, heatmap is not supported
+# Other plots, e.g. pie plots, heatmap plots are much more complex
+# @param old_ax: Matplotlib subplot axes object, ax to be cloned
+# @param new_ax: Matplotlib subplot axes object, ax which is the 
+def recreate_axes(old_ax, new_ax):
+	ax_data = get_ax_data(old_ax)
+	new_ax.clear()
+	# Line plots
+	for line_data in ax_data["lines_data"]:
+		new_ax.plot(
+			line_data["xdata"], line_data["ydata"],
+			color = line_data["color"],
+			linestyle = line_data["linestyle"],
+			linewidth = line_data["linewidth"],
+			marker = line_data["marker"],
+			label = line_data["label"],
+		)
+	# Scatter plots
+	for collection_data in ax_data["collections_data"]:
+		if len(collection_data["offsets"]) > 0:
+			scatter = new_ax.scatter(
+				collection_data["offsets"][:, 0],
+				collection_data["offsets"][:, 1],
+				c = collection_data["array"],
+				cmap = collection_data["cmap"],
+				alpha=collection_data["alpha"],
+			)
+	# Bar plots or histogram
+	for patch_data in ax_data["patches_data"]:
+		plot = plt.Rectangle(
+			patch_data["xy"], patch_data["width"], patch_data["height"],
+			facecolor = patch_data["facecolor"],
+			edgecolor = patch_data["edgecolor"],
+			alpha = patch_data["alpha"],
+		)
+		new_ax.add_patch(plot)
+	# Text data
+	for text_data in ax_data["texts_data"]:
+		new_ax.text(
+			text_data["x"], text_data["y"], text_data["s"],
+			fontsize = text_data["fontsize"],
+			color = text_data["color"],
+		)
+	# Meta data
+	new_ax.set_title(ax_data["title"])
+	new_ax.set_xlabel(ax_data["xlabel"])
+	new_ax.set_ylabel(ax_data["ylabel"])
+	new_ax.set_xlim(ax_data["xlim"])
+	new_ax.set_ylim(ax_data["ylim"])
+	if ax_data["lines_data"] and any(line_data["label"] for line_data in ax_data["lines_data"]):
+		new_ax.legend()
 
 # Plot mean and variance of a sequence of tensors
 # @param tensors: List[torch.Tensor]
-# @param ax: Matplotlib subplot object
+# @param ax: Matplotlib subplot axes object
 # @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
@@ -71,7 +183,7 @@ def plot_tensor_mean_and_variance(tensors,
 
 # Visualize tensor value distribution by histogram
 # @param tensor: torch.Tensor or numpy.ndarray
-# @param ax: Matplotlib subplot object
+# @param ax: Matplotlib subplot axes object
 # @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
 # @param bins: [Int] The number of bins of histogram
 # @param save_path: [Str] Figure save path
@@ -116,7 +228,7 @@ def plot_tensor_histogram(tensor, *,
 
 # Visualize tensor value distribution by heatmap
 # @param tensor: torch.Tensor or numpy.ndarray
-# @param ax: Matplotlib subplot object
+# @param ax: Matplotlib subplot axes object
 # @param figsize: [Tuple[Int, Int]] Only take effect when `ax` is None
 # @param title: [Str]
 # @param save_path: [Str] Figure save path
@@ -170,7 +282,7 @@ def plot_tensor_heatmap(tensor, *,
 # - When keyword argument `eval_dataset` of `SFTTrainer` is only one dataset, then refers to [str()]
 # - When keyword argument `eval_dataset` of `SFTTrainer` is a [Dict] of several datasets, then refers to the keys of `eval_dataset`, usually ["eval_0", "eval_1", ...]
 # @param x_index_name: [Str] index to plot in `log_history`, "epoch" or "step"
-# @param figure_size: [Int] Figure size of width or height (usually the same)
+# @param figure_size: [Int|Tuple] Figure size of width or height (usually the same)
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
 def plot_trainer_state(trainer_state_paths,
@@ -235,7 +347,7 @@ def plot_trainer_state(trainer_state_paths,
 			fig, axes = plt.subplots(
 				nrows = nrows,
 				ncols = ncols,
-				figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+				figsize = (figure_size * 1.2 * ncols, figure_size * nrows) if isinstance(figure_size, int) else figure_size,
 			)
 		# Train plot
 		for j in range(ncols):
@@ -269,7 +381,7 @@ def plot_trainer_state(trainer_state_paths,
 # @param thresholds: [List[Float]] Different thresholds used to control approximate rank
 # @param plot_index_names: [List[Str]] index to plot, e.g. `["nuclear_norm", "rank"]`
 # @param device: [Str] "cpu" or "cuda"
-# @param figure_size: [Int] Figure size of width or height (usually the same)
+# @param figure_size: [Int|Tuple] Figure size of width or height (usually the same)
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
 # @return summary: [Dict] key is Str[module_name_prefix], value is the Tuple containing the several statistics of the given adapter
@@ -322,7 +434,7 @@ def plot_lora_adapter_statistics(adapter_path,
 	fig, axes = plt.subplots(
 		nrows = nrows,
 		ncols = ncols,
-		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+		figsize = (figure_size * 1.2 * ncols, figure_size * nrows) if isinstance(figure_size, int) else figure_size,
 	)
 	for i, target_module in enumerate(target_modules):
 		for j, plot_index_name in enumerate(plot_index_names):
@@ -357,7 +469,7 @@ def plot_lora_adapter_statistics(adapter_path,
 # @param result_names: [List[Str]|NoneType] Give name to each result file, default use the JSON filename
 # @param metric_names: [List[Str]] Metrics to plot, e.g. ["token_accuracy", "perplexity", "bleu_3", "rouge_3", "rouge_l", "rouge_w"]
 # @param plot_index_names: [List[Str]] Index to plot, e.g. ["mean", "std"]
-# @param figure_size: [Int] Figure size of width or height (usually the same)
+# @param figure_size: [Int|Tuple] Figure size of width or height (usually the same)
 # @param width: [Float] Width of each bar
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
@@ -407,7 +519,7 @@ def plot_evaluation_results(result_paths,
 	fig, axes = plt.subplots(
 		nrows = nrows,
 		ncols = ncols,
-		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+		figsize = (figure_size * 1.2 * ncols, figure_size * nrows) if isinstance(figure_size, int) else figure_size,
 	)
 	n_series = len(result_names)
 	for i, (metric_name, mapped_metric_names) in enumerate(metric_names_map.items()):
@@ -434,14 +546,16 @@ def plot_evaluation_results(result_paths,
 		plt.show()
 	plt.close()
 
+
 # Given several axes, rearrange them as a new subplots
+# Currently support line plots only
 # @param axes: List[axes] Axes to be rearranged
-# @param figure_size: [Int] Figure size of width or height (usually the same)
+# @param figure_size: [Int|Tuple] Figure size of width or height (usually the same)
 # @param nrows: [Int] Number of rows in subplots
 # @param ncols: [Int] Number 
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
-def rearrange_axes_to_subplots(axes, 
+def combine_axes_to_new_figure(axes, 
 							   figure_size = 5, 
 							   nrows = None, 
 							   ncols = None,
@@ -458,73 +572,25 @@ def rearrange_axes_to_subplots(axes,
 		ncols = n_subplots // nrows + (n_subplots % nrows != 0)
 	else:
 		assert nrows * ncols >= n_subplots, f"{n_subplots} v.s. {nrows} × {ncols}"
-	def _save_ax_to_buffer(_ax):
-		_buffer = io.BytesIO()
-		_fig_temp = plt.figure()
-		_ax_temp = _fig_temp.add_subplot(111)
-		_copy_axes_content(_ax, _ax_temp)
-		pickle.dump(_fig_temp, _buffer)
-		plt.close(_fig_temp)
-		_buffer.seek(0)
-		return _buffer
-
-	def _load_ax_from_buffer(_buffer, _ax):
-		_fig_temp = pickle.load(_buffer)
-		_ax_temp = _fig_temp.get_axes()[0]
-		_copy_axes_content(_ax_temp, _ax)
-		plt.close(_fig_temp)
-
-	def _copy_axes_content(_old_ax, _new_ax):
-		for _line in _old_ax.get_lines():
-			_x_data = _line.get_xdata()
-			_y_data = _line.get_ydata()
-			_new_ax.plot(
-				_x_data, _y_data, 
-				color = _line.get_color(),
-				linestyle = _line.get_linestyle(),
-				linewidth = _line.get_linewidth(),
-				marker = _line.get_marker(),
-				label = _line.get_label(),
-			)
-		for _collection in _old_ax.collections:
-			if hasattr(_collection, "get_offsets"):
-				_offsets = _collection.get_offsets()
-				if len(_offsets) > 0:
-					_new_ax.scatter(
-						_offsets[:, 0], _offsets[:, 1],
-						c = _collection.get_array(),
-						cmap = _collection.get_cmap(),
-						alpha = _collection.get_alpha(),
-					)
-		_new_ax.set_title(_old_ax.get_title())
-		_new_ax.set_xlabel(_old_ax.get_xlabel())
-		_new_ax.set_ylabel(_old_ax.get_ylabel())
-		_new_ax.set_xlim(_old_ax.get_xlim())
-		_new_ax.set_ylim(_old_ax.get_ylim())
-		if _old_ax.get_legend():
-			_new_ax.legend()
-	buffers = []
-	for old_ax in axes:
-		buffers.append(_save_ax_to_buffer(old_ax))
 	new_fig, new_axes = plt.subplots(
 		nrows = nrows,
 		ncols = ncols,
-		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+		figsize = (figure_size * 1.2 * ncols, figure_size * nrows) if isinstance(figure_size, int) else figure_size,
 	)
-	for i, buffer in enumerate(buffers):
+	for i, old_ax in enumerate(axes):
 		row, col = i // ncols, i % ncols
 		if nrows == 1 and ncols == 1:
-			_load_ax_from_buffer(buffer, new_axes)
+			target_ax = new_axes
 		elif nrows == 1:
-			_load_ax_from_buffer(buffer, new_axes[col])
+			target_ax = new_axes[col]
 		elif ncols == 1:
-			_load_ax_from_buffer(buffer, new_axes[row])
+			target_ax = new_axes[row]
 		else:
-			_load_ax_from_buffer(buffer, new_axes[row][col])
+			target_ax = new_axes[row][col]
+		recreate_axes(old_ax=old_ax, new_ax=target_ax)
 	plt.tight_layout()
 	if save_path is not None:
 		plt.savefig(save_path)
 	if is_show:
 		plt.show()
 	plt.close()
-

@@ -40,7 +40,7 @@ from src.modules import (
 # @param hook_module_name_suffixes: List[Str], e.g. ["q_proj", "k_proj", "v_proj"]
 # @param comparison_index: List[Str], e.g. ["mean_diff", "max_diff", "corr"]
 # @param max_length: [Int] when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
-# @param figure_size: [Int] default 5
+# @param figure_size: [Int|Tuple] Default 5
 # @param outlier_ratio: [Float] Default 0 means not filtering outlier. Setting as a 0-1 ratio to filter outliers
 def horizontal_comparison_of_forward_hook(
 	hook_datas = None,
@@ -134,7 +134,7 @@ def horizontal_comparison_of_forward_hook(
 		fig, axes = plt.subplots(
 			nrows = nrows,
 			ncols = ncols,
-			figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+			figsize = (figure_size * 1.2 * ncols, figure_size * nrows) if isinstance(figure_size, int) else figure_size,
 		)
 		for i, summary_key in enumerate(comparison_index):
 			for j, module_name_suffix in enumerate(hook_module_name_suffixes):
@@ -166,7 +166,7 @@ def horizontal_comparison_of_forward_hook(
 # @param hook_module_names: List[Str], e.g. ["model.layers[0]"]
 # @param comparison_index: List[Str], e.g. ["mean_diff", "max_diff", "corr"]
 # @param max_length: [Int] when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
-# @param figure_size: [Int] Default 5
+# @param figure_size: [Int|Tuple] Default 5
 # @param watched_module_names: List[Int], you can selected several module here to plot heat map of input-output difference
 # @param outlier_ratio: [Float] Default 0 means not filtering outlier. Setting as a 0-1 ratio to filter outliers
 def vertical_comparison_of_forward_hook(
@@ -187,7 +187,11 @@ def vertical_comparison_of_forward_hook(
 		comparison_summary_dict = {index: list() for index in ["mean_diff", "max_diff", "corr", "sim", "robust_corr", "robust_sim"]}
 		# Plot heatmap of input-output difference
 		if watched_module_names:
-			fig, axes = plt.subplots(1, len(watched_module_names), figsize=(1.2 * 5 * figure_size * len(watched_module_names), figure_size))
+			fig, axes = plt.subplots(
+				nrows = 1, 
+				ncols = len(watched_module_names), 
+				figsize = (1.2 * 5 * figure_size * len(watched_module_names), figure_size) if isinstance(figure_size, int) else figure_size,
+			)
 		subplot_index = -1
 		for module_name in hook_module_names:
 			input_tensor = hook_data[token_i][module_name].get("input", hook_data[token_i][module_name].get("args"))[0][0]
@@ -222,7 +226,7 @@ def vertical_comparison_of_forward_hook(
 		fig, axes = plt.subplots(
 			nrows = nrows,
 			ncols = ncols,
-			figsize = (ncols * figure_size * 1.2, nrows * figure_size),
+			figsize = (ncols * figure_size * 1.2, nrows * figure_size) if isinstance(figure_size, int) else figure_size,
 		)
 		for c, summary_key in enumerate(comparison_index):
 			for r in range(nrows):
@@ -368,7 +372,7 @@ def easy_skip_layer_generation(
 # @param hook_data_path: [Str] Default None but at least one of `hook_datas` and `hook_data_paths` is not None
 # @param num_hooked_modules: [Int] Number of modules be hooked
 # @param ncols: [Int] The number of image of singular values distribution of layers in one row, usually divisible by `len(hook_data)` (i.e. `model.config.num_hidden_layers`)
-# @param figure_size: [Int] Figure size of width or height (usually the same)
+# @param figure_size: [Int|Tuple] Figure size of width or height (usually the same)
 # @param thresholds: [List[Float]] Different thresholds used to control approximate rank
 # @param device: [Str|torch.device] e.g. "cpu" or "cuda"
 # @param save_dir: [Str] default "./temp"
@@ -391,7 +395,7 @@ def rank_analysis_of_forward_hook(
 	fig, axes = plt.subplots(
 		nrows = nrows,
 		ncols = ncols,
-		figsize = (figure_size * 1.2 * ncols, figure_size * nrows),
+		figsize = (figure_size * 1.2 * ncols, figure_size * nrows) if isinstance(figure_size, int) else figure_size,
 	)
 	rank_summary = {threshold: list() for threshold in thresholds}
 	for i, (module_name, module_hook_data) in enumerate(hook_data.items()):
@@ -420,7 +424,7 @@ def rank_analysis_of_forward_hook(
 		plt.show()
 	plt.close()
 	# Rank diverse by different threshold
-	plt.figure(figsize=(figure_size, figure_size))
+	plt.figure(figsize=(figure_size, figure_size) if isinstance(figure_size, int) else figure_size)
 	for threshold in thresholds:
 		plt.plot(rank_summary[threshold], label = f"threshold={threshold}", marker='o')
 	plt.legend()
@@ -440,7 +444,7 @@ def rank_analysis_of_forward_hook(
 # @param hook_module_names: List[Str], e.g. ["model.layers[0]"]
 # @param comparison_index: List[Str], e.g. ["mean_diff", "max_diff", "corr"]
 # @param max_length: [Int] when generating one token, one comparison is conducted. So we need to limit the max comparison by `max_length`
-# @param figure_size: [Int] Default 5
+# @param figure_size: [Int|Tuple] Default 5
 # @param watched_module_names: List[Int], you can selected several module here to plot heat map of input-output difference
 # @param outlier_ratio: [Float] Default 0 means not filtering outlier. Setting as a 0-1 ratio to filter outliers
 # @param mode: [Str] e.g. "first" or "last", namely the first layer inputs with all others' outputs, or the last outputs with all others' inputs
@@ -496,7 +500,7 @@ def layer_input_or_output_comparison(
 		fig, axes = plt.subplots(
 			nrows = nrows,
 			ncols = ncols,
-			figsize = (ncols * figure_size * 1.2, nrows * figure_size),
+			figsize = (ncols * figure_size * 1.2, nrows * figure_size) if isinstance(figure_size, int) else figure_size,
 		)
 		for c, summary_key in enumerate(comparison_index):
 			for r in range(nrows):
