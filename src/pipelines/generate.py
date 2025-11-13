@@ -5,7 +5,7 @@
 import torch
 import pandas
 import logging
-from torch.nn import functional as F
+import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.transformers import greedy_decode, k_step_greedy_decode, beam_search_decode, generate_token_prob, get_generation_eos_token_ids

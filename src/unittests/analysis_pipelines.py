@@ -9,7 +9,7 @@ import torch
 import string
 import logging
 from torch import nn
-from torch.nn import functional as F
+import torch.nn.functional as F
 from datasets import load_dataset
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 

@@ -11,7 +11,7 @@ import torch
 import numpy
 import logging
 import evaluate
-from torch.nn import functional as F
+import torch.nn.functional as F
 from collections import Counter
 
 # Calculate perplexity of a single sample, loss on completion only

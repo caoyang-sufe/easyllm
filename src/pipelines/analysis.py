@@ -7,8 +7,8 @@ import re
 import time
 import torch
 import logging
-from torch.nn import functional as F
-from matplotlib import pyplot as plt
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.plot import plot_tensor_heatmap

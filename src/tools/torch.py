@@ -4,7 +4,7 @@
 # Torch operations
 
 import torch
-from torch.nn import functional as F
+import torch.nn.functional as F
 
 # Calculate cosine similarity by filtering outlier
 # @param x: [torch.Tensor]

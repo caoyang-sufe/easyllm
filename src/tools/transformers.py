@@ -7,7 +7,7 @@ import torch
 import logging
 from copy import deepcopy
 from functools import wraps
-from torch.nn import functional as F
+import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
 

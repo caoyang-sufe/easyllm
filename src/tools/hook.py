@@ -4,7 +4,7 @@
 
 import torch
 from functools import wraps
-from torch.nn import functional as F
+import torch.nn.functional as F
 
 # Forward hook decorator: Register this decorator to any functions with keyword argument `model`
 # @params module_names: List[Str], e.g. ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj"]
