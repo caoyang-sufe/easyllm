@@ -13,8 +13,8 @@ from src.tools.plot import get_ax_data, recreate_axes
 # @param std_shift: [Float] Default 1, the std of shifted value of forged data
 # @param dist_shift: [Str] Distribution of shifted value, e.g. "normal", "uniform", "laplace", default normal distribution, 
 # @param pos_multiplier: [Float] Default 0, refers to the shift value do not accumulate with positional index
-# - If `pos_multiplier > 0`: the shifted value will gradually increase
-# - If `pos_multiplier < 0`: the shifted value will gradually decrease
+# - If `0 < pos_multiplier < 1`: the shifted value will gradually increase
+# - If `-1 < pos_multiplier < 0`: the shifted value will gradually decrease
 # @param pos_axis: [Int] Which axis Positional multiplier accumulates along, default the last axis -1
 # @param dtype: [Str|numpy.dtype] e.g. "int", numpy.dtype("int64"), "float", numpy.dtype("float64")
 # @return forged_data: [numpy.ndarray]
@@ -57,7 +57,7 @@ def forge_data(data,
 	data_shift = eval(f"numpy.random.{dist_shift}")(**dist_kwargs)
 	pos_index = numpy.arange(shape[pos_axis])
 	pos_index_along_axis = numpy.ogrid[tuple(slice(s) for s in shape)]
-	multiplier_array = 1.0 + pos_multiplier * pos_index_along_axis[pos_axis] / shape[pos_index]
+	multiplier_array = 1.0 + pos_multiplier * pos_index_along_axis[pos_axis] / shape[pos_axis]
 	data_shift *= multiplier_array
 	forged_data = data + data_shift
 	return forged_data
@@ -124,8 +124,7 @@ def forge_plot(fig,
 	plt.tight_layout()
 	if save_path is not None:
 		plt.savefig(save_path)
-		plt.close()
 	if is_show:
 		plt.show()
-		plt.close()
+	plt.close()
 	return forged_fig, forged_axes

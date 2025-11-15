@@ -119,8 +119,9 @@ else:
 LONG_PROMPT = [
 ]
 
-def easy_unittest():
-	# Test if the order to load different adapters influences the model parameters value
+# Test if the order to load different adapters influences the model parameters value
+def _unittest_1():
+	
 	import torch
 	import logging
 	from peft import PeftModel
@@ -150,3 +151,41 @@ def easy_unittest():
 		else:
 			print(f"Parameter {name_1} is not all close")
 			logging.info(f"Parameter {name_1} is not all close")
+
+# Test different plots
+def _unittest_2():
+	fig_test, axes_test = plt.subplots(2, 2, figsize=(10, 8))
+	# 1 Line plot
+	x = np.linspace(0, 10, 100)
+	axes_test[0, 0].plot(x, np.log(x), 'r-', label='log(x, e)')
+	axes_test[0, 0].plot(x, np.log2(x), 'r-', label='log(x, 2)')
+	axes_test[0, 0].plot(x, np.log10(x), 'r-', label='log(x, 10)')
+	axes_test[0, 0].set_title('Line Plot')
+	axes_test[0, 0].legend()
+	# 2 Scatter plot
+	x_scatter = np.random.randn(50)
+	y_scatter = np.random.randn(50)
+	colors = np.random.rand(50)
+	axes_test[0, 1].scatter(x_scatter, y_scatter, c=colors, cmap='viridis')
+	axes_test[0, 1].set_title('Scatter Plot')
+	# 3 Bar plot
+	categories = ['A', 'B', 'C', 'D']
+	values = [5, 7, 3, 8]
+	axes_test[1, 0].bar(categories, values, alpha=0.7)
+	axes_test[1, 0].set_title('Bar Chart')
+	# 4 Histogram plot
+	data_hist = np.random.randn(1000)
+	axes_test[1, 1].hist(data_hist, bins=30, alpha=0.7)
+	axes_test[1, 1].set_title('Histogram')
+	# 5 Heatmap plot
+	# heatmap_kwargs = {
+	#     "cmap": "binary",
+	#     "annot": False,
+	#     "fmt": ".2f",
+	#     "cbar": True,
+	# }
+	# import seaborn as sns
+	# data = np.random.random((10, 10))
+	# sns.heatmap(data, ax=axes_test[1, 1], **heatmap_kwargs)
+	plt.tight_layout()
+	plt.show()

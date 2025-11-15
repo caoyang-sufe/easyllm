@@ -30,15 +30,12 @@ from src.unittests.evaluator_pipelines import (
 	evaluate_leetcodedataset,
 	evaluate_chinese_poems,
 )
-from src.unittests import easy_unittest
-
 os.makedirs("./log", exist_ok=True)
 os.makedirs("./temp", exist_ok=True)
 with open("check.txt", 'w', encoding="utf8") as f:
 	f.write(f"{torch.cuda.is_available()}\n")
 	f.write(f"{torch.backends.mps.is_available()}\n")
 	f.write(f"{torch.cuda.device_count()}\n")
-
 
 ########################################################################
 # ----------------------------------------------------------------------
