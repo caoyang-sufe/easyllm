@@ -157,15 +157,16 @@ dataset_names = [
 	"Math-Chinese-DeepSeek-R1-10K",	# 9 train["prompt", "reasoning", "response"]
 ]
 model_ids = [10, 11, 12, 9, 8]
-model_ids = [12, 9, 8]
-model_ids = [11, 12, 9, 8]
-# model_ids = [9, 8]
+model_ids = [11]
+model_ids = [9]
 train_dataset_ids = [5, 6, 7, 8, 9, 4]
 eval_dataset_id = 5	# MATH-500
-eval_dataset_id = 9 # Chinese-MATH
+# eval_dataset_id = 9 # Chinese-MATH
 logger.info(f"model_ids: {model_ids} - train_dataset_ids: {train_dataset_ids} - eval_dataset_id: {eval_dataset_id}")
 for model_id in model_ids:
 	for train_dataset_id in train_dataset_ids:
+		if train_dataset_id == eval_dataset_id:
+			continue
 		logger.info(f"model_id: {model_id} - train_dataset_id: {train_dataset_id}")
 		sft_pipeline_test(
 			model_id = model_id,

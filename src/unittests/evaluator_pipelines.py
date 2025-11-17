@@ -35,9 +35,8 @@ def easy_evaluate(
 	model_id = 10, 
 	dataset_ids = [7, 5],
 	adapter_output_dirs = None,
-	n_cuda=2, 
-	do_sample=False, 
-	adapter_output_dirs=None,
+	n_cuda = 2, 
+	do_sample = False, 
 ):
 	model_name_or_path = os.path.join(model_home, model_names[model_id])
 	logging.info(f"Load model: {model_name_or_path} ...")
