@@ -25,6 +25,7 @@ def get_ax_data(ax):
 		"ylabel": ax.get_ylabel(),
 		"xlim": ax.get_xlim(),
 		"ylim": ax.get_ylim(),
+		"visible": ax.get_visible(),
 		"collections_data": list(),	# Scatter, Bar plots
 		"lines_data": list(),	# Line plots
 		"patches_data": list(),	# Bar plots
@@ -124,6 +125,8 @@ def recreate_axes(target_ax, source_ax=None, ax_data=None):
 	target_ax.set_ylim(ax_data["ylim"])
 	if ax_data["lines_data"] and any(line_data["label"] for line_data in ax_data["lines_data"]):
 		target_ax.legend()
+	if not ax_data["visible"]:
+		target_ax.set_visible(False)
 
 # Plot mean and variance of a sequence of tensors
 # @param tensors: List[torch.Tensor]
@@ -562,7 +565,8 @@ def plot_evaluation_results(result_paths,
 # @param axes: List[axes] Axes to be rearranged
 # @param figure_size: [Int|Tuple] Figure size of width or height (usually the same)
 # @param nrows: [Int] Number of rows in subplots
-# @param ncols: [Int] Number 
+# @param ncols: [Int] Number of cols in subplots 
+# @param title: [Str] Overall title of subplots
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
 # @return new_fig: matplotlib.figure.Figure
@@ -571,6 +575,7 @@ def combine_axes_to_new_figure(axes,
 							   figure_size = 5, 
 							   nrows = None, 
 							   ncols = None,
+							   title = None,
 							   save_path = None,
 							   is_show = True,
 							   ):
@@ -589,18 +594,27 @@ def combine_axes_to_new_figure(axes,
 		ncols = ncols,
 		figsize = (figure_size * 1.2 * ncols, figure_size * nrows) if isinstance(figure_size, int) else figure_size,
 	)
-	for i, source_ax in enumerate(axes):
-		row, col = i // ncols, i % ncols
-		if nrows == 1 and ncols == 1:
-			target_ax = new_axes
-		elif nrows == 1:
-			target_ax = new_axes[col]
-		elif ncols == 1:
-			target_ax = new_axes[row]
-		else:
-			target_ax = new_axes[row][col]
-		recreate_axes(target_ax=target_ax, source_ax=source_ax, ax_data=None)
-	plt.tight_layout()
+	i = -1
+	for row in range(nrows):
+		for col in range(ncols):
+			i += 1
+			if nrows == 1 and ncols == 1:
+				target_ax = new_axes
+			elif nrows == 1:
+				target_ax = new_axes[col]
+			elif ncols == 1:
+				target_ax = new_axes[row]
+			else:
+				target_ax = new_axes[row][col]
+			if i < n_subplots:
+				recreate_axes(target_ax=target_ax, source_ax=axes[i], ax_data=None)
+			else:
+				target_ax.set_visible(False)
+				# fig.delaxes(target_ax)
+				# target_ax.axis("off")
+	if title is not None:
+		new_fig.suptitle(title, fontsize=16, fontweight="bold", y=.95)
+	plt.tight_layout(rect=[0, 0, 1, 0.96])  # [left, bottom, right, top]
 	if save_path is not None:
 		plt.savefig(save_path)
 	if is_show:

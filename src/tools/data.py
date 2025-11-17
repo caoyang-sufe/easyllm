@@ -73,6 +73,7 @@ def forge_data(data,
 # - If `pos_multiplier < 0`: the shifted value will gradually decrease
 # @param pos_axis: [Int] Which axis Positional multiplier accumulates along, default the last axis -1
 # @param dtype: [Str|numpy.dtype] e.g. "int", numpy.dtype("int64"), "float", numpy.dtype("float64")
+# @param title: [Str] Overall title of subplots
 # @param save_path: [Str] Figure save path
 # @param is_show: [Boolean] Whether to show figure
 # @return forged_fig: Matplotlib.figure.Figure
@@ -85,10 +86,19 @@ def forge_plot(fig,
 			   pos_multiplier = 0.,
 			   pos_axis = -1,
 			   dtype = None,
+			   title = None,
 			   save_path = None,
 			   is_show = True,
 			   ):
-	nrows, ncols = axes.shape
+	if isinstance(axes, numpy.ndarray):
+		if len(axes.shape) == 1:
+			nrows, ncols = 1, axes.shape[0]
+		elif len(axes.shape) == 2:
+			nrows, ncols = axes.shape
+		else:
+			assert False, f"Unexpected axes: {axes}"
+	else:
+		nrows, ncols = 1, 1
 	figsize = fig.get_size_inches()	# e.g. array([16., 12.])
 	forged_fig, forged_axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
 	forge_kwargs = {
@@ -121,7 +131,9 @@ def forge_plot(fig,
 				for i in range(len(source_ax_data["patches_data"])):
 					source_ax_data["patches_data"][i]["height"] = forged_height_data[i]
 			recreate_axes(target_ax=target_ax, source_ax=None, ax_data=source_ax_data)
-	plt.tight_layout()
+	if title is not None:
+		forged_fig.suptitle(title, fontsize=16, fontweight="bold", y=.95)
+	plt.tight_layout(rect=[0, 0, 1, 0.96])  # [left, bottom, right, top]
 	if save_path is not None:
 		plt.savefig(save_path)
 	if is_show:
