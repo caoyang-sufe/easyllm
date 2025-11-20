@@ -12,8 +12,8 @@ from src.tools.easy import save_args
 from src.tools.datasets import add_dataset_split
 from src.tools.metric import generate_compute_metrics_function
 from src.unittests import (
-	model_home, dataset_home, model_names, dataset_names, evaluate_home, 
-	dataset_processors_map, dataset_train_test_splits_map, model_parallel_classes_map
+	MODEL_HOME, DATASET_HOME, MODEL_NAMES, DATASET_NAMES, EVALUATE_HOME, 
+	DATASET_PROCESSORS_MAP, DATASET_TRAIN_TEST_SPLITS_MAP, MODEL_PARAPLLEL_CLASSES_MAP
 )
 from src.pipelines.trainer import base_pipeline, sft_pipeline, ppo_pipeline, dpo_pipeline, grpo_pipeline
 
@@ -33,7 +33,7 @@ def sft_pipeline_test(
 ):
 	# ------------------------------------------------------------------
 	# 1. Model Config
-	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
 	# ------------------------------------------------------------------
@@ -68,14 +68,14 @@ def sft_pipeline_test(
 	logging.info(f"  - target_layer_ids_list: {target_layer_ids_list}")
 	# ------------------------------------------------------------------
 	# 3. Set dataset splits and dataset processor
-	dataset_train_split = dataset_train_test_splits_map[train_dataset_id]["train"]
+	dataset_train_split = DATASET_TRAIN_TEST_SPLITS_MAP[train_dataset_id]["train"]
 	test_dataset_ids_and_splits = [
-		(eval_dataset_id, dataset_train_test_splits_map[eval_dataset_id]["test"])
+		(eval_dataset_id, DATASET_TRAIN_TEST_SPLITS_MAP[eval_dataset_id]["test"])
 		for eval_dataset_id in eval_dataset_ids
 	]
-	train_data_processor = dataset_processors_map[train_dataset_id]["train"]
+	train_data_processor = DATASET_PROCESSORS_MAP[train_dataset_id]["train"]
 	test_data_processors = [
-		dataset_processors_map[eval_dataset_id]["test"]
+		DATASET_PROCESSORS_MAP[eval_dataset_id]["test"]
 		for eval_dataset_id in eval_dataset_ids
 	]
 	# ------------------------------------------------------------------
@@ -87,8 +87,8 @@ def sft_pipeline_test(
 	for target_layer_ids in target_layer_ids_list:
 		time_string = time.strftime("%Y%m%d%H%M%S")
 		logging.info(f"Experiment on `target_layer_ids`: {target_layer_ids}")
-		train_dataset_path = os.path.join(dataset_home, dataset_names[train_dataset_id])
-		test_dataset_paths = [os.path.join(dataset_home, dataset_names[test_dataset_id]) for (test_dataset_id, test_dataset_split_name) in test_dataset_ids_and_splits]
+		train_dataset_path = os.path.join(DATASET_HOME, DATASET_NAMES[train_dataset_id])
+		test_dataset_paths = [os.path.join(DATASET_HOME, DATASET_NAMES[test_dataset_id]) for (test_dataset_id, test_dataset_split_name) in test_dataset_ids_and_splits]
 		dataset_test_splits = [test_dataset_split_name for (test_dataset_id, test_dataset_split_name) in test_dataset_ids_and_splits]
 		dataset_name = {"train": train_dataset_path, "test": test_dataset_paths}
 		logging.info(f"  - Model: {model_name_or_path}")
@@ -127,7 +127,7 @@ def sft_pipeline_test(
 		trainer_kwargs = {
 			# "compute_metrics": generate_compute_metrics_function(metrics = ["bleu", "rouge"],
 																 # strategy = "evaluate",
-																 # evaluate_home = evaluate_home,
+																 # EVALUATE_HOME = EVALUATE_HOME,
 																 # tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True),
 																 # ),
 			# "compute_metrics": generate_compute_metrics_function(metrics = [("calc_bleu", {"min_grams": 1, "max_grams": 3}, "bleu_3"),
@@ -136,7 +136,7 @@ def sft_pipeline_test(
 																			# ("calc_rouge_w", {"weight_function": lambda _x: _x ** 2, "weight_function_reverse": lambda _x: _x ** 0.5, "beta": 1}, "rouge_w"),
 																			# ],
 																 # strategy = "diy",
-																 # evaluate_home = evaluate_home,
+																 # EVALUATE_HOME = EVALUATE_HOME,
 																 # tokenizer = None,
 																 # ),
 		}
@@ -148,15 +148,17 @@ def sft_pipeline_test(
 			test_data_processors,
 			config_kwargs,
 			trainer_kwargs,
-			overwritten_model_class = model_parallel_classes_map[model_id] if use_overwritten_model_class else None,
+			overwritten_model_class = MODEL_PARAPLLEL_CLASSES_MAP[model_id] if use_overwritten_model_class else None,
 			overwritten_model_class_init_kwargs = {"n_cuda": n_cuda, "device_map": "cpu"},
 			adapter_output_dirs = adapter_output_dirs,
 			parse_arguments = False,
 		)
 
+# ----------------------------------------------------------------------
+# Old base pipelines: 
 def ppo_pipeline_test():
 	logging.info("PPO unittest ...")
-	# model_name_or_path = os.path.join(model_home, model_names[1])
+	# model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[1])
 	# """
 	# EleutherAI/pythia-1b-deduped
 	# GPTNeoXForCausalLM(
@@ -186,8 +188,8 @@ def ppo_pipeline_test():
 	  # (embed_out): Linear(in_features=2048, out_features=50304, bias=False)
 	# )
 	# """
-	# dataset_name = os.path.join(dataset_home, dataset_names[0])
-	# reward_model_path = os.path.join(model_home, model_names[2])
+	# dataset_name = os.path.join(DATASET_HOME, DATASET_NAMES[0])
+	# reward_model_path = os.path.join(MODEL_HOME, MODEL_NAMES[2])
 	# logging.info(f"  - Model: {model_name_or_path}")
 	# logging.info(f"  - Dataset: {dataset_name}")
 	# logging.info(f"  - Reward: {reward_model_path}")
@@ -209,9 +211,9 @@ def ppo_pipeline_test():
 	# }
 	# ppo_pipeline(data_processor, config_kwargs, trainer_kwargs)
 
-	model_name_or_path = os.path.join(model_home, model_names[0])
-	dataset_name = os.path.join(dataset_home, dataset_names[0])
-	reward_model_path = os.path.join(model_home, model_names[3])
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[0])
+	dataset_name = os.path.join(DATASET_HOME, DATASET_NAMES[0])
+	reward_model_path = os.path.join(MODEL_HOME, MODEL_NAMES[3])
 	logging.info(f"  - Model: {model_name_or_path}")
 	logging.info(f"  - Dataset: {dataset_name}")
 	logging.info(f"  - Reward: {reward_model_path}")
@@ -235,8 +237,8 @@ def ppo_pipeline_test():
 
 def dpo_pipeline_test():
 	logging.info("DPO unittest ...")
-	model_name_or_path = os.path.join(model_home, model_names[0])
-	dataset_name = os.path.join(dataset_home, dataset_names[2])
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[0])
+	dataset_name = os.path.join(DATASET_HOME, DATASET_NAMES[2])
 	logging.info(f"  - Model: {model_name_or_path}")
 	logging.info(f"  - Dataset: {dataset_name}")
 	data_processor = None
@@ -258,8 +260,8 @@ def dpo_pipeline_test():
 
 def grpo_pipeline_test():
 	logging.info("GRPO unittest ...")
-	model_name_or_path = os.path.join(model_home, model_names[0])
-	dataset_name = os.path.join(dataset_home, dataset_names[0])
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[0])
+	dataset_name = os.path.join(DATASET_HOME, DATASET_NAMES[0])
 	logging.info(f"  - Model: {model_name_or_path}")
 	logging.info(f"  - Dataset: {dataset_name}")
 	data_processor = None

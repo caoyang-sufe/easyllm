@@ -24,12 +24,7 @@ from src.unittests.analysis_pipelines import (
 	skip_layer_generation_test_1,
 	skip_layer_generation_test_2
 )
-from src.unittests.evaluator_pipelines import (
-	evaluate_math_500,
-	evaluate_gsm8k,
-	evaluate_leetcodedataset,
-	evaluate_chinese_poems,
-)
+from src.unittests.evaluator_pipelines import base_pipeline_test
 os.makedirs("./log", exist_ok=True)
 os.makedirs("./temp", exist_ok=True)
 with open("check.txt", 'w', encoding="utf8") as f:
@@ -50,10 +45,7 @@ function_name = "sft_pipeline_test"
 # ----------------------------------------------------------------------
 # 2. EVALUATOR
 # ----------------------------------------------------------------------
-# function_name = "evaluate_math_500"
-# function_name = "evaluate_gsm8k"
-# function_name = "evaluate_leetcodedataset"
-# function_name = "evaluate_chinese_poems"
+# function_name = "base_pipeline_test"
 # ----------------------------------------------------------------------
 # 3. GENERATE
 # ----------------------------------------------------------------------
@@ -105,7 +97,7 @@ else:
 		# )
 
 ## 1.2 2-stage-sft
-model_names = [
+MODEL_NAMES = [
 	"Qwen/Qwen2.5-0.5B-Instruct",	# 0
 	"EleutherAI/pythia-1b-deduped",	# 1
 	"EleutherAI/pythia-160m",	# 2
@@ -144,7 +136,7 @@ model_ids_to_adapter_output_dirs = {
 		9: os.path.join(save_dir, "sft+Qwen3-8B-Instruct+Math-Chinese-DeepSeek-R1-10K+20251024015850/checkpoint-2000"),
 	},
 }
-dataset_names = [
+DATASET_NAMES = [
 	"tldr",	# 0 train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
 	"ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
 	"descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
@@ -178,7 +170,7 @@ for model_id in model_ids:
 			num_train_epochs = 32,
 			n_cuda = 2,
 			use_overwritten_model_class = True,
-			experiment_name = f"7b-models-2-stage-sft-based-on-{dataset_names[eval_dataset_id]}"
+			experiment_name = f"7b-models-2-stage-sft-based-on-{DATASET_NAMES[eval_dataset_id]}"
 		)
 # ----------------------------------------------------------------------
 # 2. EVALUATOR
@@ -261,7 +253,7 @@ for model_id in model_ids:
 terminate_logger(logger)
 ########################################################################
 # ----------------------------------------------------------------------
-model_names = [
+MODEL_NAMES = [
 	"Qwen/Qwen2.5-0.5B-Instruct",	# 0
 	"EleutherAI/pythia-1b-deduped",	# 1
 	"EleutherAI/pythia-160m",	# 2
@@ -277,7 +269,7 @@ model_names = [
 	"Qwen/Qwen3-8B-Instruct", 	# 12
 	"Qwen/Qwen3-0.6B", # 13
 ]
-dataset_names = [
+DATASET_NAMES = [
 	"trl-lib/tldr",	# 0 train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
 	"trl-lib/ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
 	"trl-internal-testing/descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]

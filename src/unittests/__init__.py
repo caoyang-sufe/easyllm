@@ -4,7 +4,7 @@
 
 import platform
 
-model_parallel_classes_map = {
+MODEL_PARAPLLEL_CLASSES_MAP = {
 	0: None,	# Small model
 	1: None,	# NotImplemented
 	2: None,	# NotImplemented
@@ -20,8 +20,7 @@ model_parallel_classes_map = {
 	12: "ParallelQwen3ForCausalLM",
 	13: None,	# Small model
 }
-
-dataset_processors_map = {
+DATASET_PROCESSORS_MAP = {
 	0: {"train": lambda _x: {"prompt": _x["prompt"], "completion": _x["completion"]}, "test": lambda _x: {"prompt": _x["prompt"], "completion": _x["completion"]}},	# tldr
 	1: None,	# DPO Not Implemented
 	2: None,	# DPO Not Implemented
@@ -33,8 +32,7 @@ dataset_processors_map = {
 	8: {"train": lambda _x: {"prompt": _x["problem"], "completion": _x["solution"]}, "test": lambda _x: {"prompt": _x["problem"], "completion": _x["solution"]}},	# MATH
 	9: {"train": lambda _x: {"prompt": _x["prompt"], "completion": _x["response"]}, "test": lambda _x: {"prompt": _x["prompt"], "completion": _x["response"]}},	# Math-Chinese-DeepSeek-R1-10K
 }
-
-dataset_train_test_splits_map = {
+DATASET_TRAIN_TEST_SPLITS_MAP = {
 	0: {"train": "train[:1000]", "test": "validation[:200]"},	# tldr
 	1: None,	# DPO Not Implemented
 	2: None,	# DPO Not Implemented
@@ -48,10 +46,10 @@ dataset_train_test_splits_map = {
 }
 
 if platform.system() == "Linux":
-	evaluate_home = "/nfsshare/home/caoyang/resource/evaluate"
-	model_home = "/nfsshare/home/caoyang/resource/model"
-	dataset_home = "/nfsshare/home/caoyang/resource/dataset"
-	model_names = [
+	EVALUATE_HOME = "/nfsshare/home/caoyang/resource/evaluate"
+	MODEL_HOME = "/nfsshare/home/caoyang/resource/model"
+	DATASET_HOME = "/nfsshare/home/caoyang/resource/dataset"
+	MODEL_NAMES = [
 		"Qwen/Qwen2.5-0.5B-Instruct",	# 0
 		"EleutherAI/pythia-1b-deduped",	# 1
 		"EleutherAI/pythia-160m",	# 2
@@ -67,7 +65,7 @@ if platform.system() == "Linux":
 		"Qwen/Qwen3-8B-Instruct", 	# 12
 		"Qwen/Qwen3-0.6B", # 13
 	]
-	dataset_names = [
+	DATASET_NAMES = [
 		"trl-lib/tldr",	# 0 train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
 		"trl-lib/ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
 		"trl-internal-testing/descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
@@ -81,10 +79,10 @@ if platform.system() == "Linux":
 	]
 
 elif platform.system() == "Windows":
-	evaluate_home = r"D:\resource\evaluate"
-	model_home = r"D:\resource\model\huggingface"
-	dataset_home = r"D:\resource\data\huggingface"
-	model_names = [
+	EVALUATE_HOME = r"D:\resource\evaluate"
+	MODEL_HOME = r"D:\resource\model\huggingface"
+	DATASET_HOME = r"D:\resource\data\huggingface"
+	MODEL_NAMES = [
 		r"Qwen\Qwen2.5-0.5B-Instruct",	# 0
 		r"EleutherAI\pythia-1b-deduped",	# 1
 		r"EleutherAI\pythia-160m",	# 2
@@ -100,7 +98,7 @@ elif platform.system() == "Windows":
 		r"Qwen\Qwen3-8B-Instruct", 	# 12
 		r"Qwen\Qwen3-0.6B", # 13
 	]
-	dataset_names = [
+	DATASET_NAMES = [
 		r"trl-lib\tldr",	# 0 train["prompt", "completion"] + validation["prompt", "completion"] + test["prompt", "completion"]
 		r"trl-lib\ultrafeedback_binarized",	# 1 train["chosen", "rejected", "score_chosen", "score_rejected"] + test["chosen", "rejected", "score_chosen", "score_rejected"]
 		r"trl-internal-testing\descriptiveness-sentiment-trl-style", # 2 sentiment["prompt", "chosen", "rejected"] + descriptiveness["prompt", "chosen", "rejected"]
@@ -117,6 +115,7 @@ else:
 	raise Exception(f"Unknown system: {platform.system()}")
 
 LONG_PROMPT = [
+	""
 ]
 
 # Test if the order to load different adapters influences the model parameters value

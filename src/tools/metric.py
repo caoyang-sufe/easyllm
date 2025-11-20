@@ -152,12 +152,12 @@ def calc_rouge_w(predict,
 #   - e.g. ["bleu", "rouge"] or [evaluate.load("rouge"), evaluate.load("bleu")] when `strategy = "evaluate"`
 #   - e.g. [("calc_token_accuracy", {}, "token_accuracy"), ("calc_rouge_n", {'n': 3, "beta": 1}, "rouge_3")] when `strategy = 'diy'`
 # @param strategy: [Str] e.g. "evaluate" or "diy", which accept different formats of keyword arguments
-# @param evaluate_home: [Str] e.g. default import from src.unittests, which is the github repository of "https://github.com/huggingface/evaluate"
+# @param EVALUATE_HOME: [Str] e.g. default import from src.unittests, which is the github repository of "https://github.com/huggingface/evaluate"
 # @param tokenizer: Huggingface tokenizer object
 # @return _compute_metrics: [Function]
 def generate_compute_metrics_function(metrics = ["bleu", "rouge"],
 									  strategy = "evaluate",
-									  evaluate_home = None,
+									  EVALUATE_HOME = None,
 									  tokenizer = None,
 									  ):
 	assert isinstance(metrics, list), f"Expect List but got {metrics}"
@@ -171,11 +171,11 @@ def generate_compute_metrics_function(metrics = ["bleu", "rouge"],
 			logging.info("Load metrics ...")
 			from datasets import DownloadConfig
 			download_config = DownloadConfig(use_etag=False)
-			if evaluate_home is None:
-				from src.unittests import evaluate_home
+			if EVALUATE_HOME is None:
+				from src.unittests import EVALUATE_HOME
 			metric_name_to_function = dict()
 			for metric_name in metrics:
-				metric_path = os.path.join(evaluate_home, "metrics", metric_name, f"{metric_name}.py")
+				metric_path = os.path.join(EVALUATE_HOME, "metrics", metric_name, f"{metric_name}.py")
 				logging.info(f"  - Load {metric_name} from {metric_path}")
 				metric_function = evaluate.load(metric_path, download_config=download_config)
 				logging.info(f"    + ok!")

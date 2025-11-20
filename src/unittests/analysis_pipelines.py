@@ -15,7 +15,7 @@ from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.transformers import get_generation_eos_token_ids
 from src.tools.hook import register_forward_hook_decorator, register_backward_hook_decorator
-from src.unittests import model_home, dataset_home, model_names, dataset_names
+from src.unittests import MODEL_HOME, DATASET_HOME, MODEL_NAMES, DATASET_NAMES
 from src.pipelines.analysis import horizontal_comparison_of_forward_hook, vertical_comparison_of_forward_hook, easy_skip_layer_generation, skip_layer_generation
 from src.pipelines.generate import display_pipeline
 
@@ -98,7 +98,7 @@ def vertical_comparison_of_forward_hook_test():
 # Skip 1 layer only
 def skip_layer_generation_test_1(model_id=-1, device=None):
 	logging.info("skip layer unittest 1 ...")
-	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers
 	if device is None:
@@ -159,15 +159,15 @@ Ode to Eighty Years"""
 			logging.info(f"Generated text: {text}")
 			df_display = display_pipeline(tokenizer, text, token_probs, logits, eos_token_id=eos_token_ids[0])
 			# Save returned data
-			save_path = f"./temp/decode+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-skip{str(skip_layer_id).zfill(2)}.csv"
+			save_path = f"./temp/decode+{MODEL_NAMES[model_id].split('/')[-1]}+{use_kv_cache}-{i}-skip{str(skip_layer_id).zfill(2)}.csv"
 			logging.info(f"Export table to {save_path}")
 			df_display.to_csv(save_path, sep='\t', header=True, index=False)
 			if forward_hook_data is not None:
-				save_path = f"./temp/fhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-skip{str(skip_layer_id).zfill(2)}.pt"
+				save_path = f"./temp/fhook+{MODEL_NAMES[model_id].split('/')[-1]}+{use_kv_cache}-{i}-skip{str(skip_layer_id).zfill(2)}.pt"
 				logging.info(f"Export forward hook data to {save_path}")
 				torch.save(forward_hook_data, save_path)
 			if backward_hook_data is not None:
-				save_path = f"./temp/bhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-skip{str(skip_layer_id).zfill(2)}.pt"
+				save_path = f"./temp/bhook+{MODEL_NAMES[model_id].split('/')[-1]}+{use_kv_cache}-{i}-skip{str(skip_layer_id).zfill(2)}.pt"
 				logging.info(f"Export backward hook data to {save_path}")
 				torch.save(backward_hook_data, save_path)
 			del logits, forward_hook_data, backward_hook_data
@@ -177,7 +177,7 @@ Ode to Eighty Years"""
 # Skip from tail
 def skip_layer_generation_test_2(model_id=-1, device=None):
 	logging.info("skip layer unittest 2 ...")
-	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers
 	if device is None:
@@ -236,15 +236,15 @@ Ode to Eighty Years"""
 			logging.info(f"Generated text: {text}")
 			df_display = display_pipeline(tokenizer, text, token_probs, logits, eos_token_id=eos_token_ids[0])
 			# Save returned data
-			save_path = f"./temp/decode+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.csv"
+			save_path = f"./temp/decode+{MODEL_NAMES[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.csv"
 			logging.info(f"Export table to {save_path}")
 			df_display.to_csv(save_path, sep='\t', header=True, index=False)
 			if forward_hook_data is not None:
-				save_path = f"./temp/fhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
+				save_path = f"./temp/fhook+{MODEL_NAMES[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
 				logging.info(f"Export forward hook data to {save_path}")
 				torch.save(forward_hook_data, save_path)
 			if backward_hook_data is not None:
-				save_path = f"./temp/bhook+{model_names[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
+				save_path = f"./temp/bhook+{MODEL_NAMES[model_id].split('/')[-1]}+{use_kv_cache}-{i}-dropat{str(j).zfill(2)}.pt"
 				logging.info(f"Export backward hook data to {save_path}")
 				torch.save(backward_hook_data, save_path)
 			del logits, forward_hook_data, backward_hook_data

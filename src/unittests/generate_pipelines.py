@@ -8,10 +8,8 @@ import torch
 import string
 import pandas
 import logging
-
 from transformers import AutoConfig, AutoTokenizer, AutoModel, AutoModelForCausalLM
-
-from src.unittests import model_home, dataset_home, model_names, dataset_names, LONG_PROMPT
+from src.unittests import MODEL_HOME, DATASET_HOME, MODEL_NAMES, DATASET_NAMES, LONG_PROMPT
 from src.pipelines.generate import one_time_forward_pipeline, decode_pipeline, generate_pipeline
 from src.modules import (
 	ParallelQwen2Model, SkipLayerQwen2ForCausalLM,
@@ -31,8 +29,8 @@ from src.modules import (
 # Do one forward for long prompts
 def one_time_forward_pipeline_test(model_id=-1, prompts=None, device=None, overwritten_model_class=None, n_cuda=2):
 	logging.info("One time forward unittest")
-	model_name_or_path = os.path.join(model_home, model_names[model_id])
-	model_name = model_names[model_id].split('/')[-1].split('\\')[-1]
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[model_id])
+	model_name = MODEL_NAMES[model_id].split('/')[-1].split('\\')[-1]
 	model_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 	num_hidden_layers = model_config.num_hidden_layers
 	forward_hook_module_names = [f"layers[{i}]" for i in range(num_hidden_layers)]
@@ -78,7 +76,7 @@ def one_time_forward_pipeline_test(model_id=-1, prompts=None, device=None, overw
 # Test `src.pipelines.generate.decode_pipeline`
 def decode_pipeline_test(model_id=-1, device=None, overwritten_model_class=None, n_cuda=2):
 	logging.info("Decode unittest ...")
-	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[model_id])
 	model_config = AutoConfig.from_pretrained(model_name_or_path)
 	num_hidden_layers = model_config.num_hidden_layers
 	logging.info(f"  - Model: {model_name_or_path}")
@@ -155,7 +153,7 @@ Ode to Eighty Years"""
 		forward_hook_data = returned_dict["forward_hook_data"]
 		backward_hook_data = returned_dict["backward_hook_data"]
 		# Save returned data
-		model_name = model_names[model_id].split('/')[-1].split('\\')[-1]
+		model_name = MODEL_NAMES[model_id].split('/')[-1].split('\\')[-1]
 		save_path = f"./temp/decode+{model_name}+{use_kv_cache}-{i}.csv"
 		logging.info(f"Export table to {save_path}")
 		df_display.to_csv(save_path, sep='\t', header=True, index=False)
@@ -172,7 +170,7 @@ Ode to Eighty Years"""
 # Test `src.pipelines.generate.generate_pipeline`
 def generate_pipeline_test(model_id=-1, device=None, overwritten_model_class=None, n_cuda=2):
 	logging.info("Generate unittest ...")
-	model_name_or_path = os.path.join(model_home, model_names[model_id])
+	model_name_or_path = os.path.join(MODEL_HOME, MODEL_NAMES[model_id])
 	logging.info(f"  - Model: {model_name_or_path}")
 	prompt = """英文单词strawberry中有几个字母r？"""
 	max_length = 40
@@ -185,7 +183,7 @@ def generate_pipeline_test(model_id=-1, device=None, overwritten_model_class=Non
 		overwritten_model_class = overwritten_model_class,
 		n_cuda = n_cuda,
 	)
-	save_path = f"./generate+{model_names[model_id].split('/')[-1]}.csv"
+	save_path = f"./generate+{MODEL_NAMES[model_id].split('/')[-1]}.csv"
 	logging.info(f"Export to {save_path}")
 	df_display.to_csv(save_path, sep='\t', header=True, index=False)
 	logging.info("  - OK!")
