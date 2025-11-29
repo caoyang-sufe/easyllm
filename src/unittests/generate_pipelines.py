@@ -101,7 +101,6 @@ def decode_pipeline_test(model_id=-1, device=None, overwritten_model_class=None,
 		# f"""素因子分解：512<think>""",
 		# f"""请使用markdown语法编写一个3行4列的表格，表头为“姓名”、“年龄”、“性别”，剩余3行请随机构造3个人物的姓名、年龄以及性别填写。<think>""",
 	# ]
-
 	if "meta-llama" in model_name_or_path:
 		logging.info("Use English prompts ...")
 		prompts = [
@@ -114,7 +113,6 @@ def decode_pipeline_test(model_id=-1, device=None, overwritten_model_class=None,
 			f"""Write a 12-line English poem celebrating the 80th anniversary of a nation's founding. Use iambic pentameter with an ABAB rhyme scheme for the first two stanzas, and incorporate themes of unity, progress, and hope for the future. Include at least three poetic devices such as metaphor, alliteration, or personification. The tone should be uplifting and ceremonial.
 Ode to Eighty Years"""
 		]
-
 	else:
 		logging.info("Use Chinese prompts ...")
 		prompts = [

@@ -283,4 +283,3 @@ def grpo_pipeline_test():
 		"reward_funcs": reward_funcs,
 	}
 	grpo_pipeline(data_processor, config_kwargs, trainer_kwargs)
-

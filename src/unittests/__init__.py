@@ -115,12 +115,11 @@ else:
 	raise Exception(f"Unknown system: {platform.system()}")
 
 LONG_PROMPT = [
-	""
+	"",
 ]
 
 # Test if the order to load different adapters influences the model parameters value
 def _unittest_1():
-	
 	import torch
 	import logging
 	from peft import PeftModel

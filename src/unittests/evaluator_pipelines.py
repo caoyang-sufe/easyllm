@@ -74,7 +74,7 @@ def base_pipeline_test(
 			"tokenizer": tokenizer,
 			"dataset": dataset,
 			"model_name_or_path": model_name_or_path,
-			"dataset_name_or_path": dataset_path,
+			"dataset_name_or_path": dataset_path,n
 			"test_data_split": test_data_split,
 			"test_data_size": None,
 			"device": device,
