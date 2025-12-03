@@ -13,7 +13,7 @@ from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from src.tools.plot import plot_tensor_heatmap
 from src.tools.hook import register_forward_hook_decorator
-from src.tools.transformers import greedy_decode
+from src.tools.transformers import greedy_decode, easy_encode_prompts
 from src.tools.torch import robust_cosine_similarity, robust_corrcoef
 from src.pipelines.generate import display_pipeline
 from src.modules import (
@@ -525,14 +525,22 @@ def layer_input_or_output_comparison(
 				target_ax.legend(), target_ax.set_xlabel("Layer #"), target_ax.set_ylabel(summary_key), target_ax.set_title(f"{comparison_index[c]} on token {token_i}")
 		plt.show(), plt.close()
 
-# Compare the numerical of weight data in given modules
-def numerical_analysis_of_weight_data(
-	model,
-	module_names = ["model.layers[0].self_attn.q_proj", "model.layers[0].self_attn.k_proj", "model.layers[0].self_attn.v_proj"],
+# Estimate the relationship, e.g. KL-divergence, relative coefficiency of two distributions
+# @param samples_1: List[Str]
+# @param samples_2: List[Str]
+# @param model: Huggingface AutoModelForCausalLM object
+# @param tokenizer: Huggingface tokenizer Object
+# @param prompts: [Str]
+# @param device: [Str] e.g. "cuda" or "cpu"
+# @param emb_module_name: [Str] e.g. "model.embed_tokens"
+def estimate_relationship_of_distributions(
+	samples_1, 
+	samples_2, 
+	model, 
+	tokenizer, 
+	device = "cpu", 
+	emb_module_name = "model.embed_tokens",
 ):
-	for module_name in module_names:
-		module = eval(f"model.{module_name}")
-		for parameter_name, parameter in module.named_parameters():
-			modified_name = name.replace('[', '.').replace(']', str())
-			tensor =  eval(f"model.{module_name}.{modified_name}")
-			print(tensor.mean())
+	encode_tensors_1 = easy_encode_prompts(model, tokenizer, samples_1, device=device, max_length=max_length, emb_module_name=emb_module_name)	# Float(len(samples_1), max_length, 896)
+	encode_tensors_2 = easy_encode_prompts(model, tokenizer, samples_2, device=device, max_length=max_length, emb_module_name=emb_module_name)	# Float(len(samples_2), max_length, 896)
+	
