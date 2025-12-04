@@ -309,3 +309,19 @@ def generate_token_prob(model,
 		token_prob = generated_probs[i][0, token_id].item()	# Float
 		generated_token_probs.append((token_id, token, token_prob))
 	return generated_text, generated_token_probs, generated_logits
+
+
+# Generate the encode tensors of the given prompts
+# @param model: Huggingface AutoModelForCausalLM object
+# @param tokenizer: Huggingface tokenizer Object
+# @param prompts: List[Str]
+# @param device: [Str] e.g. "cuda" or "cpu"
+# @param max_length: [Int] Padding max length
+# @param emb_module_name: [Str] e.g. "model.embed_tokens"
+# @return encode_tensors: [torch.Tensor] size (`len(prompts)`, max_length, hidden_size)
+def easy_encode_prompts(model, tokenizer, prompts, device="cpu", max_length=64, emb_module_name="model.embed_tokens"):
+	inputs = tokenizer(prompts, max_length=max_length, padding=True, return_tensors="pt")
+	input_ids = inputs["input_ids"]
+	with torch.no_grad():
+		encode_tensors = eval(f"model.{emb_module_name}")(input_ids)
+	return encode_tensors
