@@ -14,7 +14,7 @@ class SkipLayerDeepseekModel(DeepseekModel):
 	def __init__(self, config, skip_layer_ids):
 		super(DeepseekModel, self).__init__(config)
 		self.skip_layer_ids = skip_layer_ids[:]
-		
+	
 	def forward(self, *args, **kwargs):
 		if self.skip_layer_ids:
 			# 1. Delete `self.layers` and modify `layer.self_attn.layer_idx`

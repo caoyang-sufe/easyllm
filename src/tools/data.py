@@ -140,3 +140,16 @@ def forge_plot(fig,
 		plt.show()
 	plt.close()
 	return forged_fig, forged_axes
+
+# ----------------------------------------------------------------------
+# Compute KL 
+# @param p_data: [numpy.ndarray]
+# @param q_data: [numpy.ndarray]
+# @return kl_divergence: [Float]
+def compute_kl_discrete(p_data: np.ndarray, q_data: np.ndarray, epsilon=1e-6) -> float:
+	p_data = p_data / p_data.sum()
+	q_data = q_data / q_data.sum()
+	p_data = numpy.clip(p_data, epsilon, 1)
+	q_data = numpy.clip(q_data, epsilon, 1)
+	kl_divergence = numpy.sum(p_data * numpy.log(p_data / q_data))
+	return kl_divergence

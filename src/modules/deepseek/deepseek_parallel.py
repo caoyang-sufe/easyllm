@@ -54,7 +54,7 @@ class ParallelDeepseekModel(DeepseekModel):
 			self.layer_to_device[layer_id] = device_id
 			logging.info(f"Layer {layer_id} moved to {self.device_list[device_id]}")
 		self.module_to_device_flag = True
-
+	
 	def forward(self,
 				input_ids = None,
 				attention_mask = None,

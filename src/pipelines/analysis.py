@@ -526,8 +526,8 @@ def layer_input_or_output_comparison(
 		plt.show(), plt.close()
 
 # Estimate the relationship, e.g. KL-divergence, relative coefficiency of two distributions
-# @param samples_1: List[Str]
-# @param samples_2: List[Str]
+# @param samples_1: List[Str], length of M
+# @param samples_2: List[Str], length of N
 # @param model: Huggingface AutoModelForCausalLM object
 # @param tokenizer: Huggingface tokenizer Object
 # @param prompts: [Str]
@@ -541,6 +541,21 @@ def estimate_relationship_of_distributions(
 	device = "cpu", 
 	emb_module_name = "model.embed_tokens",
 ):
-	encode_tensors_1 = easy_encode_prompts(model, tokenizer, samples_1, device=device, max_length=max_length, emb_module_name=emb_module_name)	# Float(len(samples_1), max_length, 896)
-	encode_tensors_2 = easy_encode_prompts(model, tokenizer, samples_2, device=device, max_length=max_length, emb_module_name=emb_module_name)	# Float(len(samples_2), max_length, 896)
+	encode_tensors_1 = easy_encode_prompts(
+		model = model,
+		tokenizer = tokenizer, 
+		prompts = samples_1,
+		device = device,
+		max_length = max_length,
+		emb_module_name = emb_module_name,
+	)	# Float(len(samples_1), max_length, 896)
+	encode_tensors_2 = easy_encode_prompts(
+		model = model,
+		tokenizer = tokenizer,
+		prompts = samples_2,
+		device = device,
+		max_length = max_length,
+		emb_module_name = emb_module_name,
+	)	# Float(len(samples_2), max_length, 896)
+	NotImplemented
 	
