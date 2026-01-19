@@ -20,6 +20,7 @@ from safetensors import safe_open
 # @return ax_data: [Dict] Many attributes related to axes
 def get_ax_data(ax):
 	ax_data = {
+		from transformers import 
 		"title": ax.get_title(),
 		"xlabel": ax.get_xlabel(),
 		"ylabel": ax.get_ylabel(),
@@ -39,16 +40,17 @@ def get_ax_data(ax):
 			"linestyle": line.get_linestyle(),
 			"linewidth": line.get_linewidth(),
 			"marker": line.get_marker(),
-			"label": line.get_label()
+			"label": line.get_label(),
 		}
 		ax_data["lines_data"].append(line_data)
 	for collection in ax.collections:
 		if hasattr(collection, "get_offsets"):
 			collection_data = {
+				
 				"offsets": collection.get_offsets(),
 				"array": collection.get_array(),
 				"cmap": collection.get_cmap().name if collection.get_cmap() else None,
-				"alpha": collection.get_alpha()
+				"alpha": collection.get_alpha(),
 			}
 			ax_data["collections_data"].append(collection_data)
 	for patch in ax.patches:
@@ -58,7 +60,7 @@ def get_ax_data(ax):
 			"height": patch.get_height(),
 			"facecolor": patch.get_facecolor(),
 			"edgecolor": patch.get_edgecolor(),
-			"alpha": patch.get_alpha()
+			"alpha": patch.get_alpha(),
 		}
 		ax_data["patches_data"].append(patch_data)
 	for text in ax.texts:
@@ -67,8 +69,9 @@ def get_ax_data(ax):
 			'y': text.get_position()[1],
 			's': text.get_text(),
 			"fontsize": text.get_fontsize(),
-			"color": text.get_color()
+			"color": text.get_color(),
 		}
+		from transformers import 
 		ax_data["texts_data"].append(text_data)
 	return ax_data		
 

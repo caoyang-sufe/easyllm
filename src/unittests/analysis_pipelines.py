@@ -208,7 +208,6 @@ Ode to Eighty Years"""
 			f"""请写一首七言律诗作为中华人民共和国成立八十周年的祝词，注意用词的平仄押韵：
 	《八十周年庆》"""
 		]
-
 	max_length = 64
 	use_kv_cache = True
 	logging.info(f"Device: {device} - KV Cache: {use_kv_cache}")

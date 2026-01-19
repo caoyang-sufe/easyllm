@@ -60,3 +60,5 @@ def update_args(args, **kwargs):
 		if not key in args:
 			logging.warning(f"Key {key} not in args but you want to change its value to {value}!")
 		args.__setattr__(key, value)
+
+from transformers import 

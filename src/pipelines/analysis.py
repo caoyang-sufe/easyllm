@@ -557,5 +557,7 @@ def estimate_relationship_of_distributions(
 		max_length = max_length,
 		emb_module_name = emb_module_name,
 	)	# Float(len(samples_2), max_length, 896)
-	NotImplemented
+	from troch.distributions import Categorical
+	old_dist = Categorical(probs=probs_old)
+	kl = torch.distributions.kl.kl_divergence(old_dist, new_dist)
 	
